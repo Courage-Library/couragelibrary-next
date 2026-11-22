@@ -9,7 +9,7 @@
  *   P0-2 submit errors are always visible: a failed manual submit reopens the summary dialog with the error; a failed
  *        auto-submit keeps a non-dismissible dialog with "Try submitting again"
  *   P0-3 timer: deadline anchored once, recomputed from the clock, fires ONCE; parent re-renders cannot restart it
- *   P0-4 calm: no sound, no pulse / flash; one quiet final-minutes state
+ *   P0-4 calm: no sound, no pulse / flash; timer normal → amber ≤ 5:00 → red ≤ 1:00 (EXAM-UX-1), two announcements
  *   P0-5 options are a real radio group (role radio, aria-checked, roving tab stop, ≥ 48 px), no div-onClick
  *   P0-6 resume: unconfirmed answers kept on the device are merged on load and sent again
  * P1 (structural)
@@ -230,7 +230,7 @@ const P = code(read(PLAYER));
     return 'anchored · once · stable';
   });
 
-  await test('P0-4 calm: no sound, no pulse / flash; one quiet final-minutes state', () => {
+  await test('P0-4 calm: no sound, no pulse / flash; timer normal → amber ≤ 5:00 → red ≤ 1:00 (EXAM-UX-1), two announcements', () => {
     const files = ['components/assessment/assessment-timer.tsx', PLAYER, 'components/assessment/adaptive-progress-badge.tsx', 'app/(site)/mock-tests/[id]/result/page.tsx', 'components/assessment/submit-dialog.tsx'];
     for (const f of files) {
       const s = code(read(f));
@@ -240,7 +240,13 @@ const P = code(read(PLAYER));
     }
     assert(!fs.existsSync(path.join(ROOT, 'lib/assessment/audio-alerts.ts')), 'audio module still present');
     const timer = code(read('components/assessment/assessment-timer.tsx'));
-    assert(/phase === "final" \? "bg-warning-50 border-warning-600 text-warning-800" : "bg-primary-50 border-primary-200 text-primary-800"/.test(timer) && /5 min left/.test(timer) && /aria-live="polite"/.test(timer), 'one quiet final state (BRAND-3 #84: blue → orange, never red) with text + polite announcement');
+    // EXAM-UX-1 (owner decision 22 Nov 2026) supersedes "one final state, never red": normal → amber ≤ 5:00 → red ≤ 1:00,
+    // still calm — no animation, and exactly two polite announcements (5 min, 1 min), fired on a tone CHANGE only
+    const { timerTone, timerAnnouncement } = require(path.join(ROOT, 'lib/assessment/timer.ts'));
+    const tones = [3600, 301, 300, 61, 60, 1, 0].map(timerTone).join(',');
+    assert(tones === 'normal,normal,amber,amber,red,red,red', `timer tones ${tones}`);
+    assert(timerAnnouncement('normal') === '' && timerAnnouncement('amber') === '5 minutes left.' && timerAnnouncement('red') === '1 minute left.', 'announcements are not exactly 5 min + 1 min');
+    assert(/border-cl-timer-amber bg-cl-timer-amber-tint text-cl-timer-amber-text/.test(timer) && /border-cl-timer-red bg-cl-timer-red-tint text-cl-timer-red-text/.test(timer) && /aria-live="polite"/.test(timer) && /\}, \[tone\]\);/.test(timer) && /Time left/.test(timer), 'timer: amber / red tokens, "Time left" label, polite announcement on tone change');
     return `${files.length} files calm`;
   });
 
@@ -274,17 +280,22 @@ const P = code(read(PLAYER));
     // P1-08 CBT controls
     assert(/const newSelected = optionKey;/.test(P) && !/currentAnswer\.selectedOption === optionKey \? null/.test(P), 'no deselect on re-click');
     assert(/const handleSaveAndNext = useCallback\(\(\) => \{\s*if \(isAdaptive\) return;\s*setMark\(false\);/.test(P) && /const handleMarkAndNext = useCallback\(\(\) => \{\s*if \(isAdaptive\) return;\s*setMark\(true\);/.test(P), 'Save & Next clears the mark / Mark & Next sets it');
-    assert(/Save &amp; Next|"Save & Next"/.test(P) && /Mark for Review &amp; Next/.test(P) && /Clear Response/.test(P), 'CBT labels');
+    // EXAM-UX-1 spec §1.5: sentence-case CBT labels (same four controls, same handlers)
+    assert(/Save &amp; Next|"Save & Next"/.test(P) && /Mark for review &amp; next/.test(P) && /> Clear response\s*</.test(P) && /data-cbt="previous"/.test(P), 'CBT labels');
+    assert(/onClick=\{handleMarkAndNext\} data-cbt="mark-next"/.test(P) && /onClick=\{executeClearResponse\} className=\{exText\} data-cbt="clear"/.test(P) && /onClick=\{handleSaveAndNext\} className=\{`\$\{exPrimary\} min-w-\[150px\]`\} data-cbt="save-next"/.test(P), 'CBT controls are not wired to the unchanged handlers');
     assert(!/isClearConfirmOpen|Clear Selected Response\?/.test(P) && /onClick=\{executeClearResponse\}/.test(P), 'one-click clear (no confirm modal)');
     assert(!/e\.key === "c" \|\| e\.key === "C"\) \{\s*handleClear/.test(P), 'c no longer clears');
     // P1-09 palette
     const pal = code(read('components/assessment/question-palette.tsx'));
-    assert(/marked: "rounded-full bg-cat-violet-700/.test(pal) && /answered: "rounded-md bg-success-700/.test(pal) && /not_answered: "rounded-md bg-danger-700/.test(pal) && /<Check className=\{icon\}/.test(pal) && /<Minus className=\{icon\}/.test(pal), 'shapes + icons per state');
+    // EXAM-UX-1: state colours are the cl-state tokens; each state keeps its own SHAPE + corner mark (colour never alone)
+    assert(/marked: "rounded-full bg-cl-state-marked/.test(pal) && /answered: "rounded-md bg-cl-state-answered/.test(pal) && /not_answered: "rounded-md bg-cl-state-not-answered/.test(pal) && /not_visited: "rounded-md border border-cl-mist bg-cl-white/.test(pal) && /data-mark="answered"/.test(pal) && /data-mark="not-answered"/.test(pal), 'shapes + marks per state');
     assert(/PALETTE_STATES\.map/.test(pal) && /aria-label="Legend"/.test(pal) && /PALETTE_STATES/.test(read('components/assessment/instructions-modal.tsx')), 'legend from the same states (palette + instructions)');
     assert(/"focus-ring relative flex size-12/.test(pal) && !/amber|text-\[1[01]px\]/.test(pal), 'cells 48 px, no amber, ≥ 12 px text');
     // P1-10 one primary
     assert(!/bg-emerald-600|bg-amber-|bg-accent-/.test(P), 'filled emerald / amber buttons in the player');
-    assert(/variant="outline"\s+disabled=\{isSubmitting \|\| isStepTransitioning\}\s+className="hidden min-h-12 font-semibold md:inline-flex"/.test(P), 'header Submit is quiet (outline)');
+    // EXAM-UX-1: the header Submit test is a quiet outline button (lg); on phones it lives in the palette sheet
+    assert(/onClick=\{openSubmit\} className=\{`\$\{exOutline\} max-lg:hidden`\} data-submit-test=""/.test(P) && /const exOutline = `\$\{exBtn\} border border-cl-line-2 bg-cl-white/.test(P) && /data-submit-test-sheet=""/.test(P), 'header Submit is quiet (outline) + in the sheet on phones');
+    assert((P.match(/className=\{exPrimary\}|className=\{`\$\{exPrimary\}/g) || []).length >= 1 && !/bg-cl-blue text-cl-white/.test(P.replace(/const exPrimary = [^;]*;/, '')), 'the solid primary is used only via exPrimary (Save & Next / Review & submit)');
     // P1-11 quiet notices
     assert(!/Exam Window Changed|Fullscreen Mode Exited|ShieldAlert/.test(P) && /data-security-notice=""/.test(P), 'security notices are inline, non-blocking');
     // honesty: events are not stored server-side yet (PROCTOR-LOG-1) — the copy must not claim they are
@@ -292,7 +303,10 @@ const P = code(read(PLAYER));
     // P1-12 48 px
     const smallTarget = /<Button[^>]*\bsize="sm"|<button[^>]*className=[{"`][^>]*\b(h-(6|7|8|9)|p-0\.5|p-1|py-1)\b/;
     assert(!smallTarget.test(P), `small targets remain in the player: ${(P.match(smallTarget) || [''])[0].slice(0, 80)}`);
-    assert((P.match(/<(Button|button)\b/g) || []).length >= 20 && (P.match(/min-h-12|size-12/g) || []).length >= 20, 'player controls carry 48 px classes');
+    // EXAM-UX-1: controls share class helpers — every helper is ≥ 48 px, so a helper use counts as a 48 px control
+    assert(/const exBtn = "focus-ring inline-flex min-h-12 /.test(P) && /const exIcon = "focus-ring flex size-12 /.test(P) && ['exOutline', 'exText', 'exPrimary'].every((k) => new RegExp(`const ${k} = \`\\$\\{exBtn\\} `).test(P)), 'a control class helper is under 48 px');
+    const sized = (P.match(/min-h-12|size-12/g) || []).length + (P.match(/className=\{(?:ex[A-Z]\w*|`[^`]*\$\{ex[A-Z]\w*\}[^`]*`)\}/g) || []).length;
+    assert((P.match(/<(Button|button)\b/g) || []).length >= 20 && sized >= 20, `player controls carry 48 px classes (${sized})`);
     // P1-13 dialogs
     assert(/<Dialog open=\{isMobilePaletteOpen\}/.test(P) && /dismissible=\{false\}/.test(P) && /from "@\/components\/ui\/dialog"/.test(read('components/assessment/submit-dialog.tsx')) && /from "@\/components\/ui\/dialog"/.test(read('components/assessment/instructions-modal.tsx')), 'accessible dialogs');
     // P1-14 status
@@ -324,15 +338,21 @@ const P = code(read(PLAYER));
     // B2 submit dialog = palette terms (5 counts) + section table kept
     const SD = read('components/assessment/submit-dialog.tsx');
     assert(/PALETTE_STATES\.map\(\(s\) => \(\{ key: s\.status, label: s\.label/.test(SD) && /stateCounts=\{stateCounts\}/.test(P) && /By section/.test(SD), 'submit dialog does not use the five palette states / section table');
-    // B3 section tabs: wrap (no horizontal scroll) at ≥ 1024 px; mobile scrolls with no visible scrollbar
-    assert(/data-section-tabs="" className="\[scrollbar-width:none\] \[&::-webkit-scrollbar\]:hidden [^"]*overflow-x-auto[^"]*lg:flex-wrap lg:overflow-visible"/.test(P) && /lg:whitespace-normal/.test(P), 'section tabs scroll on desktop');
-    // B4 palette filters: no truncation / scroll
+    // B3 section tabs — EXAM-UX-1 spec §1.3 supersedes "wrap on desktop": ONE row at every width (52 px / 44 px bar), a
+    // tab never wraps its label, the row scrolls sideways if it must; a real tablist with arrow-key roving + answered counts
+    // (the page check scripts/live/test_exam_ux1_pages.cjs proves the four fixture tabs fit one row at 1280 / 1366 / 1920)
+    const tabs = (P.match(/data-section-tabs=""[\s\S]{0,80}className="([^"]*)"/) || [])[1] || '';
+    assert(/role="tablist"/.test(P) && /\bflex\b/.test(tabs) && /overflow-x-auto/.test(tabs) && !/flex-wrap/.test(tabs) && /h-11 /.test(tabs) && /lg:h-\[52px\]/.test(tabs), 'section tabs are not one row (52 / 44 px)');
+    assert(/role="tab"/.test(P) && /focus-ring flex h-11 shrink-0 items-center gap-2 whitespace-nowrap/.test(P) && /onKeyDown=\{onTabsKey\}/.test(P) && /data-tab-count=""/.test(P), 'tabs: 44 px, no wrap, arrow keys, counts');
+    // B4 palette filters: three segments with counts, no truncation / scroll
     const PAL = read('components/assessment/question-palette.tsx');
-    const filt = PAL.slice(PAL.indexOf('const pill ='), PAL.indexOf('return (', PAL.indexOf('const pill ='))) + PAL.slice(PAL.indexOf('data-palette-filters'), PAL.indexOf('</div>', PAL.indexOf('data-palette-filters')));
-    assert(/data-palette-filters="" className="grid grid-cols-2/.test(filt) && !/truncate|whitespace-nowrap|overflow-x-auto/.test(filt), 'palette filter labels can truncate / scroll');
-    // B5 header: visible labels at ≥ 1024 px, tooltip + aria-label below
-    assert(/<Tooltip content="Instructions"[^>]*className="lg:hidden">/.test(P) && /aria-label="Instructions"[^>]*data-header-label="instructions"/.test(P) && /className="hidden lg:inline">Instructions</.test(P), 'Instructions label');
-    assert(/<Tooltip content="Full screen"[^>]*className="lg:hidden">/.test(P) && /aria-label="Full screen"/.test(P) && /className="hidden lg:inline">Full screen</.test(P), 'Full screen label');
+    const filt = PAL.slice(PAL.indexOf('data-palette-filters'), PAL.indexOf('</div>', PAL.indexOf('data-palette-filters')));
+    assert(/data-palette-filters="" className="grid grid-cols-3/.test(filt) && /data-filter-count=/.test(filt) && !/truncate|whitespace-nowrap|overflow-x-auto/.test(filt), 'palette filter labels can truncate / scroll, or lack counts');
+    // B5 header: visible labels at ≥ 1024 px; below that both live, labelled, in the palette sheet (EXAM-UX-1 spec §2.4)
+    assert(/className=\{`\$\{exText\} max-lg:hidden`\} data-header-label="instructions">\s*<HelpCircle aria-hidden="true" className="size-4" \/> Instructions/.test(P), 'Instructions label');
+    assert(/data-header-label="fullscreen">[\s\S]{0,200}\} Full screen\s*</.test(P), 'Full screen label');
+    const sheet = P.slice(P.indexOf('data-palette-sheet'), P.indexOf('</Dialog>', P.indexOf('data-palette-sheet')));
+    assert(/\/> Instructions/.test(sheet) && /\} Full screen/.test(sheet) && /data-submit-test-sheet=""/.test(sheet), 'phone sheet lacks Instructions / Full screen / Submit test');
     // B6 report: once, a quiet link under the options — not in the control row / palette sheet
     const footStart = P.indexOf('data-cbt="mark-next"');
     const footer = P.slice(footStart, P.indexOf('</main>'));

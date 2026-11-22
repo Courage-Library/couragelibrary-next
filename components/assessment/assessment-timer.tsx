@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { monotonicNowMs, remainingSecondsAt, timerPhase } from "@/lib/assessment/timer";
+import { formatTimeLeft, monotonicNowMs, remainingSecondsAt, timerAnnouncement, timerPhase, timerTone } from "@/lib/assessment/timer";
 
 interface AssessmentTimerProps {
   /** server-authoritative remaining time when the page was rendered */
@@ -13,13 +12,13 @@ interface AssessmentTimerProps {
 }
 
 /**
- * F3 (R7 / R8) exam timer.
+ * F3 (R7) exam timer — the countdown is UNCHANGED:
  * - The deadline is anchored ONCE from the server's remaining time; every tick recomputes from the clock, so a parent
  *   re-render can never restart or slow the countdown, and a background tab catches up immediately.
  * - onTimeExpired fires exactly ONCE (callback kept in a ref; a fired flag guards repeats).
- * - Calm (R8 + R13, decision #84): no sound, no flashing / pulsing, never red. BLUE normally; ONE quiet final-minutes
- *   state (≤ 5 min: ORANGE warning-600 border + text and "5 min left", announced once to screen readers). Colour is never
- *   the only signal.
+ * EXAM-UX-1 presentation (owner spec 23 Nov 2026 §1.6; supersedes decision #84 "never red"): label "Time left" + mm:ss
+ * (h:mm:ss from 1 h), tabular numbers; normal (cl-blue tint) → amber at ≤ 5:00 → red at ≤ 1:00; no flashing, no sound;
+ * colour is never the only signal — the label, plus ONE screen-reader announcement at 5 min and ONE at 1 min.
  */
 export function AssessmentTimer({ initialRemainingSeconds, onTimeExpired, className }: AssessmentTimerProps) {
   const deadlineRef = useRef<number | null>(null);
@@ -53,33 +52,38 @@ export function AssessmentTimer({ initialRemainingSeconds, onTimeExpired, classN
   }, []);
 
   const phase = timerPhase(seconds);
+  const tone = timerTone(seconds);
+  // announced only when the tone CHANGES to amber (5 min) or red (1 min) — never every second
   useEffect(() => {
-    if (phase === "final") setAnnounce("5 minutes or less left.");
-  }, [phase]);
+    const text = timerAnnouncement(tone);
+    if (text) setAnnounce(text);
+  }, [tone]);
 
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    if (hours > 0) return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
+  const time = formatTimeLeft(seconds);
   return (
     <div
       role="timer"
-      aria-label={`Time left: ${formatTime(seconds)}`}
+      aria-label={`Time left: ${time}`}
       data-timer-phase={phase}
+      data-timer-tone={tone}
       className={cn(
-        "flex min-h-12 items-center gap-2 rounded-xl border px-3 text-sm font-mono font-bold select-none",
-        phase === "final" ? "bg-warning-50 border-warning-600 text-warning-800" : "bg-primary-50 border-primary-200 text-primary-800",
+        "flex min-h-11 items-center gap-2 rounded-xl border px-3 select-none",
+        tone === "red"
+          ? "border-cl-timer-red bg-cl-timer-red-tint text-cl-timer-red-text"
+          : tone === "amber"
+            ? "border-cl-timer-amber bg-cl-timer-amber-tint text-cl-timer-amber-text"
+            : "border-cl-blue-line bg-cl-blue-tint text-cl-blue-text",
         className,
       )}
     >
-      <Clock aria-hidden="true" className={cn("size-4 shrink-0", phase === "final" ? "text-warning-700" : "text-primary-700")} />
-      <span className="tabular-nums">{formatTime(seconds)}</span>
-      {phase === "final" && <span className="font-sans text-caption font-semibold text-warning-800">5 min left</span>}
-      <span className="sr-only" aria-live="polite">
+      {/* the visible label from 640 px; on narrow phones the time alone (the accessible name always says "Time left") */}
+      <span aria-hidden="true" className="text-caption font-semibold max-sm:hidden" data-timer-label="">
+        Time left
+      </span>
+      <span aria-hidden="true" className="font-mono text-body-sm font-bold tabular-nums">
+        {time}
+      </span>
+      <span className="sr-only" aria-live="polite" data-timer-announce="">
         {announce}
       </span>
     </div>

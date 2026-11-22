@@ -553,3 +553,22 @@ program (DB change: full MIGRATION_RUNBOOK cycle), or at least one pure, tested 
 shared by the dashboard; (2) an owner rule for several followed exams (the primary exam / the first unattempted); (3) a
 small route `/mock-tests/today` that resolves on tap (no shell read) and redirects to that mock, else `/mock-tests`;
 (4) point `TODAYS_MOCK_HREF` there and extend NAV-1 N-17 (+ a negative control).
+
+## EXAM-UX-LIVE-1: the live-test player gets the EXAM-UX-1 layout
+
+**Status:** logged in EXAM-UX-1, 2026-11-22 (owner decision: "shared parts now, layout later").
+`components/live-test/live-test-player-client.tsx` already uses the shared EXAM-UX-1 parts: the question palette (one
+legend with counts, filters with counts, no "Go to question no."), the submit confirmation and the cl-* state colours.
+Its own screen still has the old layout. Not in it yet: the 100dvh column (top bar 60 / 54 · tabs 52 / 44 · question ·
+action bar 68 / 64 + safe area), the phone action bar with icons, the palette bottom sheet, the amber → red timer and the
+lighter watermark.
+
+**Done when:** the live player uses the same layout as the mock player. Re-point EXAM-UX-1 X-1…X-8
+(`scripts/test_exam_ux1.cjs`) to cover both players, add a live fixture to `scripts/live/test_exam_ux1_pages.cjs`, and
+keep the live engine gates unchanged.
+
+## EXAM-LANG-1: question language toggle in the exam player (future work from EXAM-UX-1)
+
+**Status:** logged in EXAM-UX-1, 2026-11-22, as future work. The spec's top bar leaves room for an EN | हिंदी question
+language switch. It needs one published version per language (BILINGUAL-1 / LANG-VERSIONS-1) and a rule for which
+language an answer is recorded against, so it is a separate phase. Nothing ships for it now.

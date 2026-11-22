@@ -28,7 +28,6 @@ import {
   Bookmark,
   Send,
   RotateCcw,
-  Menu,
   WifiOff,
   Undo2,
   HelpCircle,
@@ -40,6 +39,7 @@ import {
   ArrowRight,
   ShieldCheck,
   AlertCircle,
+  LayoutGrid,
 } from "lucide-react";
 
 export type MockTestPlayerSession = ActiveAttemptSession | ActiveAdaptiveSession;
@@ -1158,14 +1158,42 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     : null;
   const showSubmitOverlay =
     submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted" || (submissionState === "error" && lastSubmitAutoRef.current);
-  const iconButton = "focus-ring flex size-12 items-center justify-center rounded-xl text-fg-secondary hover:bg-ink-100 hover:text-fg";
-  const labelButton = "focus-ring flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl px-3 text-body-sm font-semibold text-fg-secondary hover:bg-ink-100 hover:text-fg";
+
+  // EXAM-UX-1 (owner spec 23 Nov 2026): the layout fits the viewport (100dvh, no page scroll). Desktop ≥ 1024 px: top
+  // bar 60 · section tabs 52 · content (question panel scrolls; palette column fixed) · action bar 68 (always visible).
+  // Phone < 1024 px: top bar 54 · tabs 44 (horizontal scroll) · question (scrolls) · action bar 64 + safe area; the palette
+  // is a bottom sheet. PRESENTATION ONLY — every handler below is the same as before (no engine change).
+  const sections = !isAdaptive && fixedSession && fixedSession.sections.length > 1 ? fixedSession.sections : [];
+  const exBtn = "focus-ring inline-flex min-h-12 items-center justify-center gap-1.5 rounded-xl px-4 text-body-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
+  const exOutline = `${exBtn} border border-cl-line-2 bg-cl-white text-cl-charcoal hover:bg-cl-cloud`;
+  const exText = `${exBtn} text-cl-slate hover:bg-cl-cloud hover:text-cl-charcoal`;
+  const exPrimary = `${exBtn} bg-cl-blue text-cl-white hover:bg-cl-blue-hover`;
+  const exIcon = "focus-ring flex size-12 shrink-0 items-center justify-center rounded-xl border border-cl-line-2 bg-cl-white text-cl-charcoal hover:bg-cl-cloud disabled:cursor-not-allowed disabled:opacity-50";
+  const goPrevious = () => (isAdaptive ? setViewingStepNumber((prev) => Math.max(1, prev - 1)) : navigateToQuestionIndex(currentIndex - 1));
+  const previousDisabled = isAdaptive ? viewingStepNumber <= 1 || isStepTransitioning : currentIndex === 0;
+  const clearDisabled = !currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning;
+  const reviewAndSubmit = isAdaptive && (stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50));
+  const openSubmit = () => {
+    flushCurrentQuestionActiveTime();
+    setIsSubmitOpen(true);
+  };
+  // section tabs: a real tablist; ← / → / Home / End move between tabs (roving tab stop), Enter / Space opens the section
+  const onTabsKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tabs = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const i = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (i < 0) return;
+    const to = e.key === "ArrowRight" ? (i + 1) % tabs.length : e.key === "ArrowLeft" ? (i - 1 + tabs.length) % tabs.length : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    tabs[to].focus();
+    tabs[to].scrollIntoView({ block: "nearest", inline: "nearest" });
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-canvas flex flex-col overflow-hidden select-none" data-player="">
+    <div className="fixed inset-0 z-50 flex h-dvh flex-col overflow-hidden bg-cl-cloud select-none" data-player="" data-exam-layout="v1">
       {/* Offline: neutral notice (never orange / alarm) */}
       {saveStatus === "offline" && (
-        <div role="status" className="flex items-center justify-center gap-2 border-b border-line bg-ink-100 px-4 py-2 text-center text-body-sm font-medium text-fg z-50">
+        <div role="status" className="flex shrink-0 items-center justify-center gap-2 border-b border-cl-line bg-cl-cloud px-4 py-1.5 text-center text-body-sm font-medium text-cl-charcoal">
           <WifiOff aria-hidden="true" className="size-4 shrink-0" />
           <span>You are offline. Your answers are kept on this device and will be sent when you are back online.</span>
         </div>
@@ -1173,171 +1201,135 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
       {/* Adaptive step error: static, next to the action (no slide-in) */}
       {stepTransitionError && (
-        <div role="alert" className="flex flex-wrap items-center justify-center gap-3 border-b border-danger-200 bg-danger-50 px-4 py-2 text-body-sm font-medium text-danger-800 z-50">
+        <div role="alert" className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-b border-cl-line bg-cl-state-not-answered-tint px-4 py-1.5 text-body-sm font-medium text-cl-timer-red-text">
           <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
           <span>{stepTransitionError}</span>
-          <Button size="lg" variant="outline" onClick={handleAdaptiveNextStep} className="min-h-12 bg-surface font-semibold">
-            <RefreshCw aria-hidden="true" className="mr-1 size-4" /> Try again
-          </Button>
+          <button type="button" onClick={handleAdaptiveNextStep} className={exOutline}>
+            <RefreshCw aria-hidden="true" className="size-4" /> Try again
+          </button>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* EXAM PLAYER HEADER                                                        */}
-      {/* ========================================================================= */}
-      <header className="min-h-16 bg-surface border-b border-line px-3 sm:px-6 flex items-center justify-between gap-2 shrink-0 z-20">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3.5 shrink-0">
-          <BrandLogo size="sm" variant="icon" showText={false} />
-          <span className="hidden font-black tracking-tight text-fg text-sm sm:inline sm:text-[15px] select-none whitespace-nowrap">COURAGE LIBRARY</span>
-          {isAdaptive && (
-            <div className="hidden sm:block">
-              <AdaptiveProgressBadge
-                currentStep={viewingStepNumber}
-                minQuestions={adaptiveSession?.adaptive.minQuestions || 20}
-                maxQuestions={adaptiveSession?.adaptive.maxQuestions || 50}
-                difficultyTier={currentDifficultyTier}
-                isStoppingRuleMet={stoppingRuleMet}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="hidden md:flex flex-col items-center justify-center text-center px-4 min-w-0 max-w-sm lg:max-w-md xl:max-w-lg">
-          <h1 className="font-bold text-body-sm text-fg truncate w-full" title={session.testTitle}>
-            {session.testTitle}
-          </h1>
-        </div>
-
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
-          <div className="hidden md:block">
-            <SaveStatusChip status={isStepTransitioning ? "saving" : saveStatus} />
+      {/* ============================ TOP BAR (60 px desktop / 54 px phone) ============================ */}
+      <header className="flex h-[54px] shrink-0 items-center gap-2 border-b border-cl-line bg-cl-white px-3 lg:h-[60px] lg:gap-3 lg:px-5" data-exam-topbar="">
+        {/* logo-suite lock-up (mark + wordmark) — a static file of the final suite, never recoloured; mark only on phones */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/courage-library-logo-suite/svg/logo-horizontal.svg" alt="Courage Library" width={132} height={28} className="hidden h-7 w-auto shrink-0 lg:block" data-exam-logo="" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/courage-library-logo-suite/svg/mark.svg" alt="Courage Library" width={28} height={28} className="size-7 shrink-0 lg:hidden" />
+        {isAdaptive && (
+          <div className="hidden xl:block">
+            <AdaptiveProgressBadge
+              currentStep={viewingStepNumber}
+              minQuestions={adaptiveSession?.adaptive.minQuestions || 20}
+              maxQuestions={adaptiveSession?.adaptive.maxQuestions || 50}
+              difficultyTier={currentDifficultyTier}
+              isStoppingRuleMet={stoppingRuleMet}
+            />
           </div>
+        )}
+        <h1 className="min-w-0 flex-1 truncate text-center text-body-sm font-bold text-cl-charcoal" title={session.testTitle} data-exam-title="">
+          {session.testTitle}
+        </h1>
+        <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
+          <SaveStatusChip status={isStepTransitioning ? "saving" : saveStatus} />
           <AssessmentTimer initialRemainingSeconds={session.remainingSeconds} onTimeExpired={() => handleSubmitAttempt(true)} />
-          {/* F3-polish: icon + visible text at >= 1024 px; icon with tooltip + aria-label below */}
-          <Tooltip content="Instructions" side="bottom" className="lg:hidden">
-            <button type="button" onClick={() => setIsInstructionsOpen(true)} aria-label="Instructions" className={`hidden md:flex ${labelButton}`} data-header-label="instructions">
-              <HelpCircle aria-hidden="true" className="size-5" />
-              <span aria-hidden="true" className="hidden lg:inline">Instructions</span>
-            </button>
-          </Tooltip>
-          <Tooltip content="Full screen" side="bottom" className="lg:hidden">
-            <button
-              type="button"
-              onClick={handleReturnToFullscreen}
-              aria-label="Full screen"
-              aria-pressed={securityState.isFullscreen}
-              className={`hidden md:flex ${labelButton}`}
-              data-header-label="fullscreen"
-            >
-              {securityState.isFullscreen ? <Minimize2 aria-hidden="true" className="size-5" /> : <Maximize2 aria-hidden="true" className="size-5" />}
-              <span aria-hidden="true" className="hidden lg:inline">Full screen</span>
-            </button>
-          </Tooltip>
-          {/* quiet secondary action (R4): "Save & Next" stays the one primary action */}
-          <Button
-            size="lg"
-            variant="outline"
-            disabled={isSubmitting || isStepTransitioning}
-            className="hidden min-h-12 font-semibold md:inline-flex"
-            onClick={() => {
-              flushCurrentQuestionActiveTime();
-              setIsSubmitOpen(true);
-            }}
-          >
-            <Send aria-hidden="true" className="mr-1.5 size-4" /> Submit test
-          </Button>
-          <button type="button" className={`lg:hidden ${iconButton} border border-line`} onClick={() => setIsMobilePaletteOpen(true)} aria-label="Open question palette">
-            <Menu aria-hidden="true" className="size-5" />
+          <button type="button" onClick={() => setIsInstructionsOpen(true)} className={`${exText} max-lg:hidden`} data-header-label="instructions">
+            <HelpCircle aria-hidden="true" className="size-4" /> Instructions
           </button>
+          <button type="button" onClick={handleReturnToFullscreen} aria-pressed={securityState.isFullscreen} className={`${exText} max-lg:hidden`} data-header-label="fullscreen">
+            {securityState.isFullscreen ? <Minimize2 aria-hidden="true" className="size-4" /> : <Maximize2 aria-hidden="true" className="size-4" />} Full screen
+          </button>
+          {/* quiet secondary action (R4): "Save & Next" stays the one primary action; the existing confirmation opens */}
+          <button type="button" disabled={isSubmitting || isStepTransitioning} onClick={openSubmit} className={`${exOutline} max-lg:hidden`} data-submit-test="">
+            <Send aria-hidden="true" className="size-4" /> Submit test
+          </button>
+          <Tooltip content="Question palette" side="bottom" className="lg:hidden">
+            <button type="button" className={`lg:hidden ${exIcon}`} onClick={() => setIsMobilePaletteOpen(true)} aria-label="Open question palette" data-palette-open="">
+              <LayoutGrid aria-hidden="true" className="size-5" />
+            </button>
+          </Tooltip>
         </div>
       </header>
 
       {/* Quiet, non-blocking security notice (R8) */}
       {securityNotice && (
-        <div role="status" className="flex flex-wrap items-center justify-center gap-2 border-b border-line bg-info-50 px-4 py-1.5 text-body-sm text-fg z-10" data-security-notice="">
+        <div role="status" className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-b border-cl-line bg-cl-blue-tint px-4 py-1 text-body-sm text-cl-charcoal" data-security-notice="">
           <span>{securityNotice}</span>
           {securityState.showFullscreenWarning && (
-            <Button size="lg" variant="outline" className="min-h-12 bg-surface font-semibold" onClick={handleReturnToFullscreen}>
+            <button type="button" className={exOutline} onClick={handleReturnToFullscreen}>
               Return to fullscreen
-            </Button>
+            </button>
           )}
-          <Button
-            size="lg"
-            variant="ghost"
-            className="min-h-12"
+          <button
+            type="button"
+            className={exText}
             onClick={() => {
               handleDismissTabWarning();
               setSecurityState((prev) => ({ ...prev, showFullscreenWarning: false }));
             }}
           >
             Dismiss
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MOBILE STATUS STRIP (R5: progress + save status always visible)          */}
-      {/* ========================================================================= */}
-      <div className="md:hidden bg-surface-sunken border-b border-line px-3.5 py-1.5 flex items-center justify-between gap-2 shrink-0 z-10">
-        <div className="min-w-0 flex-1 text-body-sm font-semibold text-fg tabular-nums">
-          {isAdaptive ? `Step ${viewingStepNumber}` : `Q ${currentIndex + 1} of ${fixedSession?.questions.length || 0}`}
-          <span className="ml-2 font-normal text-fg-secondary">
-            {answeredCount} answered · {markedCount} marked
-          </span>
+      {/* ============================ SECTION TABS (52 px / 44 px): ONE row, horizontal scroll ============================ */}
+      {sections.length > 0 && (
+        <div
+          role="tablist"
+          aria-label="Sections"
+          data-section-tabs=""
+          onKeyDown={onTabsKey}
+          className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-cl-line bg-cl-cloud px-2 [scrollbar-width:thin] lg:h-[52px] lg:px-4"
+        >
+          {sections.map((sec) => {
+            const isCurrentSec = currentQ?.sectionId === sec.id;
+            const secQuestions = fixedSession!.questions.filter((q) => q.sectionId === sec.id);
+            const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                role="tab"
+                aria-selected={isCurrentSec}
+                tabIndex={isCurrentSec ? 0 : -1}
+                onClick={() => {
+                  const firstInSec = fixedSession!.questions.findIndex((q) => q.sectionId === sec.id);
+                  if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
+                }}
+                className={`focus-ring flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-body-sm font-semibold ${
+                  isCurrentSec ? "bg-cl-white text-cl-charcoal shadow-xs" : "text-cl-slate hover:text-cl-charcoal"
+                }`}
+              >
+                <span>{sec.name}</span>
+                <span className={`text-caption tabular-nums ${isCurrentSec ? "text-cl-blue-text" : "text-cl-slate"}`} data-tab-count="">
+                  {secAnswered}/{secQuestions.length}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <SaveStatusChip status={isStepTransitioning ? "saving" : saveStatus} compact />
-      </div>
+      )}
 
-      {/* ========================================================================= */}
-      {/* EXAM WORKSPACE BODY                                                       */}
-      {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden z-10">
-        <main className="relative flex-1 bg-surface p-4 sm:p-7 overflow-y-auto flex flex-col justify-between pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-6">
+      {/* ============================ CONTENT: the question panel is the ONE scroll area ============================ */}
+      <div className="flex min-h-0 flex-1">
+        <main className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-cl-white" data-question-scroll="">
           <CandidateSecurityWatermark
             examTitle={session.testTitle}
             maskedCandidateId={`CL••••${session.attemptId.slice(0, 4).toUpperCase()}`}
             attemptIdShort={session.attemptId.slice(0, 6).toUpperCase()}
             timestamp={new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+            isLighter
           />
 
-          <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
+          <div className="relative z-10 mx-auto w-full max-w-3xl space-y-4 p-4 sm:space-y-6 sm:p-7">
             {isViewingPastStep && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-sunken p-2.5 text-body-sm font-medium text-fg">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cl-line bg-cl-cloud p-2.5 text-body-sm font-medium text-cl-charcoal">
                 <span>Viewing step {viewingStepNumber} (answer locked).</span>
-                <Button size="lg" variant="outline" onClick={() => setViewingStepNumber(activeStepNumber)} className="min-h-12 bg-surface font-semibold">
+                <button type="button" onClick={() => setViewingStepNumber(activeStepNumber)} className={exOutline}>
                   Go to current step ({activeStepNumber})
-                </Button>
-              </div>
-            )}
-
-            {/* Section tabs (fixed mocks): a real tablist (R6 / R10) */}
-            {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-              <div role="tablist" aria-label="Sections" data-section-tabs="" className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex items-center gap-1.5 overflow-x-auto rounded-2xl bg-ink-100 p-1 lg:flex-wrap lg:overflow-visible">
-                {fixedSession.sections.map((sec) => {
-                  const isCurrentSec = currentQ?.sectionId === sec.id;
-                  const secQuestions = fixedSession.questions.filter((q) => q.sectionId === sec.id);
-                  const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
-                  return (
-                    <button
-                      key={sec.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={isCurrentSec}
-                      onClick={() => {
-                        const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
-                        if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
-                      }}
-                      className={`focus-ring min-h-12 px-3 text-body-sm font-semibold rounded-xl whitespace-nowrap lg:whitespace-normal flex items-center gap-2 border-b-2 ${
-                        isCurrentSec ? "bg-surface text-fg border-primary-600 shadow-xs" : "text-fg-secondary border-transparent hover:text-fg"
-                      }`}
-                    >
-                      <span>{sec.name}</span>
-                      <span className="text-caption text-fg-secondary tabular-nums">
-                        {secAnswered}/{secQuestions.length}
-                      </span>
-                    </button>
-                  );
-                })}
+                </button>
               </div>
             )}
 
@@ -1371,62 +1363,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                   questionId={currentQ.questionId ?? null}
                   questionVersionId={currentQ.questionVersionId || null}
                   mockQuestionId={currentQ.mockQuestionId || null}
-                  className="min-h-12 px-2 text-body-sm font-medium text-fg-secondary hover:text-fg"
+                  className="min-h-12 px-2 text-body-sm font-medium text-cl-slate hover:text-cl-charcoal"
                 />
               </div>
             )}
           </div>
-
-          {/* Desktop action footer — CBT controls; ONE primary (Save & Next) */}
-          <div className="hidden md:flex relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-line flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {isAdaptive ? (
-                <Button type="button" size="lg" variant="outline" disabled={isViewingPastStep || isStepTransitioning} aria-pressed={currentAnswer.isMarkedForReview} className="min-h-12 font-semibold" onClick={handleToggleReview}>
-                  <Bookmark aria-hidden="true" className="mr-1.5 size-4" />
-                  {currentAnswer.isMarkedForReview ? "Marked for review" : "Mark for review"}
-                </Button>
-              ) : (
-                <Button type="button" size="lg" variant="outline" className="min-h-12 font-semibold" onClick={handleMarkAndNext} data-cbt="mark-next">
-                  <Bookmark aria-hidden="true" className="mr-1.5 size-4" /> Mark for Review &amp; Next
-                </Button>
-              )}
-              <Button type="button" size="lg" variant="ghost" disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning} onClick={executeClearResponse} className="min-h-12 font-semibold" data-cbt="clear">
-                <RotateCcw aria-hidden="true" className="mr-1.5 size-4" /> Clear Response
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="lg"
-                variant="outline"
-                disabled={isAdaptive ? viewingStepNumber <= 1 || isStepTransitioning : currentIndex === 0}
-                onClick={() => (isAdaptive ? setViewingStepNumber((prev) => Math.max(1, prev - 1)) : navigateToQuestionIndex(currentIndex - 1))}
-                className="min-h-12 font-semibold"
-              >
-                <ChevronLeft aria-hidden="true" className="mr-1 size-4" /> Previous
-              </Button>
-              {isAdaptive ? (
-                stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
-                  <Button type="button" size="lg" onClick={() => setIsSubmitOpen(true)} className="min-h-12 font-semibold">
-                    Review &amp; submit <Send aria-hidden="true" className="ml-1.5 size-4" />
-                  </Button>
-                ) : (
-                  <Button type="button" size="lg" disabled={isStepTransitioning} onClick={handleAdaptiveNextStep} className="min-h-12 min-w-[150px] font-semibold">
-                    {isStepTransitioning ? "Saving…" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
-                  </Button>
-                )
-              ) : (
-                <Button type="button" size="lg" onClick={handleSaveAndNext} className="min-h-12 font-semibold" data-cbt="save-next">
-                  {isLastFixed ? "Save & review summary" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
-                </Button>
-              )}
-            </div>
-          </div>
         </main>
 
-        {/* Question palette sidebar (desktop) — the section tabs above the question are the one section switcher */}
-        <aside className="hidden lg:block w-80 bg-surface-sunken border-l border-line p-5 overflow-y-auto shrink-0 space-y-4">
+        {/* Palette column (desktop): fixed; scrolls on its own only when a section is long (> 25 questions) */}
+        <aside className="hidden w-[320px] shrink-0 overflow-y-auto overscroll-contain border-l border-cl-line bg-cl-cloud p-4 lg:block" aria-label="Question palette" data-palette-column="">
           <QuestionPalette
             questions={sectionPaletteItems}
             currentOrder={isAdaptive ? viewingStepNumber : currentQ?.questionOrder || 1}
@@ -1438,78 +1383,108 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </aside>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MOBILE BOTTOM ACTION BAR — ONE primary (Save & Next); Submit lives in the palette sheet / last question */}
-      {/* ========================================================================= */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-line z-30 px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-2 pb-2">
-          {isAdaptive ? (
-            <Button type="button" size="lg" variant="outline" disabled={isViewingPastStep || isStepTransitioning} aria-pressed={currentAnswer.isMarkedForReview} onClick={handleToggleReview} className="min-h-12 flex-1 font-semibold">
-              <Bookmark aria-hidden="true" className="mr-1 size-4" /> {currentAnswer.isMarkedForReview ? "Marked" : "Mark"}
-            </Button>
-          ) : (
-            <Button type="button" size="lg" variant="outline" onClick={handleMarkAndNext} className="min-h-12 flex-1 font-semibold">
-              <Bookmark aria-hidden="true" className="mr-1 size-4" /> Mark &amp; Next
-            </Button>
-          )}
-          <Button type="button" size="lg" variant="ghost" disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning} onClick={executeClearResponse} className="min-h-12 flex-1 font-semibold">
-            <RotateCcw aria-hidden="true" className="mr-1 size-4" /> Clear
-          </Button>
-          <button type="button" onClick={() => setIsInstructionsOpen(true)} aria-label="Instructions" className={`${iconButton} border border-line`}>
-            <HelpCircle aria-hidden="true" className="size-5" />
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            disabled={isAdaptive ? viewingStepNumber <= 1 || isStepTransitioning : currentIndex === 0}
-            onClick={() => (isAdaptive ? setViewingStepNumber((prev) => Math.max(1, prev - 1)) : navigateToQuestionIndex(currentIndex - 1))}
-            className="min-h-12 flex-1 font-semibold"
-          >
-            <ChevronLeft aria-hidden="true" className="mr-0.5 size-4" /> Prev
-          </Button>
-          {isAdaptive ? (
-            stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
-              <Button type="button" size="lg" disabled={isSubmitting || isStepTransitioning} onClick={() => setIsSubmitOpen(true)} className="min-h-12 flex-[2] font-semibold">
-                Review &amp; submit
-              </Button>
+      {/* ============ ACTION BAR (68 px desktop / 64 px + safe area phone, each = 1 px top border + 67 / 63 px row): always visible ============ */}
+      <div className="shrink-0 border-t border-cl-line bg-cl-white px-3 pb-[env(safe-area-inset-bottom)] lg:px-5" data-action-bar="">
+        {/* desktop: Mark for review & next · Clear response  …  ‹ Previous · Save & Next › (ONE primary) */}
+        <div className="hidden h-[67px] items-center justify-between gap-3 lg:flex">
+          <div className="flex items-center gap-2">
+            {isAdaptive ? (
+              <button type="button" disabled={isViewingPastStep || isStepTransitioning} aria-pressed={currentAnswer.isMarkedForReview} className={exOutline} onClick={handleToggleReview}>
+                <Bookmark aria-hidden="true" className="size-4" /> {currentAnswer.isMarkedForReview ? "Marked for review" : "Mark for review"}
+              </button>
             ) : (
-              <Button type="button" size="lg" disabled={isStepTransitioning} onClick={handleAdaptiveNextStep} className="min-h-12 flex-[2] font-semibold">
-                {isStepTransitioning ? "Saving…" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-0.5 size-4" />
-              </Button>
+              <button type="button" className={exOutline} onClick={handleMarkAndNext} data-cbt="mark-next">
+                <Bookmark aria-hidden="true" className="size-4" /> Mark for review &amp; next
+              </button>
+            )}
+            <button type="button" disabled={clearDisabled} onClick={executeClearResponse} className={exText} data-cbt="clear">
+              <RotateCcw aria-hidden="true" className="size-4" /> Clear response
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={previousDisabled} onClick={goPrevious} className={exOutline} data-cbt="previous">
+              <ChevronLeft aria-hidden="true" className="size-4" /> Previous
+            </button>
+            {isAdaptive ? (
+              reviewAndSubmit ? (
+                <button type="button" onClick={() => setIsSubmitOpen(true)} className={exPrimary}>
+                  Review &amp; submit <Send aria-hidden="true" className="size-4" />
+                </button>
+              ) : (
+                <button type="button" disabled={isStepTransitioning} onClick={handleAdaptiveNextStep} className={`${exPrimary} min-w-[150px]`}>
+                  {isStepTransitioning ? "Saving…" : "Save & Next"} <ChevronRight aria-hidden="true" className="size-4" />
+                </button>
+              )
+            ) : (
+              <button type="button" onClick={handleSaveAndNext} className={`${exPrimary} min-w-[150px]`} data-cbt="save-next">
+                {isLastFixed ? "Save & review summary" : "Save & Next"} <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* phone / tablet: Previous · Mark · Clear (icons with labels + tooltips) · Save & Next (wide primary) */}
+        <div className="flex h-[63px] items-center gap-2 lg:hidden">
+          <Tooltip content="Previous" side="top">
+            <button type="button" disabled={previousDisabled} onClick={goPrevious} aria-label="Previous" className={exIcon} data-cbt-phone="previous">
+              <ChevronLeft aria-hidden="true" className="size-5" />
+            </button>
+          </Tooltip>
+          {isAdaptive ? (
+            <Tooltip content={currentAnswer.isMarkedForReview ? "Marked for review" : "Mark for review"} side="top">
+              <button type="button" disabled={isViewingPastStep || isStepTransitioning} aria-pressed={currentAnswer.isMarkedForReview} onClick={handleToggleReview} aria-label="Mark for review" className={exIcon} data-cbt-phone="mark">
+                <Bookmark aria-hidden="true" className="size-5" />
+              </button>
+            </Tooltip>
+          ) : (
+            <Tooltip content="Mark for review & next" side="top">
+              <button type="button" onClick={handleMarkAndNext} aria-label="Mark for review and next" className={exIcon} data-cbt-phone="mark">
+                <Bookmark aria-hidden="true" className="size-5" />
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip content="Clear response" side="top">
+            <button type="button" disabled={clearDisabled} onClick={executeClearResponse} aria-label="Clear response" className={exIcon} data-cbt-phone="clear">
+              <RotateCcw aria-hidden="true" className="size-5" />
+            </button>
+          </Tooltip>
+          {isAdaptive ? (
+            reviewAndSubmit ? (
+              <button type="button" disabled={isSubmitting || isStepTransitioning} onClick={() => setIsSubmitOpen(true)} className={`${exPrimary} min-h-12 flex-1`}>
+                Review &amp; submit
+              </button>
+            ) : (
+              <button type="button" disabled={isStepTransitioning} onClick={handleAdaptiveNextStep} className={`${exPrimary} min-h-12 flex-1`}>
+                {isStepTransitioning ? "Saving…" : "Save & Next"} <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
             )
           ) : (
-            <Button type="button" size="lg" onClick={handleSaveAndNext} className="min-h-12 flex-[2] font-semibold">
-              {isLastFixed ? "Save & review" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-0.5 size-4" />
-            </Button>
+            <button type="button" onClick={handleSaveAndNext} className={`${exPrimary} min-h-12 flex-1`} data-cbt-phone="save-next">
+              {isLastFixed ? "Save & review" : "Save & Next"} <ChevronRight aria-hidden="true" className="size-4" />
+            </button>
           )}
         </div>
       </div>
 
-      {/* Mobile palette: accessible bottom sheet (focus trap, Esc) */}
+      {/* Phone palette: accessible bottom sheet (Dialog: focus trap, Esc / overlay close, focus returns) — nothing is lost:
+          Instructions + Full screen at the top, then the legend with counts, filters, the grid and Submit test */}
       <Dialog open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen} variant="sheet" title="Question palette">
-        <div className="flex flex-col gap-4">
-          {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-            <div role="tablist" aria-label="Sections" className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex items-center gap-1 overflow-x-auto pb-1">
-              {fixedSession.sections.map((sec) => (
-                <button
-                  key={sec.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={currentQ?.sectionId === sec.id}
-                  onClick={() => {
-                    const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
-                    if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
-                  }}
-                  className={`focus-ring min-h-12 px-3 text-body-sm font-semibold rounded-lg whitespace-nowrap ${currentQ?.sectionId === sec.id ? "bg-primary-50 text-fg border-2 border-primary-600" : "bg-ink-100 text-fg"}`}
-                >
-                  {sec.name}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex flex-col gap-3" data-palette-sheet="">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobilePaletteOpen(false);
+                setIsInstructionsOpen(true);
+              }}
+              className={`${exOutline} min-h-12`}
+            >
+              <HelpCircle aria-hidden="true" className="size-4" /> Instructions
+            </button>
+            <button type="button" onClick={handleReturnToFullscreen} aria-pressed={securityState.isFullscreen} className={`${exOutline} min-h-12`}>
+              {securityState.isFullscreen ? <Minimize2 aria-hidden="true" className="size-4" /> : <Maximize2 aria-hidden="true" className="size-4" />} Full screen
+            </button>
+          </div>
           <QuestionPalette
             questions={sectionPaletteItems}
             currentOrder={isAdaptive ? viewingStepNumber : currentQ?.questionOrder || 1}
@@ -1521,26 +1496,26 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               setIsMobilePaletteOpen(false);
             }}
           />
-          <Button
-            size="lg"
-            variant="outline"
-            className="min-h-12 w-full font-semibold"
+          <button
+            type="button"
+            disabled={isSubmitting || isStepTransitioning}
+            className={`${exOutline} min-h-12 w-full`}
             onClick={() => {
               setIsMobilePaletteOpen(false);
-              flushCurrentQuestionActiveTime();
-              setIsSubmitOpen(true);
+              openSubmit();
             }}
+            data-submit-test-sheet=""
           >
-            <Send aria-hidden="true" className="mr-1.5 size-4" /> Submit test
-          </Button>
+            <Send aria-hidden="true" className="size-4" /> Submit test
+          </button>
         </div>
       </Dialog>
 
-      {/* Clear Response: one click + quiet undo (R6 / R8) */}
+      {/* Clear Response: one click + quiet undo (R6 / R8) — above the action bar on every width */}
       {undoClearState && (
-        <div role="status" className="fixed bottom-36 md:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-ink-900 text-fg-inverse text-body-sm font-medium pl-4 pr-1.5 py-1.5 rounded-2xl shadow-e2 flex items-center gap-3">
+        <div role="status" className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-cl-charcoal py-1.5 pl-4 pr-1.5 text-body-sm font-medium text-cl-white shadow-e2 lg:bottom-[84px]">
           <span>Response cleared</span>
-          <button type="button" onClick={handleUndoClear} className="focus-ring-on-dark min-h-12 rounded-xl bg-surface px-3 text-body-sm font-semibold text-fg flex items-center gap-1">
+          <button type="button" onClick={handleUndoClear} className="focus-ring-on-dark flex min-h-12 items-center gap-1 rounded-xl bg-cl-white px-3 text-body-sm font-semibold text-cl-charcoal">
             <Undo2 aria-hidden="true" className="size-4" /> Undo
           </button>
         </div>
@@ -1566,11 +1541,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           ) : undefined
         }
       >
-        <div className="flex items-start gap-3 text-body text-fg-secondary" data-submit-overlay={submissionState}>
+        <div className="flex items-start gap-3 text-body text-cl-charcoal" data-submit-overlay={submissionState}>
           {submissionState === "error" ? (
-            <AlertCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-danger-700" />
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-cl-timer-red-text" />
           ) : (
-            <RefreshCw aria-hidden="true" className="mt-0.5 size-5 shrink-0 animate-spin text-primary-600 motion-reduce:animate-none" />
+            <RefreshCw aria-hidden="true" className="mt-0.5 size-5 shrink-0 animate-spin text-cl-blue motion-reduce:animate-none" />
           )}
           <p role="status">
             {submissionState === "error"
@@ -1600,20 +1575,23 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   );
 }
 
-/** R7: the save status is never optimistic — "Saved" only when every answer is confirmed by the server. */
-function SaveStatusChip({ status, compact = false }: { status: SaveStatus; compact?: boolean }) {
-  const view: Record<SaveStatus, { icon: React.ReactNode; text: string; short: string; tone: string }> = {
-    saved: { icon: <Check aria-hidden="true" className="size-4 text-success-700" />, text: "Saved", short: "Saved", tone: "text-fg" },
-    saving: { icon: <RefreshCw aria-hidden="true" className="size-4 animate-spin text-primary-600 motion-reduce:animate-none" />, text: "Saving…", short: "Saving…", tone: "text-fg" },
-    retrying: { icon: <AlertCircle aria-hidden="true" className="size-4 text-danger-700" />, text: "Not saved — retrying", short: "Not saved — retrying", tone: "text-danger-800" },
-    offline: { icon: <WifiOff aria-hidden="true" className="size-4 text-fg-secondary" />, text: "Offline — kept on this device", short: "Offline", tone: "text-fg" },
-    closed: { icon: <AlertCircle aria-hidden="true" className="size-4 text-fg-secondary" />, text: "Time is over — saving stopped", short: "Saving stopped", tone: "text-fg" },
+/**
+ * R7: the save status is never optimistic — "Saved" only when every answer is confirmed by the server. EXAM-UX-1: one
+ * chip for every width (the text is visually hidden below 640 px; the icon + the accessible text stay).
+ */
+function SaveStatusChip({ status }: { status: SaveStatus }) {
+  const view: Record<SaveStatus, { icon: React.ReactNode; text: string; tone: string }> = {
+    saved: { icon: <Check aria-hidden="true" className="size-4 text-cl-state-answered" />, text: "Saved", tone: "text-cl-charcoal" },
+    saving: { icon: <RefreshCw aria-hidden="true" className="size-4 animate-spin text-cl-blue motion-reduce:animate-none" />, text: "Saving…", tone: "text-cl-charcoal" },
+    retrying: { icon: <AlertCircle aria-hidden="true" className="size-4 text-cl-state-not-answered" />, text: "Not saved — retrying", tone: "text-cl-timer-red-text" },
+    offline: { icon: <WifiOff aria-hidden="true" className="size-4 text-cl-slate" />, text: "Offline — kept on this device", tone: "text-cl-charcoal" },
+    closed: { icon: <AlertCircle aria-hidden="true" className="size-4 text-cl-slate" />, text: "Time is over — saving stopped", tone: "text-cl-charcoal" },
   };
   const v = view[status];
   return (
-    <div role="status" aria-live="polite" data-save-status={status} className={`flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-caption font-semibold ${v.tone}`}>
+    <div role="status" aria-live="polite" data-save-status={status} className={`flex min-h-9 items-center gap-1.5 rounded-full border border-cl-line bg-cl-white px-2.5 text-caption font-semibold ${v.tone}`}>
       {v.icon}
-      <span>{compact ? v.short : v.text}</span>
+      <span className="sr-only sm:not-sr-only">{v.text}</span>
     </div>
   );
 }

@@ -222,7 +222,17 @@ test('U-7 nothing under the mobile tab bar (BRAND-3 fix 4): spacer = bar height 
   assert(student.indexOf('{footer}') > student.indexOf('<main id="main-content"') && student.indexOf('{footer}') < student.indexOf('<nav className="cl-ss__bar"'), 'the footer must sit inside the padded column (page content + footer end above the bar)');
   // toasts: 4rem + 1px + 1rem (81 px) + safe area ≥ the 68 px bar + safe area, below lg (= the bar's < 1024 px)
   assert(/bottom-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\+1rem\)\][^"]*lg:bottom-4/.test(read('components/ui/toast.tsx')) && Number(barH) + 12 <= 81, 'toasts sit above the tab bar on phones');
-  assert(/pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] md:pb-6/.test(read('app/(site)/mock-tests/[id]/take/player-client.tsx')), 'player content does not clear its own action bar + safe area');
+  // EXAM-UX-1 (re-pointed, rule kept + stronger): the player is a full-height column — the question scroll area and the
+  // action bar are SIBLINGS, so content can never end under the bar (no padding guess); the bar carries the safe area and
+  // the undo toast sits above it (76 px ≥ 64 px phone bar + 12; 84 px ≥ 68 px desktop bar + 16). The page check
+  // scripts/live/test_exam_ux1_pages.cjs measures it at six viewports.
+  const PL = read('app/(site)/mock-tests/[id]/take/player-client.tsx');
+  const iRoot = PL.indexOf('data-exam-layout="v1"'), iScroll = PL.indexOf('data-question-scroll=""'), iBar = PL.indexOf('data-action-bar=""');
+  assert(iRoot > 0 && iScroll > iRoot && iBar > iScroll, 'player layout: root → question scroll → action bar order');
+  assert(/className="fixed inset-0 z-50 flex h-dvh flex-col overflow-hidden [^"]*" data-player="" data-exam-layout="v1"/.test(PL), 'player root is not a full-height, non-scrolling column');
+  assert(/className="relative min-h-0 flex-1 overflow-y-auto [^"]*" data-question-scroll=""/.test(PL), 'only the question panel scrolls');
+  assert(/className="shrink-0 [^"]*pb-\[env\(safe-area-inset-bottom\)\][^"]*" data-action-bar=""/.test(PL), 'action bar does not keep its height / safe area');
+  assert(/fixed bottom-\[calc\(76px\+env\(safe-area-inset-bottom\)\)\][^"]*lg:bottom-\[84px\]/.test(PL), 'the undo toast does not clear the action bar');
 });
 
 console.log(`\nUX-1b shell: ${passed}/${passed + failed} passed`);

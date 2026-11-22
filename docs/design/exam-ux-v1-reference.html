@@ -1,0 +1,206 @@
+<title>Exam Screen Improvements</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap">
+<style>
+:root{--bg:#F5F6FA;--fg:#18191B;--mu:#5B6070;--ln:#E3E5EC;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:1320px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:26px}
+h1{font:600 clamp(22px,3vw,30px) Poppins,sans-serif;margin:0}
+h2{font:600 19px Poppins,sans-serif;margin:0}
+.lead{color:var(--mu);margin:6px 0 0;max-width:80ch}
+.cap{font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:0 0 8px}
+.legendlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.legendlist li{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
+.legendlist li b{flex:none;width:24px;height:24px;border-radius:50%;background:#FF6B4A;color:#18191B;font:700 12px Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+.legendlist li span{color:var(--mu)}.legendlist li strong{color:var(--fg);display:block;font-weight:600}
+.scroll{overflow-x:auto;padding-bottom:6px}
+.pin{position:absolute;z-index:5;width:24px;height:24px;border-radius:50%;background:#FF6B4A;color:#18191B;font:700 12px Inter,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff,0 4px 10px rgba(0,0,0,.2)}
+
+/* ===== exam screen (fixed light) ===== */
+.exam{position:relative;width:1240px;height:700px;background:#fff;border:1px solid #E6E8EF;border-radius:14px;overflow:hidden;color:#18191B;font:14px/1.45 Inter,sans-serif;display:grid;grid-template-rows:60px 52px 1fr 68px;box-shadow:0 16px 50px rgba(24,25,27,.10)}
+.top{display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid #ECEEF3}
+.lock{display:flex;align-items:center;gap:8px;font:600 15px Poppins,sans-serif;white-space:nowrap}
+.title{flex:1;text-align:center;font:600 15px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;font-weight:600;font-size:13px;white-space:nowrap;border:1px solid #E6E8EF}
+.saved{color:#0E7A52;background:#E7F6EF;border-color:#BFE6D2}
+.timer{border:1.5px solid #C9CFFF;background:#EEF0FF;color:#2A3587;height:38px;padding:0 14px;font-variant-numeric:tabular-nums}
+.timer small{font-weight:500;color:#5B6070;font-size:11.5px}
+.timer.amber{background:#FFF4DC;border-color:#F5C96B;color:#8A5A00}
+.timer.red{background:#FDECEA;border-color:#F3A79C;color:#B42318}
+.tlink{display:inline-flex;align-items:center;gap:6px;color:#5B6070;font-weight:500;font-size:13.5px;white-space:nowrap}
+.tlink svg,.chip svg{width:16px;height:16px}
+.submit{white-space:nowrap;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:999px;border:1.5px solid #18191B;font-weight:600;font-size:13.5px}
+.tabs{display:flex;align-items:center;gap:6px;padding:0 20px;border-bottom:1px solid #ECEEF3;background:#FAFBFD;overflow:hidden}
+.tab{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:10px;font-weight:500;font-size:13.5px;color:#5B6070;white-space:nowrap}
+.tab .n{font-size:12px;color:#A9AEBB;font-variant-numeric:tabular-nums}
+.tab.on{background:#fff;color:#18191B;font-weight:600;box-shadow:0 0 0 1px #E6E8EF,0 2px 6px rgba(24,25,27,.05)}
+.tab.on .n{color:#3A4BEB}
+.mid{display:grid;grid-template-columns:1fr 330px;min-height:0}
+.q{overflow:hidden;padding:20px 40px;position:relative;border-right:1px solid #ECEEF3}
+.wm{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(-28deg,transparent 0 120px,rgba(24,25,27,.025) 120px 121px);}
+.wmt{position:absolute;inset:0;pointer-events:none;color:rgba(24,25,27,.035);font:600 13px Inter,sans-serif;transform:rotate(-18deg);display:flex;flex-wrap:wrap;gap:60px 120px;padding:40px;white-space:nowrap;overflow:hidden}
+.qh{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.qn{background:#475BFF;color:#fff;border-radius:9px;padding:4px 10px;font-weight:700;font-size:13px}
+.qof{color:#5B6070;font-size:13px}
+.sect{background:#F5F6FA;border-radius:8px;padding:3px 10px;font-size:12.5px;font-weight:500}
+.mk{margin-left:auto;display:flex;gap:6px}
+.mk span{border-radius:8px;padding:3px 9px;font-weight:600;font-size:12.5px}
+.mk .p{background:#E7F6EF;color:#0E7A52}.mk .m{background:#FDECEA;color:#B42318}
+.qt{font-size:17px;font-weight:500;margin:4px 0 18px}
+.opt{display:flex;align-items:center;gap:14px;border:1px solid #E6E8EF;border-radius:12px;padding:12px 16px;margin-bottom:10px;font-size:16px}
+.opt i{font-style:normal;width:30px;height:30px;border-radius:8px;background:#F5F6FA;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+.opt.sel{border:2px solid #475BFF;background:#F6F7FF}.opt.sel i{background:#475BFF;color:#fff}
+.opt.sel::after{content:"✓";margin-left:auto;color:#475BFF;font-weight:700}
+.rep{display:flex;justify-content:flex-end;color:#5B6070;font-size:13px;margin-top:6px;gap:6px;align-items:center}
+.pal{padding:16px;display:flex;flex-direction:column;gap:14px;background:#FAFBFD;overflow:hidden}
+.lg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.lg div{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ECEEF3;border-radius:10px;padding:7px 9px;font-size:12px;line-height:1.2}
+.lg div b{margin-left:auto;font-size:14px}
+.sw{width:18px;height:18px;border-radius:5px;flex:none;position:relative}
+.sw.ans{background:#12805C}.sw.na{background:#D92912}.sw.nv{background:#fff;border:1.5px solid #C5CAD6}.sw.mr{background:#7A4CE2;border-radius:50%}.sw.am{background:#7A4CE2;border-radius:50%;box-shadow:inset 0 0 0 0}
+.sw.am::after{content:"";position:absolute;right:-3px;bottom:-3px;width:8px;height:8px;border-radius:50%;background:#12805C;border:1.5px solid #fff}
+.lg .full{grid-column:span 2}
+.flt{display:flex;gap:6px}
+.flt span{flex:1;text-align:center;border-radius:9px;padding:6px 0;font-size:12px;font-weight:600;color:#5B6070;background:#fff;border:1px solid #ECEEF3}
+.flt span.on{background:#18191B;color:#fff;border-color:#18191B}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.grid b{height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;border:1.5px solid #D4D8E2;background:#fff;position:relative}
+.grid b.ans{background:#12805C;color:#fff;border-color:#12805C}
+.grid b.na{background:#D92912;color:#fff;border-color:#D92912}
+.grid b.mr{background:#7A4CE2;color:#fff;border-color:#7A4CE2;border-radius:50%}
+.grid b.cur{box-shadow:0 0 0 3px #fff,0 0 0 5px #475BFF}
+.act{display:flex;align-items:center;gap:10px;padding:0 20px;border-top:1px solid #E6E8EF;background:#fff;box-shadow:0 -6px 18px rgba(24,25,27,.05)}
+.b{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;font-weight:600;font-size:14px;white-space:nowrap}
+.b.o{border:1.5px solid #D4D8E2}
+.b.t{color:#5B6070}
+.b.p{background:#475BFF;color:#fff;padding:0 26px;box-shadow:0 8px 18px rgba(71,91,255,.3)}
+.b svg{width:16px;height:16px}
+.sp{flex:1}
+
+/* phone */
+.phones{display:flex;gap:28px;flex-wrap:wrap}
+.ph{position:relative;width:300px;height:620px;border:9px solid #18191B;border-radius:36px;overflow:hidden;background:#fff;color:#18191B;font:13px/1.4 Inter,sans-serif;display:grid;grid-template-rows:54px 44px 1fr 64px;grid-template-columns:minmax(0,1fr)}
+.ph .top{padding:0 10px;gap:8px}
+.ph .title{text-align:left;font-size:13px}
+.ph .timer{height:32px;padding:0 10px;font-size:13px}
+.ph .ib{width:38px;height:38px;border:1px solid #E1E4EC;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none}
+.ph .ib svg{width:18px;height:18px}
+.ph .tabs{padding:0 10px;overflow:hidden}
+.ph .tab{height:30px;padding:0 10px;font-size:12px}
+.ph .q{padding:14px 14px;border:0;min-width:0;overflow:hidden}
+.ph .top>*{min-width:0}
+.ph .qt{font-size:15px}
+.ph .opt{padding:10px 12px;font-size:15px}
+.ph .act{padding:0 10px;gap:6px}
+.ph .b{height:44px;padding:0 10px;font-size:12.5px;border-radius:11px}
+.ph .b.p{flex:1;justify-content:center;padding:0 12px}
+.ph .ic2{width:44px;padding:0;justify-content:center}
+.sheet{position:absolute;inset:54px 0 0 0;background:rgba(24,25,27,.35);display:flex;flex-direction:column;justify-content:flex-end}
+.sheet .in{background:#fff;border-radius:20px 20px 0 0;padding:10px 14px 14px;display:flex;flex-direction:column;gap:12px}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:#E1E4EC;margin:0 auto}
+.sheet .grid b{height:40px;font-size:13px}
+.sheet .sub2{height:46px;border-radius:12px;background:#18191B;color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.states{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.states .chip{font-family:Inter,sans-serif}
+.note{color:var(--mu);font-size:13px;margin:0}
+</style>
+
+<div class="w">
+<header>
+<h1>Exam screen: proposed improvements</h1>
+<p class="lead">Your current mock screen, redesigned with every fix in place. The coral numbers on the screens match the list below. The engine (server timer, autosave, manual Next, full screen, anti-cheat) is not touched; only the layout changes.</p>
+</header>
+
+<section>
+<p class="cap">Desktop · everything fits one screen, nothing to scroll except the question</p>
+<div class="scroll"><div class="exam" id="desk">
+ <div class="top">
+  <span class="lock" id="lg"></span>
+  <span class="title">SSC CGL Daily Sunday Mock</span>
+  <span class="chip saved" id="sv"></span>
+  <span class="chip timer"><small>Time left</small> 58:17</span>
+  <span class="tlink" id="ins"></span><span class="tlink" id="fs"></span>
+  <span class="submit" id="sb"></span>
+ </div>
+ <div class="tabs"><span class="tab on">Quantitative Aptitude <span class="n">1/25</span></span><span class="tab">General Intelligence &amp; Reasoning <span class="n">0/25</span></span><span class="tab">English Comprehension <span class="n">0/25</span></span><span class="tab">General Awareness <span class="n">0/25</span></span></div>
+ <div class="mid">
+  <div class="q"><div class="wmt" id="wm1"></div>
+   <div class="qh"><span class="qn">Q1</span><span class="qof">of 100</span><span class="sect">Quantitative Aptitude</span><span class="mk"><span class="p">+2.0</span><span class="m">−0.50</span></span></div>
+   <p class="qt">Which of the following is the smallest number that is divisible by 12, 18 and 24?</p>
+   <div class="opt"><i>A</i>36</div><div class="opt sel"><i>B</i>48</div><div class="opt"><i>C</i>72</div><div class="opt"><i>D</i>96</div>
+   <div class="rep">⚑ Report this question</div>
+  </div>
+  <aside class="pal">
+   <div class="lg" id="lg1"></div>
+   <div class="flt"><span class="on">All 25</span><span>Not ans. 0</span><span>Marked 0</span></div>
+   <div class="grid" id="g1"></div>
+  </aside>
+ </div>
+ <div class="act"><span class="b o" id="mr"></span><span class="b t">↺ Clear response</span><span class="sp"></span><span class="b o">‹ Previous</span><span class="b p">Save &amp; Next ›</span></div>
+</div></div>
+</section>
+
+<section>
+<p class="cap">Timer states (6)</p>
+<div class="states"><span class="chip timer"><small>Time left</small> 58:17</span><span class="chip timer amber"><small>Time left</small> 04:59</span><span class="chip timer red"><small>Time left</small> 00:59</span><span class="note">Normal · amber at 5 minutes · red at 1 minute. Screen readers announce at 5 and 1 minute.</span></div>
+</section>
+
+<section>
+<p class="cap">Phone · same rules, built for one hand</p>
+<div class="phones">
+ <div><div class="ph" id="p1">
+  <div class="top"><span id="pm"></span><span class="title">SSC CGL Daily Sunday…</span><span class="chip timer">58:17</span><span class="ib" id="pg"></span></div>
+  <div class="tabs"><span class="tab on">Quant <span class="n">1/25</span></span><span class="tab">Reasoning <span class="n">0/25</span></span><span class="tab">English <span class="n">0/25</span></span></div>
+  <div class="q"><div class="qh"><span class="qn">Q1</span><span class="qof">of 100</span><span class="mk"><span class="p">+2</span><span class="m">−0.5</span></span></div><p class="qt">Which of the following is the smallest number divisible by 12, 18 and 24?</p><div class="opt"><i>A</i>36</div><div class="opt sel"><i>B</i>48</div><div class="opt"><i>C</i>72</div><div class="opt"><i>D</i>96</div></div>
+  <div class="act"><span class="b o ic2">‹</span><span class="b o ic2" id="mr2"></span><span class="b o ic2">↺</span><span class="b p">Save &amp; Next ›</span></div>
+ </div><p class="note" style="max-width:300px;margin-top:8px">Question screen. Buttons fixed at the bottom; palette and Submit behind the grid icon (top right).</p></div>
+ <div><div class="ph">
+  <div class="top"><span id="pm2"></span><span class="title">SSC CGL Daily Sunday…</span><span class="chip timer">58:17</span><span class="ib" id="pg2"></span></div>
+  <div class="tabs"></div><div class="q"></div><div class="act"></div>
+  <div class="sheet"><div class="in"><div class="grab"></div><b style="font:600 15px Poppins,sans-serif">Quantitative Aptitude · 25 questions</b><div class="lg" id="lg2"></div><div class="grid" id="g2"></div><div class="sub2" id="sb2"></div></div></div>
+ </div><p class="note" style="max-width:300px;margin-top:8px">Grid icon tapped: legend with counts, question grid and Submit test in one sheet.</p></div>
+</div>
+</section>
+
+<section>
+<h2 style="margin-bottom:10px">What changed</h2>
+<ul class="legendlist" id="list"></ul>
+</section>
+</div>
+
+<script>
+const I={check:'<path d="m5 12 5 5 9-10"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.3M12 17h.01"/>',fs:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',send:'<path d="m4 12 16-8-6 16-2.5-6.5z"/>',book:'<path d="M6 4h12v16l-6-4-6 4z"/>',grid:'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>'};
+const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
+let g=0;
+const mark=(s=26)=>{const id="m"+(g++);return `<svg width="${s}" height="${s}" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3EF3F1"/><stop offset="1" stop-color="#1BDCF4"/></linearGradient></defs><g transform="translate(0 .4) scale(.1083) translate(-162 -171)"><path d="M550.9 502.6 L550.9 828.2 L826.5 679.1 Z" fill="#4B00E6" stroke="#4B00E6" stroke-width="517.6" stroke-linejoin="round"/><path d="M421 430 L421 778.6 L721.4 611.9 Z" fill="url(#${id})" stroke="url(#${id})" stroke-width="518" stroke-linejoin="round"/></g></svg>`};
+const $=id=>document.getElementById(id);
+$('lg').innerHTML=mark(26)+'Courage Library';$('pm').innerHTML=mark(26);$('pm2').innerHTML=mark(26);
+$('sv').innerHTML=ic('check')+'Saved';$('ins').innerHTML=ic('help')+'Instructions';$('fs').innerHTML=ic('fs')+'Full screen';$('sb').innerHTML=ic('send')+'Submit test';
+$('mr').innerHTML=ic('book')+'Mark for review &amp; next';$('mr2').innerHTML=ic('book');$('pg').innerHTML=ic('grid');$('pg2').innerHTML=ic('grid');$('sb2').innerHTML=ic('send')+'Submit test';
+const lg=`<div><span class="sw ans"></span>Answered<b>1</b></div><div><span class="sw na"></span>Not answered<b>0</b></div><div><span class="sw nv"></span>Not visited<b>24</b></div><div><span class="sw mr"></span>Marked<b>0</b></div><div class="full"><span class="sw am"></span>Answered &amp; marked for review<b>0</b></div>`;
+$('lg1').innerHTML=lg;$('lg2').innerHTML=lg;
+const grid=Array.from({length:25},(_,i)=>`<b class="${i===0?'ans cur':''}">${i+1}</b>`).join('');
+$('g1').innerHTML=grid;$('g2').innerHTML=grid;
+$('wm1').innerHTML=Array.from({length:18},()=>'<span>COURAGE LIBRARY · CANDIDATE ••••37FF</span>').join('');
+/* pins anchored to elements */
+function pin(n,host,el,dx=0,dy=0){const h=host.getBoundingClientRect(),r=el.getBoundingClientRect();const p=document.createElement('span');p.className='pin';p.textContent=n;p.style.left=(r.right-h.left-14+dx)+'px';p.style.top=(r.top-h.top-10+dy)+'px';host.appendChild(p)}
+const d=$('desk'),q=s=>d.querySelector(s);
+requestAnimationFrame(()=>{
+pin(1,d,q('.b.p'));pin(2,d,q('.q'),-10,30);pin(3,d,q('.lg'));pin(4,d,q('.tabs .tab:nth-child(4)'));pin(5,d,q('.flt'));pin(6,d,q('.timer'));pin(7,d,q('.lock'),22,-4);pin(8,d,q('.rep'),-300,60);
+const p1=$('p1');pin(1,p1,p1.querySelector('.b.p'));pin(9,p1,p1.querySelector('#pg'),-6,0);});
+const L=[
+['Fixed action bar','Save & Next, Previous, Mark for review and Clear are always visible at the bottom. No scrolling 100 times per mock.'],
+['One scroll area','The screen fits the window. Only the question scrolls; the palette stays put. No more three scrollbars.'],
+['One legend with counts','All 5 states with counts (Answered, Not answered, Not visited, Marked, Answered & marked), like the real SSC screen. The duplicate legend at the bottom is gone.'],
+['Section tabs in one row','Compact tabs, “answered/total” in blue on the active one. Scrolls sideways on small screens instead of wrapping.'],
+['Filters with counts','All, Not answered and Marked, each with its number. “Go to question no.” removed: the grid already does that.'],
+['Timer with label and warnings','“Time left”, amber at 5 minutes, red at 1 minute (see timer states).'],
+['Real logo lockup','Same logo as the rest of the site instead of capital letters.'],
+['Lighter watermark','Still covers the page for security, but fainter so it doesn’t distract.'],
+['Phone palette in a sheet','On phones the palette, counts and Submit test open from the grid icon, keeping the question full width.']];
+$('list').innerHTML=L.map(([t,d],i)=>`<li><b>${i+1}</b><div><strong>${t}</strong><span>${d}</span></div></li>`).join('');
+</script>

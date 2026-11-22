@@ -224,7 +224,7 @@ export function LoadingButtonDemo() {
   );
 }
 
-/** BRAND-3 (#84) R13 study-comfort demo: the REAL AssessmentTimer in both phases + "Here's why" + the v3 chips. */
+/** R13 study-comfort demo: the REAL AssessmentTimer in its three tones (EXAM-UX-1) + "Here's why" + the v3 chips. */
 export function StudyComfortDemo() {
   return (
     <div className="flex flex-col gap-6" data-study-comfort="">
@@ -234,8 +234,12 @@ export function StudyComfortDemo() {
           <AssessmentTimer initialRemainingSeconds={40 * 60} onTimeExpired={() => undefined} />
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-caption text-fg-secondary">Timer · last 5 minutes</span>
+          <span className="text-caption text-fg-secondary">Timer · last 5 minutes (amber)</span>
           <AssessmentTimer initialRemainingSeconds={4 * 60 + 59} onTimeExpired={() => undefined} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-caption text-fg-secondary">Timer · last minute (red)</span>
+          <AssessmentTimer initialRemainingSeconds={59} onTimeExpired={() => undefined} />
         </div>
       </div>
       <div className="flex max-w-xl flex-col gap-2">

@@ -471,6 +471,22 @@
   --color-cl-chip-teal: #e5f4f5;
   --color-cl-logo-cyan: #22e3f2;
   --color-cl-logo-violet: #4b00e6;
+  /* EXAM-UX-1 (owner spec 23 Nov 2026, values from docs/design/exam-ux-v1-reference.html): question-state + timer
+     colours. State fills carry white text (≥ 4.5:1); each timer *-text is for text on its *-tint (≥ 4.5:1). Components use
+     these tokens only — never literals. The timer amber is the ONE amber in the product (owner: exam timer amber ≤ 5:00,
+     red ≤ 1:00 — supersedes #84's "never amber / red" for the exam timer only; BRAND-1 B-08 keeps the ban elsewhere). */
+  --color-cl-state-answered: #12805c;
+  --color-cl-state-answered-tint: #e7f6ef;
+  --color-cl-state-not-answered: #d92912;
+  --color-cl-state-not-answered-tint: #fdecea;
+  --color-cl-state-marked: #7a4ce2;
+  --color-cl-state-marked-tint: #f1ecfe;
+  --color-cl-timer-amber: #f5c96b;
+  --color-cl-timer-amber-text: #8a5a00;
+  --color-cl-timer-amber-tint: #fff4dc;
+  --color-cl-timer-red: #f3a79c;
+  --color-cl-timer-red-text: #b42318;
+  --color-cl-timer-red-tint: #fdecea;
 }
 :root {
   --cl-band: linear-gradient(135deg, #485bff 0%, #4262f3 45%, #3973d6 100%);

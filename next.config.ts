@@ -13,6 +13,9 @@ const SHARP_LINUX_FILES = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // EXAM-UX-1: the exam-layout test fixture (app/(fixture)/…/*.fixture.tsx) is a route ONLY in a build made with
+  // EXAM_UX_FIXTURE=1 (local page checks). Vercel never sets it, so the fixture does not exist in any deployed build.
+  pageExtensions: ["tsx", "ts", "jsx", "js", ...(process.env.EXAM_UX_FIXTURE === "1" ? ["fixture.tsx"] : [])],
   // LOGO-P0 (2026-10-31): belt and braces — the tracer's sharp special case already emits sharp's installed @img packages;
   // the Linux binary + libvips are also listed explicitly for every route that runs the logo pipeline
   // (scripts/ci/sharp-trace-check.cjs proves the traced set alone encodes, with a negative control)

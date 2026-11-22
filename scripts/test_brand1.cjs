@@ -248,15 +248,19 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
   return `${files.length} templates; links unchanged (2b-2 T-12)`;
 });
 
-test('B-06 exam rules: timer blue → orange in the last 5 min (never red / flashing); a wrong answer → soft red + "Here\'s why"; icon + text', () => {
+test('B-06 exam rules: timer blue → amber ≤ 5:00 → red ≤ 1:00 (EXAM-UX-1, supersedes #84 for the timer; never flashing); a wrong answer → soft red + "Here\'s why"; icon + text', () => {
   const t = read('components/assessment/assessment-timer.tsx');
-  assert(!/(?:bg|text|border)-(?:red|rose|danger)-/.test(t) && !/animate-/.test(t), 'timer uses red / danger or animates');
-  // R8 + R13 (#84): BLUE normally; ONE quiet final-minutes state in ORANGE (warning); the state is also TEXT ("5 min left")
-  assert(/phase === "final" \? "bg-warning-50 border-warning-600 text-warning-800" : "bg-primary-50 border-primary-200 text-primary-800"/.test(t), 'timer is not blue → orange');
+  const tl = read('lib/assessment/timer.ts');
+  // EXAM-UX-1 (owner decision 22 Nov 2026, spec §1.6) SUPERSEDES #84's "never red" for the exam timer: blue → amber at
+  // ≤ 5:00 → red at ≤ 1:00. Kept from #84: no flashing / animation, no raw palette classes, and colour is never the only cue.
+  assert(!/(?:bg|text|border)-(?:red|rose|danger|warning|amber|yellow|orange)-/.test(t) && !/animate-/.test(t), 'timer uses a raw palette class or animates');
+  assert(/FINAL_PHASE_SECONDS = 300;/.test(tl) && /RED_TONE_SECONDS = 60;/.test(tl) && /if \(seconds <= RED_TONE_SECONDS\) return "red";/.test(tl) && /seconds <= FINAL_PHASE_SECONDS \? "amber" : "normal"/.test(tl), 'timerTone is not normal → amber (≤ 5:00) → red (≤ 1:00)');
+  assert(/tone === "red"\s*\? "border-cl-timer-red bg-cl-timer-red-tint text-cl-timer-red-text"\s*: tone === "amber"\s*\? "border-cl-timer-amber bg-cl-timer-amber-tint text-cl-timer-amber-text"\s*: "border-cl-blue-line bg-cl-blue-tint text-cl-blue-text"/.test(t), 'timer is not blue → amber → red via the cl-timer tokens');
+  // non-colour cues: the visible "Time left" label + ONE polite announcement at 5 min and ONE at 1 min (on tone change only)
+  assert(/Time left/.test(t) && /aria-live="polite"/.test(t) && /\}, \[tone\]\);/.test(t) && /"5 minutes left\."/.test(tl) && /"1 minute left\."/.test(tl), 'timer lacks the label or the 5 / 1 min announcements');
   const qc = read('components/assessment/question-review-card.tsx');
   assert(/"bg-danger-50 border-danger-300 text-fg font-semibold"/.test(qc) && /Here&apos;s why/.test(qc) && /data-heres-why/.test(qc), 'review: soft red tint + a prominent "Here\'s why"');
   assert(/C\.heresWhy/.test(read('components/practice/practice-runner.tsx')) && /heresWhy: "Here's why"/.test(read('content/practice.ts')), 'practice: "Here\'s why" after a wrong answer');
-  assert(/5 min left/.test(t) && /<Clock aria-hidden="true"/.test(t), 'timer state has no non-colour cue (text + icon)');
   const q = read('components/assessment/question-review-card.tsx');
   assert(/<CheckCircle2 className="w-4 h-4 shrink-0 text-success-700" aria-hidden="true" \/>/.test(q) && /<XCircle className="w-4 h-4 shrink-0 text-danger-700" aria-hidden="true" \/>/.test(q), 'option rows lack the correct / wrong icon');
   assert(/"Correct answer"/.test(q) && /"Your answer, incorrect"/.test(q) && /sr-only">Correct:/.test(q) && /sr-only">Incorrect:/.test(q), 'option rows / verdict lack the text label');
@@ -309,7 +313,7 @@ test('B-09 every solid primary is exactly blue-700 #1D4ED8 with hover blue-800 #
 const AMBER_HEX =/#(?:f59e0b|fcd34d|fef3c7|b45309|fbbf24|d97706|fde68a|fffbeb|92400e|78350f|451a03|eab308|facc15|fde047|fef08a|fef9c3|ca8a04|a16207|854d0e)\b/i;
 const AMBER_CLASS = /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|decoration|shadow|caret|accent|placeholder)-(?:amber|yellow)-\d/;
 
-test('B-08 NO yellow / amber anywhere (#84): tokens reset, no amber / yellow class or hex in code, emails or email assets', () => {
+test('B-08 NO yellow / amber anywhere except the exam timer (#84 + EXAM-UX-1): tokens reset, no amber / yellow class or hex in code, emails or email assets', () => {
   assert(/--color-amber-\*: initial;/.test(css) && /--color-yellow-\*: initial;/.test(css), 'amber / yellow namespaces are not reset in app/globals.css');
   assert(!Object.keys(vars).some((k) => /^color-(?:amber|yellow)-\d/.test(k)), 'an amber / yellow token is defined');
   const tokenHexes = Object.keys(vars).filter((k) => k.startsWith('color-')).map((k) => (vars[k] || '').toLowerCase()).filter((v) => v.startsWith('#'));
@@ -323,8 +327,20 @@ test('B-08 NO yellow / amber anywhere (#84): tokens reset, no amber / yellow cla
     if (AMBER_CLASS.test(s)) bad.push(`${rel(f)}: amber / yellow class`);
     if (AMBER_HEX.test(s)) bad.push(`${rel(f)}: amber / yellow hex`);
   }
+  // EXAM-UX-1 (owner decision 22 Nov 2026): the ONE amber in the product is the exam timer's last 5 minutes — exactly three
+  // tokens (reference values), whose classes appear only in components/assessment/assessment-timer.tsx and whose hex values
+  // appear only in app/globals.css. Anything else amber still fails.
+  const timerAmber = Object.keys(vars).filter((k) => /amber|yellow/.test(k)).sort();
+  assert(JSON.stringify(timerAmber) === JSON.stringify(['color-cl-timer-amber', 'color-cl-timer-amber-text', 'color-cl-timer-amber-tint']), `amber tokens other than the exam timer's: ${timerAmber.join(', ')}`);
+  assert(vars['color-cl-timer-amber'].toLowerCase() === '#f5c96b' && vars['color-cl-timer-amber-tint'].toLowerCase() === '#fff4dc' && vars['color-cl-timer-amber-text'].toLowerCase() === '#8a5a00', 'exam timer amber is not the reference values');
+  const TIMER_AMBER_HEX = /#(?:f5c96b|fff4dc|8a5a00)\b/i;
+  for (const f of [...code, ...emails]) {
+    const s = fs.readFileSync(f, 'utf8');
+    if (/cl-timer-amber/.test(s) && rel(f) !== 'components/assessment/assessment-timer.tsx' && rel(f) !== 'app/globals.css') bad.push(`${rel(f)}: exam-timer amber used outside the timer`);
+    if (TIMER_AMBER_HEX.test(s) && rel(f) !== 'app/globals.css') bad.push(`${rel(f)}: exam-timer amber hex outside the token`);
+  }
   assert(bad.length === 0, bad.join('; '));
-  return `${code.length} code files + ${emails.length} email files clean; amber / yellow reset`;
+  return `${code.length} code files + ${emails.length} email files clean; amber / yellow reset; the one amber = the exam timer (3 tokens, 1 component)`;
 });
 
 console.log(`\nBRAND-1: ${passed}/${passed + failed} passed`);
