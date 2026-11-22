@@ -239,7 +239,9 @@ const SCORE_FIELDS = ['total_questions', 'attempted_count', 'correct_count', 'in
     const svc = code(read('services/assessment.service.ts'));
     assert((svc.match(/\.from\("test_results"\)\s*\.insert\(/g) || []).length === 1, 'exactly one scoring / result insert path');
     assert(/remainingSeconds <= 0\) \{\s*if \(isFinalizeEnabled\(\)\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: attempt\.user_id, limit: 20 \}\);\s*else await AssessmentService\.submitTestAttempt\(attempt\.id, attempt\.user_id, \{ submittedAt: new Date\(startTimeMs \+ totalAllowedSeconds \* 1000\)\.toISOString\(\) \}\);/.test(svc), 'player (startOrResumeAttempt): flag on → finalizer; off → the opened attempt only, at its deadline');
-    assert(/if \(user\?\.id\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: user\.id, limit: 20 \}\);/.test(svc), 'result page (getTestResult)');
+    // RESULT-SEC-1 (re-pointed, rule kept + stronger): the result read still finalizes on read — for the SIGNED-IN viewer,
+    // and only AFTER the attempt is proven to be the viewer's own
+    assert(/const attemptData = await resolveOwnAttempt\(sb, attemptId, viewerId\);\s*if \(!attemptData\) return null;[\s\S]{0,600}?await AssessmentService\.finalizeExpiredAttempts\(\{ userId: viewerId, limit: 20 \}\);/.test(svc), 'result page (getTestResult): finalize-on-read for the viewer, after the ownership check');
     assert(/if \(resolvedUserId\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: resolvedUserId, limit: 20 \}\);/.test(svc), 'mock list (dashboard data)');
     assert(/await AssessmentService\.finalizeExpiredAttempts\(\{ userId: uid, limit: 20 \}\);/.test(read('lib/exams/exam-page-server.ts')), 'exam page status');
     assert(/if \(user\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: user\.id, limit: 20 \}\);/.test(read('app/(site)/mock-tests/[id]/page.tsx')), 'instructions page');

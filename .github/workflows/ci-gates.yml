@@ -112,6 +112,7 @@ jobs:
           q SEO-1 node scripts/test_seo1.cjs || fail=1
           q NAV-1 node scripts/test_nav1.cjs || fail=1
           q EXAM-UX-1 node scripts/test_exam_ux1.cjs || fail=1
+          q RESULT-SEC-1 node scripts/test_result_sec1.cjs || fail=1
           q PERF-HOME-1-WIRING node scripts/test_perf_home1_wiring.cjs || fail=1
           q PERF-HOME-1-WIRING-SELFTEST node scripts/test_perf_home1_wiring.cjs --self-test || fail=1
           q PUBLIC-IDENTITY node scripts/test_public_identity.cjs || fail=1

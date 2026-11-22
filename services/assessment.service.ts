@@ -14,6 +14,7 @@ import type { AttemptPosition } from "@/lib/assessment/position";
 import { WRITE_FAILURE_TAG, errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import { SAVE_GRACE_SECONDS, attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
+import { resolveOwnAttempt } from "@/lib/assessment/result-access";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
 import { leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
 import { isPracticeEnabled } from "@/lib/practice/flag";
@@ -1944,15 +1945,17 @@ export class AssessmentService {
   /**
    * Retrieves the raw submission state of an attempt to provide accurate feedback when evaluation is pending.
    */
-  static async getAttemptSubmissionStatus(attemptId: string): Promise<{ exists: boolean; isSubmitted: boolean; status?: string } | null> {
-    const adminSb = createAdminServerSupabaseClient();
-    const { data: attempt } = await adminSb
+  static async getAttemptSubmissionStatus(attemptId: string, viewerId: string): Promise<{ exists: boolean; isSubmitted: boolean; status?: string } | null> {
+    // RESULT-SEC-1: the viewer's OWN attempt only — through the session (RLS: own attempts) AND an explicit owner check
+    const sb = await createServerSupabaseClient();
+    const { data: attempt } = await sb
       .from("test_attempts")
-      .select("id, status, submitted_at")
+      .select("id, user_id, status, submitted_at")
       .eq("id", attemptId)
+      .eq("user_id", viewerId)
       .maybeSingle();
 
-    if (!attempt) return null;
+    if (!attempt || attempt.user_id !== viewerId) return null;
 
     const isSubmitted = !!attempt.submitted_at || ["submitted", "completed", "evaluated"].includes(attempt.status);
     return {
@@ -1965,66 +1968,28 @@ export class AssessmentService {
   /**
    * Fetches test results and question-by-question review with solutions, dynamic standing, and performance insights.
    */
-  static async getTestResult(attemptId: string): Promise<TestResultSummary | null> {
-    let sb: SupabaseClient<Database>;
-    let user: any = null;
-    try {
-      const supabase = await createServerSupabaseClient();
-      const userRes = await supabase.auth.getUser();
-      user = userRes.data?.user;
-      sb = supabase;
-    } catch {
-      sb = createAdminServerSupabaseClient();
-    }
+  static async getTestResult(attemptId: string, viewerId: string): Promise<TestResultSummary | null> {
+    // RESULT-SEC-1: the viewer is the signed-in user proven by the page guard (getServerSession). Every read that decides
+    // WHICH attempt is shown goes through the SESSION client (RLS: own attempts / results only) and an explicit owner
+    // check. There is no service-role fallback: if the session client cannot be built the page errors — it never reads
+    // with the service role instead.
+    if (!viewerId) return null;
+    const sb = await createServerSupabaseClient();
 
-    // EXAM-FINALIZE-1 (finalize-on-read): an expired in-progress attempt of this user is scored before the result read
-    if (user?.id) await AssessmentService.finalizeExpiredAttempts({ userId: user.id, limit: 20 });
+    // 1 + 2. the viewer's OWN attempt (attempt id → result id → mock id), session client + explicit owner check
+    const attemptData = await resolveOwnAttempt(sb, attemptId, viewerId);
+    if (!attemptData) return null;
+    const resolvedAttemptId = attemptData.id;
 
-    let resolvedAttemptId = attemptId;
-    let [resultRes, attemptRes] = await Promise.all([
-      sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
-      sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at").eq("id", resolvedAttemptId).maybeSingle(),
-    ]);
+    // 3. EXAM-FINALIZE-1 (finalize-on-read): only AFTER ownership is proven; scores the viewer's OWN expired attempts
+    // (service-role write scoped to the viewer's user id, unchanged)
+    await AssessmentService.finalizeExpiredAttempts({ userId: viewerId, limit: 20 });
 
-    // Fallback 1: If not found by attempt_id, check if attemptId is actually a test_results.id
-    if (!resultRes?.data && !attemptRes?.data) {
-      const { data: resById } = await sb.from("test_results").select("*").eq("id", attemptId).maybeSingle();
-      if (resById) {
-        resolvedAttemptId = resById.attempt_id;
-        [resultRes, attemptRes] = await Promise.all([
-          sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
-          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at").eq("id", resolvedAttemptId).maybeSingle(),
-        ]);
-      }
-    }
-
-    // Fallback 2: If still not found and user is logged in, check if attemptId is a mock_test_id
-    if ((!resultRes?.data || !attemptRes?.data) && user) {
-      const { data: latestAttempt } = await sb
-        .from("test_attempts")
-        .select("id")
-        .eq("mock_test_id", attemptId)
-        .eq("user_id", user.id)
-        .in("status", ["submitted", "completed", "evaluated"])
-        .order("started_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestAttempt) {
-        resolvedAttemptId = latestAttempt.id;
-        [resultRes, attemptRes] = await Promise.all([
-          sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
-          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at").eq("id", resolvedAttemptId).maybeSingle(),
-        ]);
-      }
-    }
-
-    const r = resultRes?.data;
-    const attemptData = attemptRes?.data;
-
-    if (!r || !attemptData) return null;
-    // PAY-1 B2b: ownership was proven above through the session (test_results / test_attempts RLS); the mock itself is
-    // read on the server (clients lose direct reads of mock_tests)
+    // 4. the result row, through the session again
+    const { data: r } = await sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).eq("user_id", viewerId).maybeSingle();
+    if (!r || r.user_id !== viewerId) return null;
+    // PAY-1 B2b: ownership was proven above through the session (test_results / test_attempts RLS + owner checks); the
+    // mock itself is read on the server (clients lose direct reads of mock_tests)
     const { data: mt } = await createAdminServerSupabaseClient().from("mock_tests").select("id, title, duration_minutes, total_questions, total_marks").eq("id", attemptData.mock_test_id).maybeSingle();
     if (!mt) return null;
 

@@ -7,6 +7,12 @@ import { Card } from "@/components/ui/legacy/card";
 import { Button } from "@/components/ui/legacy/button";
 import { AlertCircle, ArrowLeft, Clock } from "lucide-react";
 import { NoGlassZone } from "@/components/ui/no-glass-zone";
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
+
+export const revalidate = 0;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -14,10 +20,16 @@ interface Props {
 
 export default async function MockTestResultPage({ params }: Props) {
   const { id } = await params;
-  const data = await AssessmentService.getTestResult(id);
+  // RESULT-SEC-1 (same guard as /take): tri-state session — signed out → sign in; a Supabase outage → retry state, never
+  // data. The loader then reads ONLY the signed-in user's own attempt (session client + owner check, no service role).
+  const authSession = await getServerSession();
+  if (authSession.state === "error") return <SessionUnavailable />;
+  if (authSession.state === "none") redirect(loginRedirectPath(`/mock-tests/${id}/result`));
+  const viewerId = authSession.user.id;
+  const data = await AssessmentService.getTestResult(id, viewerId);
 
   if (!data) {
-    const attemptStatus = await AssessmentService.getAttemptSubmissionStatus(id);
+    const attemptStatus = await AssessmentService.getAttemptSubmissionStatus(id, viewerId);
     const isSubmitted = attemptStatus?.isSubmitted;
 
     if (isSubmitted) {
