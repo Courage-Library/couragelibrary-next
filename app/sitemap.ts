@@ -9,6 +9,7 @@ import { ExamModuleKey } from "@/types/exam-knowledge";
 import { learnSitemapEntries } from "@/lib/learn/sitemap";
 import { canonicalLessonPath, EMPTY_TOPIC_CANON } from "@/lib/learn/topic-canon";
 import { loadTopicCanon } from "@/services/learning/topic-canon.service";
+import { caSitemapEntries, logSitemapReadFailure, type CaSitemapRow } from "@/lib/seo/ca-sitemap";
 
 export const revalidate = 3600; // Revalidate sitemap hourly
 const SITEMAP_FETCH_TIMEOUT_MS = 8000;
@@ -108,12 +109,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .from("courses")
         .select("slug, updated_at")
         .eq("is_published", true),
+      // SITEMAP-CA-1: the public (anon, RLS) read of published CA, with the pointed-to version's status + published_at;
+      // caSitemapEntries re-checks every isolation rule on the rows (lib/seo/ca-sitemap.ts)
       supabase
         .from("current_affairs_articles")
-        .select("slug, updated_at, published_at, news_date")
+        .select("slug, status, published_version_id, news_date, published_at, updated_at, published_version:current_affairs_article_versions!fk_ca_articles_published_version(status, published_at)")
         .eq("status", "PUBLISHED")
         .not("published_version_id", "is", null),
     ]);
+
+    // SITEMAP-CA-1: no silent read failure — each failed read logs one structured warning; the rest still renders
+    if (examsRes.error) logSitemapReadFailure("exams", examsRes.error);
+    if (docsRes.error) logSitemapReadFailure("exam_knowledge_documents", docsRes.error);
+    if (articlesRes.error) logSitemapReadFailure("learning_documents", articlesRes.error);
+    if (coursesRes.error) logSitemapReadFailure("courses", coursesRes.error);
+    if (caRes.error) logSitemapReadFailure("current_affairs", caRes.error);
 
     const dynamicEntries: MetadataRoute.Sitemap = [];
     const activeExamsMap = new Map<string, { slug: string; updated_at?: string }>();
@@ -187,8 +197,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
         dynamicEntries.push(...learnSitemapEntries(baseUrl, lessons, paths, examCourses));
       }
-    } catch {
-      // the lesson entries are optional: the rest of the sitemap still renders
+    } catch (lessonError) {
+      // the lesson entries are optional: the rest of the sitemap still renders (SITEMAP-CA-1: but never silently)
+      logSitemapReadFailure("lessons", lessonError);
     }
 
     // D. Published Courses (/courses/[slug]) — only while FEATURE_COURSES is on (the pages 404 otherwise)
@@ -204,59 +215,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }
 
-    // E. Published Current Affairs Articles & Dates (/current-affairs/[slug], /date/[date], /month/[month])
-    if (caRes.data && Array.isArray(caRes.data)) {
-      const publishedDates = new Set<string>();
-      const publishedMonths = new Set<string>();
-
-      for (const art of caRes.data) {
-        if (!art.slug) continue;
-        const lastMod = art.published_at
-          ? new Date(art.published_at)
-          : art.updated_at
-          ? new Date(art.updated_at)
-          : new Date();
-
-        dynamicEntries.push({
-          url: `${baseUrl}/current-affairs/${art.slug}`,
-          lastModified: lastMod,
-          changeFrequency: "daily",
-          priority: 0.85,
-        });
-
-        if (art.news_date) {
-          const dateStr = typeof art.news_date === "string" ? art.news_date.split("T")[0] : "";
-          if (dateStr) {
-            publishedDates.add(dateStr);
-            publishedMonths.add(dateStr.substring(0, 7));
-          }
-        }
-      }
-
-      // Add eligible Date pages
-      for (const dateStr of Array.from(publishedDates).sort().reverse()) {
-        dynamicEntries.push({
-          url: `${baseUrl}/current-affairs/date/${dateStr}`,
-          lastModified: new Date(),
-          changeFrequency: "daily",
-          priority: 0.75,
-        });
-      }
-
-      // Add eligible Monthly Archive pages
-      for (const monthStr of Array.from(publishedMonths).sort().reverse()) {
-        dynamicEntries.push({
-          url: `${baseUrl}/current-affairs/month/${monthStr}`,
-          lastModified: new Date(),
-          changeFrequency: "weekly",
-          priority: 0.7,
-        });
-      }
+    // E. Published Current Affairs: articles, their date pages and month pages (SITEMAP-CA-1, lib/seo/ca-sitemap.ts)
+    if (Array.isArray(caRes.data)) {
+      const ca = caSitemapEntries(baseUrl, caRes.data as unknown as CaSitemapRow[]);
+      if (ca.capped) logSitemapReadFailure("current_affairs", { code: "CA_SITEMAP_CAPPED" });
+      dynamicEntries.push(...ca.entries);
     }
 
     return [...staticEntries, ...dynamicEntries];
   } catch (error) {
-    // Fail-safe: Always return static routes on database or network failure
+    // Fail-safe: always return the static routes on a database or network failure — and say so (SITEMAP-CA-1)
+    logSitemapReadFailure("sitemap", error);
     return staticEntries;
   }
 }

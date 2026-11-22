@@ -453,11 +453,17 @@ SMOKE-MOCK-LINK-1).
 
 **Warnings:** `VACUOUS: no current-affairs article in the sitemap` and `… no current-affairs date page in the sitemap`.
 
-**Cause (to confirm):** an SEO gap in the site, not the smoke. `/current-affairs` links live date pages (e.g.
-`/current-affairs/date/2026-11-21`, 200), yet `app/sitemap.ts` section E adds no article / date / month URL. Its read
-(`current_affairs_articles`, `status = PUBLISHED`, `published_version_id` not null) returns no rows or an error that is
-silently skipped; the hub and the sitemap disagree on what "published" means.
+**CLOSED 2026-11-22 (SITEMAP-CA-1 phase).** The first guess above was wrong. **Root cause:** production holds **no Current
+Affairs article in any status** (all 7 CA tables have 0 rows, read-only count, ref-locked). The sitemap read was correct
+and simply empty. The `/current-affairs` "Recent days" strip is a fixed calendar (`pastDays`), not content: its date
+pages answer 200 with "Nothing published for <date>". CA-7.4's 3 production DRAFTs (plus one mixed-batch test article)
+were deleted by that suite's own Group 8 cleanup by design (its report: baseline 0 → peak 4 → restored 0).
 
-**How:** find why the sitemap read is empty (filter vs the hub's read, or a read error), align it with the hub, log a read
-error instead of skipping it silently, and gate it (the sitemap must list every published article and its date page).
-SEO impact: Google finds these pages only through links until fixed.
+**Done anyway (hardening):** CA URLs built by a pure function (`lib/seo/ca-sitemap.ts`) that re-checks the isolation
+rule (PUBLISHED + pointer + published version); lastmod from the published version; date and month pages only for days
+with such an article; a 40,000-article cap; every sitemap read logs one structured warning on error (source + code
+only) and the rest still renders; the swallowed `catch (error)` now logs (LINT-SITEMAP-1 closed). Gate
+`scripts/test_sitemap_ca1.cjs` (CI offline list), 20 negative controls.
+
+**The two smoke warnings stay** (`VACUOUS`, correct) until the first Current Affairs article is published. They turn
+into passes by themselves then; no smoke change needed.

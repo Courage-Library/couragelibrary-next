@@ -108,6 +108,7 @@ jobs:
           q HOME-1 node scripts/test_home1.cjs || fail=1
           q LANDING-1 node scripts/test_landing1.cjs || fail=1
           q LEGACY-REDIRECTS node scripts/test_legacy_redirects.cjs || fail=1
+          q SITEMAP-CA-1 node scripts/test_sitemap_ca1.cjs || fail=1
           q PERF-HOME-1-WIRING node scripts/test_perf_home1_wiring.cjs || fail=1
           q PERF-HOME-1-WIRING-SELFTEST node scripts/test_perf_home1_wiring.cjs --self-test || fail=1
           q PUBLIC-IDENTITY node scripts/test_public_identity.cjs || fail=1
