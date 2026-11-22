@@ -330,8 +330,10 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     const act = code(read('app/(site)/practice/actions.ts'));
     assert(/if \(!isPracticeEnabled\(\)\) return \{ ok: false, code: "FAILED" \};/.test(act), 'check action off');
     assert(/if \(isPracticeEnabled\(\)\) \{\s*const \{ data, error \} = await supabase\.rpc\("fn_report_question"/.test(code(read('lib/practice/report.ts'))), 'reports switch on the flag');
-    const nav = read('components/shell/nav-config.ts');
-    assert(/\{ href: "\/practice", label: "Practice", flag: "PRACTICE" \}/.test(nav) && /\{ href: "\/practice", label: "Mistake drills", unlessFlag: "PRACTICE" \}/.test(nav) && /\{ href: "\/mistakes\/drill", label: "Mistake drills", flag: "PRACTICE" \}/.test(nav), 'nav follows the flag');
+    // FOOTER-1 (re-pointed, rule kept): the old footer's flag-dependent Practice / drills entries went with it (the
+    // owner's footer has no practice link); THE navigation shows Practice ONLY with the flag on (sidebar + bottom bar)
+    const sn = read('lib/nav/student-nav.ts');
+    assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "book" \}\);/g) || []).length === 2 && !/\/practice/.test(read('lib/site/footer-links.ts')), 'nav follows the flag');
     return 'hub · 404 · legacy reports';
   });
 

@@ -93,21 +93,5 @@ export const CNTS_PAGE = {
   questionsText: "Write to us and we will reply by email.",
 } as const;
 
-// LEGAL-PAGES-1: Contact, Privacy and Terms are the owner-approved legal text now (content/legal, docs/legal).
-
-/** Footer additions (UX-2b): only routes that exist. LEGAL-PAGES-1: the legal row lists the five legal pages. */
-export const FOOTER_ABOUT = {
-  heading: "Courage Library",
-  items: [
-    { href: "/about", label: "About" },
-    { href: "/cnts", label: "CNTS" },
-    { href: "/help", label: "Help" },
-  ],
-  legal: [
-    { href: "/terms", label: "Terms" },
-    { href: "/privacy", label: "Privacy" },
-    { href: "/refund-policy", label: "Refund Policy" },
-    { href: "/shipping-policy", label: "Shipping Policy" },
-    { href: "/contact", label: "Contact & Grievance" },
-  ],
-} as const;
+// FOOTER-1: the footer link lists live in lib/site/footer-links.ts (the old FOOTER_ABOUT list was removed with the old
+// navy footer); LEGAL-PAGES-1: the five legal pages are always linked there (COMPLIANCE_ROUTES + Help).

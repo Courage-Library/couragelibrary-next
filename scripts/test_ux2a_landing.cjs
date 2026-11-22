@@ -89,7 +89,8 @@ const DATA = 'lib/landing/landing-data.ts';
 const JSONLD = 'lib/landing/organization-jsonld.ts';
 const PAGE = 'app/(public)/page.tsx';
 const HEADER = 'components/nav/visitor-header.tsx'; // NAV-1: THE visitor header (Stage A) replaced components/shell/header-bar.tsx
-const FOOTER = 'components/shell/site-footer.tsx';
+// FOOTER-1: THE public footer (its link table: lib/site/footer-links.ts FOOTER_ROUTES)
+const FOOTER = 'components/footer/public-footer.tsx';
 const CTA = 'components/landing/landing-cta.tsx';
 const NEW_FILES = [CONTENT, SECTIONS, CTA, DATA, JSONLD, PAGE, HEADER, FOOTER, 'components/seo/json-ld.tsx'];
 
@@ -170,12 +171,19 @@ const UX2B_ROUTES = ['/legal'];
 
   await test('L-2 no dead links: every landing / header / footer / public-page href routes; nothing points to unbuilt pages', async () => {
     // NAV-1: the headers (visitor header, student shell) and their link rules (lib/nav) are scanned too
-    const files = [CONTENT, SECTIONS, CTA, HEADER, 'components/nav/student-shell.tsx', 'lib/nav/student-nav.ts', 'lib/nav/visitor-nav.ts', FOOTER, 'components/shell/nav-config.ts', 'content/public-pages.ts'];
+    const files = [CONTENT, SECTIONS, CTA, HEADER, 'components/nav/student-shell.tsx', 'lib/nav/student-nav.ts', 'lib/nav/visitor-nav.ts', FOOTER, 'components/footer/student-footer.tsx', 'content/public-pages.ts'];
     const hrefs = new Set();
     for (const f of files) {
       const s = read(f);
       for (const m of s.matchAll(/href(?:=|: )"(\/[^"]*)"/g)) hrefs.add(m[1]);
     }
+    // FOOTER-1 (re-pointed, rule kept): every footer link comes from FOOTER_ROUTES — each value must route
+    const fr = read('lib/site/footer-links.ts');
+    const table = fr.slice(fr.indexOf('export const FOOTER_ROUTES = {'), fr.indexOf('} as const;', fr.indexOf('export const FOOTER_ROUTES = {')));
+    const footerRoutes = [...table.matchAll(/:\s*"(\/[^"]*)"/g)].map((m) => m[1]);
+    assert(footerRoutes.length >= 10, `only ${footerRoutes.length} footer routes found`);
+    // Learn stays unlinked until the Learn index exists (the footer adds it only with LEARN_INDEX_READY)
+    footerRoutes.filter((h) => h !== '/learn').forEach((h) => hrefs.add(h));
     assert(hrefs.size >= 15, `only ${hrefs.size} hrefs found in the landing / header / footer sources (min 15)`); // GATE-HYGIENE-1
     hrefs.add('/exams/ssc-cgl');
     const dead = [...hrefs].filter((h) => !routeExists(h));

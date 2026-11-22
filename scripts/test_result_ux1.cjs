@@ -381,8 +381,15 @@ function checkPhone(viewSrc, cssSrc, navSrc) {
   const barCls = (viewSrc.match(/className="([^"]*)" data-result-bar="summary"/) || [])[1] || '';
   const barZ = Number((barCls.match(/\bz-\[?(\d+)\]?/) || [])[1]);
   assert(navZ > 0 && barZ > 0 && barZ < navZ && /\bpb-9\b/.test(barCls), `summary bar z ${barZ} vs nav ${navZ}, bottom zone (pb-9 = 36 px ≥ the 32 px raised button): "${barCls}"`);
-  assert(/className="min-h-\[calc\(100dvh-4rem\)\] bg-cl-cloud pb-\[112px\] lg:pb-16"/.test(viewSrc), 'content not padded for the bar (112 px ≥ 8 + 48 + 36 px bar + gap)');
-  assert(/@media \(max-width: 1023\.98px\) \{\s*html\[data-result-review\] \.cl-ss__bar \{\s*display: none;\s*\}\s*html\[data-result-review\] \.cl-ss__col \{\s*padding-bottom: 0;/.test(cssSrc), 'review mode does not hide the student nav (scoped, < 1024 px)');
+  // FOOTER-1 (re-pointed, rule kept + stronger): the bar's height is added to the STUDENT COLUMN padding by CSS alone
+  // (:has([data-result-bar=…])), so BOTH the page content and the student footer line end above the bar (no JS, no shift)
+  const mq = (navSrc.match(/@media \(max-width: 1023\.98px\) \{([\s\S]*?)\n\}/) || [])[1] || '';
+  const sumPad = (mq.match(/\.cl-ss__col:has\(\[data-result-bar="summary"\]\) \{\s*padding-bottom: calc\((\d+)px \+ (\d+)px \+ env\(safe-area-inset-bottom, 0px\)\);/) || []).slice(1).map(Number);
+  const revPad = Number((mq.match(/\.cl-ss__col:has\(\[data-result-bar="review"\]\) \{\s*padding-bottom: calc\((\d+)px \+ env\(safe-area-inset-bottom, 0px\)\);/) || [])[1]);
+  assert(sumPad.length === 2 && sumPad[0] === Number(navH) && sumPad[1] >= 8 + 48 + 36 + 1, `the column is not padded for the summary bar (${sumPad.join(' + ')} px; want nav ${navH} + ≥ 93)`);
+  assert(revPad >= 8 + 48 + 8 + 1, `the column is not padded for the review bar (${revPad} px; want ≥ 65)`);
+  assert(/className="min-h-\[calc\(100dvh-4rem\)\] bg-cl-cloud pb-6 lg:pb-16" data-result-ux="v1"/.test(viewSrc), 'page bottom spacing changed');
+  assert(/@media \(max-width: 1023\.98px\) \{\s*html\[data-result-review\] \.cl-ss__bar \{\s*display: none;\s*\}/.test(cssSrc) && !/\.cl-ss__col \{\s*padding-bottom: 0;/.test(cssSrc), 'review mode does not hide the student nav (scoped, < 1024 px) or zeroes the column padding');
   assert(/if \(reviewMode\) el\.setAttribute\("data-result-review", ""\);\s*else el\.removeAttribute\("data-result-review"\);\s*return \(\) => el\.removeAttribute\("data-result-review"\);/.test(viewSrc), 'the review flag is not cleaned up');
   const d = data();
   const rm = render(d, 'review=1&filter=wrong&q=4');
@@ -459,6 +466,8 @@ function checkFixture(page, layout, cfg) {
       ['emoji in the UI', view(mut(SRC.view, 'Rank &amp; percentile appear once enough students take this mock', 'Rank &amp; percentile appear once enough students take this mock \u{1F3C6}'), () => checkNoEmoji([['desktop', render(data())]]))],
       ['bar covers the student nav', () => checkPhone(mut(SRC.view, 'bottom-[calc(68px+env(safe-area-inset-bottom,0px))]', 'bottom-0'), SRC.css, SRC.nav)],
       ['review mode keeps the student nav', () => checkPhone(SRC.view, mut(SRC.css, '    display: none;', '    display: flex;'), SRC.nav)],
+      ['column not padded for the summary bar (footer under the bar)', () => checkPhone(SRC.view, SRC.css, mut(SRC.nav, '.cl-ss__col:has([data-result-bar="summary"]) {\n    padding-bottom: calc(68px + 96px', '.cl-ss__col:has([data-result-bar="summary"]) {\n    padding-bottom: calc(68px + 40px'))],
+      ['column not padded for the review bar', () => checkPhone(SRC.view, SRC.css, mut(SRC.nav, '.cl-ss__col:has([data-result-bar="review"]) {\n    padding-bottom: calc(72px', '.cl-ss__col:has([data-result-bar="review"]) {\n    padding-bottom: calc(12px'))],
       ['bar above the nav layer (its raised button hidden / blocking)', () => checkPhone(mut(SRC.view, 'z-[29] border-t border-cl-line bg-cl-white px-4 pt-2 pb-9', 'z-30 border-t border-cl-line bg-cl-white px-4 py-2'), SRC.css, SRC.nav)],
       ['result fixture without the production 404', () => checkFixture(mut(read(FX_PAGE_REL), 'process.env.VERCEL_ENV === "production" || ', ''), read(FX_LAYOUT_REL), read('next.config.ts'))],
       ['result fixture reads the session', () => checkFixture('import { getServerSession } from "@/lib/auth/session";\n' + read(FX_PAGE_REL), read(FX_LAYOUT_REL), read('next.config.ts'))],

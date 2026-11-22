@@ -24,9 +24,7 @@
 .lp .lp-pr b,
 .lp .lp-faq summary,
 .lp .lp-pain q,
-.lp .lp-tag,
-.lp .lp-ft__h,
-.lp .lp-ft__tg {
+.lp .lp-tag {
   font-family: var(--font-poppins), var(--font-poppins-600), var(--font-devanagari), sans-serif;
 }
 .lp--hi h2,
@@ -37,9 +35,7 @@
 .lp--hi .lp-pr b,
 .lp--hi .lp-faq summary,
 .lp--hi .lp-pain q,
-.lp--hi .lp-tag,
-.lp--hi .lp-ft__h,
-.lp--hi .lp-ft__tg {
+.lp--hi .lp-tag {
   font-family: var(--font-devanagari), var(--font-poppins), sans-serif;
 }
 .lp *,
@@ -82,18 +78,6 @@
 }
 .lp-skip:focus {
   left: 16px;
-}
-
-/* ---------- logo lock-up (footer; the header is components/nav/visitor-header.tsx since NAV-1) ---------- */
-.lp-lock {
-  display: inline-flex;
-  align-items: center;
-  min-height: 48px;
-  flex: none;
-}
-.lp-logo {
-  display: block;
-  height: auto;
 }
 
 /* ---------- buttons and links ---------- */
@@ -1058,71 +1042,6 @@
     border-radius: 20px;
     padding: 40px 18px;
   }
-}
-
-/* ---------- footer ---------- */
-.lp-ft {
-  background: var(--color-cl-charcoal);
-  color: var(--color-cl-silver);
-  padding: 52px 0 30px;
-  font-size: 14px;
-}
-.lp-ft__grid {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr;
-  gap: 28px;
-}
-@container (max-width: 760px) {
-  .lp-ft__grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .lp-ft__brand {
-    grid-column: 1 / -1;
-  }
-}
-.lp-ft__brand .lp-lock {
-  margin-bottom: 12px;
-}
-.lp-ft__purpose {
-  color: var(--cl-footer-purpose);
-  max-width: 36ch;
-  margin: 0 0 12px;
-}
-.lp-ft__tg {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--cl-footer-tag);
-}
-.lp-ft__h {
-  color: var(--color-cl-white);
-  font-weight: 600;
-  font-size: 14px;
-  margin: 0 0 6px;
-}
-.lp-ft ul {
-  display: flex;
-  flex-direction: column;
-}
-.lp-ft a {
-  color: var(--color-cl-silver);
-  text-decoration: none;
-  min-height: 48px;
-  display: inline-flex;
-  align-items: center;
-  transition: color 0.15s ease-out;
-}
-.lp-ft a:hover {
-  color: var(--color-cl-white);
-}
-.lp-ft__legal {
-  border-top: 1px solid var(--color-cl-charcoal-3);
-  margin-top: 28px;
-  padding-top: 20px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: 13px;
 }
 
 @media (prefers-reduced-motion: reduce) {

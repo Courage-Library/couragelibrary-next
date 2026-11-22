@@ -69,7 +69,6 @@ export function resolveLandingCopy(base: LandingCopy, f: LandingFacts, examsHref
     hero: { ...base.hero, badge: f.hindiLive ? base.hero.badge : base.hindiPending.badge, sub: f.hindiLive ? base.hero.sub : base.hindiPending.sub },
     faq: { ...base.faq, items: faq },
     promises: { ...base.promises, items: promises },
-    footer: { ...base.footer, made: f.hindiLive ? base.footer.made : base.footer.madePending },
   };
   const start: StartAction = f.signupOpen ? { label: base.startFree, href: signUpHref } : { label: base.hero.explore, href: examsHref };
   return { t, start };

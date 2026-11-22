@@ -593,3 +593,23 @@ mistakes", only then. Gate: RESULT-UX-1 R-9 (today: "Re-attempt shown" is a nega
   them with F4-01…F4-03 once nothing else reads them.
 - **Rank / percentile:** shown only from the existing real-cohort standing (n ≥ RANK_MIN_COHORT); otherwise the muted
   note. No new ranking logic (spec §6).
+
+## FOOTER-FOLLOWUPS-1: items found in FOOTER-1 (report only, no change made)
+
+**Status:** logged in FOOTER-1, 2026-11-23 (owner decision 10).
+
+- **The account address in other places:** the Organization JSON-LD (`lib/landing/organization-jsonld.ts`), the Pro
+  e-mail templates (`lib/email/pro-templates.ts`, `lib/email/pro-email-server.ts`), `content/support.ts` and
+  `content/landing.ts` (`SHELL_COPY.supportEmail`) still use the account / owner address. The footer no longer does
+  (`lib/site/footer-config.ts` `contactEmail: null` until the owner chooses a public address). Decide one public
+  contact address and point all of them at one config value.
+- **Pages without a footer:** the root `app/not-found.tsx` and `app/error.tsx` render outside both shells (no header,
+  no footer). Decide whether they get THE public footer.
+- **Dead code:** `components/landing/landing-enhancements.tsx` (a fixed bottom bar) is imported by no page; UX-IMP-1
+  (`scripts/test_ux_imp1.cjs`) and a comment in `app/globals.css` still name it — remove all three together.
+- **Owner inputs pending:** a public contact e-mail and the active social account URLs (`config/site.ts`
+  `siteConfig.links` — the footer icons and the JSON-LD `sameAs` read the same values). Each stays hidden until set.
+- **Admin footer-logo upload:** the footers now show the official logo-suite lockup (like the headers since NAV-1);
+  the admin "footer logo" upload no longer changes any page (same as BRAND-LOGO-UPLOAD-NAV-1 for the headers).
+- **Links the old footer had that the owner's columns do not:** CNTS, Pricing, Practice / Mistake drills. Add them to
+  a column only if the owner wants them back.
