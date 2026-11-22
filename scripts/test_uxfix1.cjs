@@ -120,9 +120,9 @@ test('X-05 "Sign in" is always reachable: in the bar on desktop, in the phone me
   const vh = read('components/nav/visitor-header.tsx');
   const css = read('app/nav.css');
   assert(/UXFIX1 X-05: on phones the bar is logo \+ start action \+ menu; "Sign in" is in the menu/.test(vh), 'X-05 exemption not recorded');
-  assert(/<Link className="cl-vh__signin" href=\{VISITOR_ROUTES\.signIn\}>/.test(vh) && /\.cl-vh__signin \{[^}]*min-height: 48px;/.test(css), 'desktop bar: Sign in missing or < 48 px');
+  assert(/<Link className="cl-vh__signin" href=\{VISITOR_ROUTES\.signIn\}[^>]*>/.test(vh) && /\.cl-vh__signin \{[^}]*min-height: 48px;/.test(css), 'desktop bar: Sign in missing or < 48 px');
   const menu = vh.slice(vh.indexOf('data-drawer-panel=""'));
-  assert(/href=\{VISITOR_ROUTES\.signIn\} data-menu-item="signin"/.test(menu) && menu.indexOf('data-menu-item="signin"') < menu.indexOf('data-menu-item="start"') && /\.cl-vh__ctas \.cl-vh__pill \{\s+height: 48px;/.test(css), 'phone menu: Sign in missing, after the start action, or < 48 px');
+  assert(/href=\{VISITOR_ROUTES\.signIn\}[^>]*data-menu-item="signin"/.test(menu) && menu.indexOf('data-menu-item="signin"') < menu.indexOf('data-menu-item="start"') && /\.cl-vh__ctas \.cl-vh__pill \{\s+height: 48px;/.test(css), 'phone menu: Sign in missing, after the start action, or < 48 px');
   // the auth pages are signed-out pages: Sign in leads there from every public page
   assert(/signIn: "\/auth\/login"/.test(read('lib/nav/visitor-nav.ts')), 'Sign in target');
   return 'bar on desktop, first menu action on phones';

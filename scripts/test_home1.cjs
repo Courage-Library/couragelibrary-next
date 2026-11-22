@@ -130,7 +130,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     // and start actions are full-width 48 px buttons
     const vh = read('components/nav/visitor-header.tsx');
     const navCss = read('app/nav.css');
-    assert(/href=\{VISITOR_ROUTES\.signIn\} data-menu-item="signin"/.test(vh) && /data-menu-item="start"/.test(vh) && /\.cl-vh__ctas \.cl-vh__pill \{\s+height: 48px;\s+width: 100%;/.test(navCss), 'mobile menu actions');
+    assert(/href=\{VISITOR_ROUTES\.signIn\}[^>]*data-menu-item="signin"/.test(vh) && /data-menu-item="start"/.test(vh) && /\.cl-vh__ctas \.cl-vh__pill \{\s+height: 48px;\s+width: 100%;/.test(navCss), 'mobile menu actions');
     assert(/inline-flex size-12 shrink-0/.test(read('components/ui/dialog.tsx')), 'dialog close 48 px');
     for (const file of [SECTIONS, 'components/exams/category-page.tsx']) assert(!/text-\[1[0-3]px\]|text-caption|text-xs\b/.test(code(read(file))), `${file}: text under 14 px`);
   });
