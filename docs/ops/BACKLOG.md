@@ -572,3 +572,24 @@ keep the live engine gates unchanged.
 **Status:** logged in EXAM-UX-1, 2026-11-22, as future work. The spec's top bar leaves room for an EN | हिंदी question
 language switch. It needs one published version per language (BILINGUAL-1 / LANG-VERSIONS-1) and a rule for which
 language an answer is recorded against, so it is a separate phase. Nothing ships for it now.
+
+## RESULT-REATTEMPT-1: show "Re-attempt" on the result page only when a new attempt is actually allowed
+
+**Status:** logged in RESULT-UX-1, 2026-11-23 (owner decision: hidden in this phase). `startOrResumeAttempt` refuses a
+new attempt once a normal mock has a submitted one; a daily mock allows one attempt per day. A Re-attempt button for a
+normal mock would always fail, so the jump bar and the phone bar show none today.
+
+**Done when:** the result loader returns a server-decided `canReattempt` (daily mock not yet taken today, or a future
+retake rule), the jump bar shows "Re-attempt" (existing start route) and the phone bar shows it next to "Review N
+mistakes", only then. Gate: RESULT-UX-1 R-9 (today: "Re-attempt shown" is a negative control) re-pointed with both states.
+
+## RESULT-UX-FOLLOWUPS-1: small items found in RESULT-UX-1
+
+- **Spelling:** the spec copy says "Practise"; the UXFIX1 X-10 rule keeps ONE spelling ("Practice") in public copy, so
+  the page says "Practice". Owner to confirm, or change the rule and the copy together.
+- **Section time limits:** `mock_sections.duration_minutes` is now read; where it is empty the ideal pace is the mock
+  duration ÷ total questions. Worth filling for mocks with real section timers.
+- **Takeaways:** the loader still builds the F4 `takeaways` (no longer shown; "Your next 3 steps" replaced them). Remove
+  them with F4-01…F4-03 once nothing else reads them.
+- **Rank / percentile:** shown only from the existing real-cohort standing (n ≥ RANK_MIN_COHORT); otherwise the muted
+  note. No new ranking logic (spec §6).

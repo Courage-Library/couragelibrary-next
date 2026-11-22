@@ -254,9 +254,10 @@ function supaMock(results) {
     const base = { questionOrder: 1, sectionName: 'S', questionText: 'Q?', options: ['A', 'B', 'C', 'D'].map((k) => ({ key: k, text: `opt ${k}` })), selectedOption: 'B', isCorrect: false, marksAwarded: 0, explanation: null, topicName: null, topicSlug: null };
     const none = renderToStaticMarkup(React.createElement(QuestionReviewCard, { ...base, correctOption: null }));
     assert(none.includes('Answer key unavailable') && none.includes('Not scored'), 'notice / not-scored badge missing');
-    assert(!/emerald/.test(none) && !/bg-red-50\/80/.test(none), 'an option is marked correct / wrong without a key');
+    // RESULT-UX-1 (re-pointed, rule kept): "marked" = the option's state + its text label, not a colour class
+    assert(!/data-option="correct"|data-option="your-wrong"|Correct answer/.test(none), 'an option is marked correct / wrong without a key');
     const keyed = renderToStaticMarkup(React.createElement(QuestionReviewCard, { ...base, correctOption: 'C' }));
-    assert(!keyed.includes('Answer key unavailable') && /emerald/.test(keyed), 'valid key no longer marked');
+    assert(!keyed.includes('Answer key unavailable') && /data-option="correct"/.test(keyed) && keyed.includes('✓ Correct answer') && /data-option="your-wrong"/.test(keyed), 'valid key no longer marked');
     return 'no fallbacks; card + 5 views';
   });
 

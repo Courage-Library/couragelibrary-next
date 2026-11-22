@@ -248,7 +248,7 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
   return `${files.length} templates; links unchanged (2b-2 T-12)`;
 });
 
-test('B-06 exam rules: timer blue → amber ≤ 5:00 → red ≤ 1:00 (EXAM-UX-1, supersedes #84 for the timer; never flashing); a wrong answer → soft red + "Here\'s why"; icon + text', () => {
+test('B-06 exam rules: timer blue → amber ≤ 5:00 → red ≤ 1:00 (EXAM-UX-1, supersedes #84 for the timer; never flashing); a wrong answer → soft coral + text labels + one "Explanation" (RESULT-UX-1); practice keeps "Here\'s why"', () => {
   const t = read('components/assessment/assessment-timer.tsx');
   const tl = read('lib/assessment/timer.ts');
   // EXAM-UX-1 (owner decision 22 Nov 2026, spec §1.6) SUPERSEDES #84's "never red" for the exam timer: blue → amber at
@@ -259,11 +259,15 @@ test('B-06 exam rules: timer blue → amber ≤ 5:00 → red ≤ 1:00 (EXAM-UX-1
   // non-colour cues: the visible "Time left" label + ONE polite announcement at 5 min and ONE at 1 min (on tone change only)
   assert(/Time left/.test(t) && /aria-live="polite"/.test(t) && /\}, \[tone\]\);/.test(t) && /"5 minutes left\."/.test(tl) && /"1 minute left\."/.test(tl), 'timer lacks the label or the 5 / 1 min announcements');
   const qc = read('components/assessment/question-review-card.tsx');
-  assert(/"bg-danger-50 border-danger-300 text-fg font-semibold"/.test(qc) && /Here&apos;s why/.test(qc) && /data-heres-why/.test(qc), 'review: soft red tint + a prominent "Here\'s why"');
+  // RESULT-UX-1 (owner spec 23 Nov 2026 §2.9–§2.10) supersedes the mock review's "Here's why" + red tint: a wrong answer
+  // is the SOFT coral surface (never solid red) with the TEXT label "✕ Your answer", the right one "✓ Correct answer",
+  // and ONE "Explanation" label for every state (gated in detail: RESULT-UX-1 R-9). Practice keeps its "Here's why".
+  assert(/wrongMine \? "border-cl-coral bg-cl-result-coral-surface text-cl-charcoal"/.test(qc) && !/bg-(?:red|danger)-[5-9]00|Here&apos;s why|data-heres-why/.test(qc) && />Explanation<\/h4>/.test(qc), 'review: soft coral surface + one "Explanation" label');
   assert(/C\.heresWhy/.test(read('components/practice/practice-runner.tsx')) && /heresWhy: "Here's why"/.test(read('content/practice.ts')), 'practice: "Here\'s why" after a wrong answer');
   const q = read('components/assessment/question-review-card.tsx');
-  assert(/<CheckCircle2 className="w-4 h-4 shrink-0 text-success-700" aria-hidden="true" \/>/.test(q) && /<XCircle className="w-4 h-4 shrink-0 text-danger-700" aria-hidden="true" \/>/.test(q), 'option rows lack the correct / wrong icon');
-  assert(/"Correct answer"/.test(q) && /"Your answer, incorrect"/.test(q) && /sr-only">Correct:/.test(q) && /sr-only">Incorrect:/.test(q), 'option rows / verdict lack the text label');
+  assert(/\{wrongMine \? "✕ " : right \? "✓ " : ""\}Your answer/.test(q) && /✓ Correct answer/.test(q), 'option rows lack the correct / wrong text label (icon + text)');
+  // RESULT-UX-1: the labels are VISIBLE text now (stronger than screen-reader-only), and the verdict chip says it in words
+  assert(/data-label="your-answer"/.test(q) && /data-label="correct-answer"/.test(q) && /return `\$\{s === "correct" \? "Correct" : "Wrong"\} · \$\{fmtSigned\(q\.marksAwarded\)\}`;/.test(read('lib/assessment/result-ux.ts')) && /\{chip\}/.test(q), 'option rows / verdict lack the text label');
   const r = read('components/ui/domain/question-renderer.tsx');
   assert(/Your answer/.test(r) && /Correct answer/.test(r), 'design-system question renderer lost its labels');
   return 'timer accent-only; review: icon + text';

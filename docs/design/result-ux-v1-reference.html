@@ -1,0 +1,339 @@
+<title>Result Page Improvements</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap">
+<style>
+:root{--bg:#F5F6FA;--fg:#18191B;--mu:#5B6070;--ln:#E3E5EC;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:1320px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:26px}
+h1{font:600 clamp(22px,3vw,30px) Poppins,sans-serif;margin:0}
+h2{font:600 19px Poppins,sans-serif;margin:0}
+.lead{color:var(--mu);margin:6px 0 0;max-width:80ch}
+.cap{font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:0 0 8px}
+.legendlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.legendlist li{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
+.legendlist li b{flex:none;width:24px;height:24px;border-radius:50%;background:#18191B;color:#fff;font:700 12px Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+:root[data-theme="dark"] .legendlist li b{background:#F1F2F5;color:#18191B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .legendlist li b{background:#F1F2F5;color:#18191B}}
+.legendlist li span{color:var(--mu)}.legendlist li strong{color:var(--fg);display:block;font-weight:600}
+.scroll{overflow-x:auto;padding-bottom:6px}
+.pin{position:absolute;z-index:5;width:26px;height:26px;border-radius:50%;background:#18191B;color:#fff;font:700 12px Inter,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff,0 4px 10px rgba(0,0,0,.25)}
+.rel{position:relative}
+
+/* ===== mock app (fixed light) ===== */
+.app{width:1240px;background:#F5F6FA;border:1px solid #E6E8EF;border-radius:14px;overflow:hidden;color:#18191B;font:14px/1.45 Inter,sans-serif;display:grid;grid-template-columns:220px 1fr;box-shadow:0 16px 50px rgba(24,25,27,.10)}
+.side{background:#fff;border-right:1px solid #E6E8EF;padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.lockup{display:flex;align-items:center;gap:8px;font:600 15px Poppins,sans-serif;padding:0 8px 16px}
+.mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#22E3F2,#4B00E6);flex:none}
+.ni{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;color:#5B6070;font-weight:500;position:relative}
+.ni i{width:16px;height:16px;border-radius:4px;border:1.6px solid currentColor;flex:none}
+.ni.on{background:#EEF0FF;color:#3A4BEB;font-weight:600}
+.ni.on:before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:#475BFF}
+.main{min-width:0}
+.tb{height:58px;background:#fff;border-bottom:1px solid #E6E8EF;display:flex;align-items:center;padding:0 24px;gap:12px}
+.crumb{color:#5B6070;font-size:13px}.crumb b{color:#18191B;font-weight:600}
+.av{margin-left:auto;width:34px;height:34px;border-radius:50%;background:#EEF0FF;color:#3A4BEB;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.jump{position:sticky;top:0;display:flex;gap:6px;padding:10px 24px;background:rgba(245,246,250,.95);border-bottom:1px solid #E6E8EF}
+.jump a{height:32px;padding:0 13px;border-radius:999px;display:inline-flex;align-items:center;font-size:13px;font-weight:500;color:#5B6070;background:#fff;border:1px solid #E6E8EF;white-space:nowrap}
+.jump a.on{background:#18191B;color:#fff;border-color:#18191B}
+.body{padding:20px 24px 28px;display:flex;flex-direction:column;gap:16px}
+.card{background:#fff;border:1px solid #E6E8EF;border-radius:16px;padding:20px}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.ch h3{font:600 16px Poppins,sans-serif;margin:0}
+.ch small{color:#5B6070;font-size:12.5px}
+.ch .r{margin-left:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 15px;border-radius:999px;font-weight:600;font-size:13px;white-space:nowrap;border:1.5px solid #E6E8EF;color:#18191B;background:#fff}
+.btn.p{background:#475BFF;border-color:#475BFF;color:#fff}
+.btn.s{height:32px;padding:0 12px;font-size:12.5px}
+.btn.t{border-color:transparent;background:#EEF0FF;color:#3A4BEB}
+/* hero */
+.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:22px;align-items:stretch}
+.meta{color:#5B6070;font-size:13px}
+.big{font:700 54px/1 Poppins,sans-serif;letter-spacing:-.02em;margin:10px 0 4px;font-variant-numeric:tabular-nums}
+.big small{font:600 22px Poppins,sans-serif;color:#A9AEBB}
+.delta{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#E7F6EF;color:#0E7A52;font-weight:600;font-size:13px}
+.verdict{margin:12px 0 0;font-size:14px;color:#18191B}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:16px}
+.tile{border:1px solid #E6E8EF;border-radius:12px;padding:10px 12px}
+.tile b{display:block;font:600 19px Poppins,sans-serif;font-variant-numeric:tabular-nums}
+.tile span{font-size:12px;color:#5B6070}
+.tile.g b{color:#0E7A52}.tile.c b{color:#C2401F}
+.trend{border-left:1px solid #E6E8EF;padding-left:22px;display:flex;flex-direction:column}
+.trend svg{width:100%;height:150px;margin-top:6px}
+.seg{display:inline-flex;background:#F5F6FA;border-radius:999px;padding:3px;gap:2px}
+.seg span{height:28px;padding:0 11px;border-radius:999px;font-size:12.5px;font-weight:500;color:#5B6070;display:inline-flex;align-items:center;white-space:nowrap}
+.seg span.on{background:#fff;color:#18191B;font-weight:600;box-shadow:0 1px 3px rgba(24,25,27,.1)}
+.lock{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#5B6070;background:#F5F6FA;border:1px dashed #D4D7E1;border-radius:10px;padding:7px 10px;margin-top:auto}
+/* next steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.step{border:1px solid #E6E8EF;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.step .n{width:26px;height:26px;border-radius:8px;background:#EEF0FF;color:#3A4BEB;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.step b{font-weight:600}
+.step p{margin:0;color:#5B6070;font-size:13px}
+.step .btn{margin-top:auto;align-self:flex-start}
+/* weak topics */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.wt{display:grid;grid-template-columns:1fr 110px auto;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #F0F1F5}
+.wt:first-of-type{border-top:0}
+.wt b{font-weight:600;display:block}
+.wt small{color:#5B6070;font-size:12px}
+.bar{height:8px;border-radius:99px;background:#F0F1F5;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:#FF6B4A}
+.bar.b i{background:#475BFF}
+.acts{display:flex;gap:6px}
+/* sections */
+.st{width:100%;border-collapse:collapse;font-size:13px}
+.st th{text-align:left;font-weight:500;color:#5B6070;font-size:12px;padding:0 0 8px}
+.st td{padding:9px 0;border-top:1px solid #F0F1F5;font-variant-numeric:tabular-nums}
+.st td:first-child{font-weight:600}
+.pace{font-size:12px;font-weight:600;border-radius:999px;padding:2px 8px}
+.pace.slow{background:#FFEDE7;color:#C2401F}.pace.ok{background:#E7F6EF;color:#0E7A52}
+/* review */
+.rf{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qcard{border:1px solid #E6E8EF;border-radius:14px;padding:16px 18px;margin-top:12px}
+.qtop{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5B6070}
+.st-w{background:#FFEDE7;color:#C2401F;font-weight:600;border-radius:999px;padding:2px 9px}
+.st-c{background:#E7F6EF;color:#0E7A52;font-weight:600;border-radius:999px;padding:2px 9px}
+.st-s{background:#F0F1F5;color:#5B6070;font-weight:600;border-radius:999px;padding:2px 9px}
+.qtxt{font-size:15px;margin:10px 0 12px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.op{border:1.5px solid #E6E8EF;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.op .l{width:26px;height:26px;border-radius:50%;border:1.5px solid #D4D7E1;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex:none}
+.op .tag{margin-left:auto;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.op.you{border-color:#FF6B4A;background:#FFF7F4}.op.you .l{border-color:#FF6B4A;color:#C2401F}.op.you .tag{background:#FFEDE7;color:#C2401F}
+.op.ok{border-color:#2FA36B;background:#F3FBF7}.op.ok .l{border-color:#2FA36B;color:#0E7A52}.op.ok .tag{background:#E7F6EF;color:#0E7A52}
+.exp{margin-top:12px;background:#F7F8FB;border-radius:12px;padding:12px 14px;font-size:13.5px}
+.exp b{display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#5B6070;margin-bottom:4px}
+.qact{display:flex;align-items:center;gap:8px;margin-top:12px}
+.ib{width:38px;height:38px;border-radius:10px;border:1px solid #E6E8EF;display:inline-flex;align-items:center;justify-content:center;color:#5B6070}
+.ib svg{width:17px;height:17px}
+.qact .tm{margin-left:auto;font-size:12.5px;color:#5B6070}
+.qrow{display:flex;align-items:center;gap:10px;border:1px solid #E6E8EF;border-radius:12px;padding:10px 14px;margin-top:8px;font-size:13.5px}
+.qrow .q{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrow .chev{color:#A9AEBB}
+.hist{display:flex;align-items:center;gap:10px;color:#5B6070;font-size:13.5px}
+.hist b{color:#18191B}
+
+/* ===== phone ===== */
+.phones{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.ph{position:relative;width:360px;height:760px;border-radius:34px;border:8px solid #18191B;background:#F5F6FA;overflow:hidden;color:#18191B;font:14px/1.45 Inter,sans-serif;display:grid;grid-template-rows:54px 44px 1fr 76px;box-shadow:0 16px 40px rgba(24,25,27,.15)}
+.ph .tb{height:54px;padding:0 14px}
+.ph .jump{position:static;padding:6px 14px;overflow:hidden}
+.ph .jump a{height:30px;font-size:12.5px}
+.pbody{overflow:hidden;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ph .card{padding:14px;border-radius:14px}
+.ph .big{font-size:40px}
+.ph .tiles{grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.ph .tile{padding:7px 8px}.ph .tile b{font-size:16px}.ph .tile span{font-size:11px}
+.pbar{background:#fff;border-top:1px solid #E6E8EF;display:flex;gap:8px;align-items:center;padding:0 14px 10px}
+.pbar .btn{flex:1;height:44px}
+.mini{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #F0F1F5;font-size:13px}
+.mini:first-of-type{border-top:0}
+.mini .n{width:22px;height:22px;border-radius:7px;background:#EEF0FF;color:#3A4BEB;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.mini .go{margin-left:auto;color:#3A4BEB;font-weight:600;font-size:12.5px}
+.ph .opts{grid-template-columns:1fr}
+.ph .op{padding:8px 10px}
+.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.cmp{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:14px 16px;font-size:13.5px}
+.cmp h4{margin:0 0 8px;font:600 14px Poppins,sans-serif}
+.cmp ul{margin:0;padding-left:18px;color:var(--mu)}
+.cmp.new h4{color:#3A4BEB}
+@media (max-width:700px){.compare{grid-template-columns:minmax(0,1fr)}}
+</style>
+
+<div class="w">
+<header>
+<p class="cap">Result page · UI/UX proposal v1 · sample numbers</p>
+<h1>Result page: what changes</h1>
+<p class="lead">The page should answer four questions in order: <b>How did I do? · Am I improving? · What should I do next? · Where exactly did I go wrong?</b> Numbered pins match the list below. Question data stays as it is; only layout and experience change.</p>
+</header>
+
+<section class="compare">
+<div class="cmp"><h4>Today</h4><ul><li>Score, then sections, then a long history table, then questions</li><li>One "What to do next" tip</li><li>Right/wrong shown mainly by colour</li><li>4–5 different action links on every question</li><li>Long scroll with no way to jump</li></ul></div>
+<div class="cmp new"><h4>Proposed</h4><ul><li>Score + change vs last attempt + trend at the top</li><li>3 next steps + weak topics right below</li><li>"Your answer" / "Correct answer" labels</li><li>One main Learn button + 3 small icon actions</li><li>Jump bar, review filters, history collapsed at the bottom</li></ul></div>
+</section>
+
+<section>
+<p class="cap">Desktop (student layout with sidebar)</p>
+<div class="scroll"><div class="app">
+ <aside class="side">
+  <div class="lockup"><span class="mark"></span>Courage Library</div>
+  <div class="ni"><i></i>Home</div><div class="ni"><i></i>Practice</div><div class="ni"><i></i>Mocks</div><div class="ni"><i></i>Current Affairs</div><div class="ni on"><i></i>Results</div><div class="ni"><i></i>Mistake Vault</div>
+ </aside>
+ <div class="main">
+  <div class="tb"><span class="crumb">Results › <b>SSC CGL Tier 1 · Full Mock 3</b></span><span class="av">JM</span></div>
+  <nav class="jump rel"><span class="pin" style="left:-8px;top:12px">1</span><a class="on">Summary</a><a>Next steps</a><a>Weak topics</a><a>Sections</a><a>Question review</a><a>Past attempts</a><span style="margin-left:auto" class="btn s">↻ Re-attempt</span></nav>
+  <div class="body">
+
+   <div class="card hero rel">
+    <span class="pin" style="left:-10px;top:18px">2</span>
+    <div>
+     <div class="meta">Submitted 23 Nov 2026, 7:42 pm · 60 min · 100 questions</div>
+     <div class="big">82.5 <small>/ 200</small></div>
+     <span class="delta">▲ +11.0 vs your last attempt (71.5)</span>
+     <p class="verdict">Good progress. Accuracy is fine; <b>speed in Quant</b> is holding you back.</p>
+     <div class="tiles rel"><span class="pin" style="right:-8px;top:-14px">3</span>
+      <div class="tile g"><b>41</b><span>Correct</span></div>
+      <div class="tile c"><b>27</b><span>Wrong · −13.5</span></div>
+      <div class="tile"><b>32</b><span>Skipped · 0 marks</span></div>
+      <div class="tile"><b>60%</b><span>Accuracy</span></div>
+      <div class="tile"><b>58:10</b><span>Time used</span></div>
+     </div>
+    </div>
+    <div class="trend rel"><span class="pin" style="left:-13px;top:0">4</span>
+     <div class="ch" style="margin:0"><h3>Your trend</h3><small>same mock type · score %</small><span class="r seg"><span class="on">Last 5</span><span>All</span></span></div>
+     <svg viewBox="0 0 400 150" role="img" aria-label="Score trend: 30, 34, 31, 36, 41 percent">
+      <g stroke="#F0F1F5"><line x1="30" y1="20" x2="390" y2="20"/><line x1="30" y1="65" x2="390" y2="65"/><line x1="30" y1="110" x2="390" y2="110"/></g>
+      <g fill="#A9AEBB" font-size="11" font-family="Inter"><text x="0" y="24">50%</text><text x="0" y="69">35%</text><text x="0" y="114">20%</text></g>
+      <polyline fill="none" stroke="#475BFF" stroke-width="2.5" stroke-linejoin="round" points="50,104 130,92 210,101 290,86 370,71"/>
+      <g fill="#fff" stroke="#475BFF" stroke-width="2"><circle cx="50" cy="104" r="4"/><circle cx="130" cy="92" r="4"/><circle cx="210" cy="101" r="4"/><circle cx="290" cy="86" r="4"/></g>
+      <circle cx="370" cy="71" r="6" fill="#475BFF"/>
+      <text x="350" y="58" font-size="12" font-weight="700" fill="#3A4BEB" font-family="Inter">41%</text>
+      <g fill="#5B6070" font-size="11" font-family="Inter"><text x="38" y="138">#1</text><text x="118" y="138">#2</text><text x="198" y="138">#3</text><text x="278" y="138">#4</text><text x="350" y="138">Today</text></g>
+     </svg>
+     <span class="lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Rank &amp; percentile appear once enough students take this mock</span>
+    </div>
+   </div>
+
+   <div class="card rel"><span class="pin" style="left:-10px;top:18px">5</span>
+    <div class="ch"><h3>Your next 3 steps</h3><small>based on this attempt</small></div>
+    <div class="steps">
+     <div class="step"><span class="n">1</span><b>Learn: Number System</b><p>6 of your 27 wrong answers came from this topic.</p><span class="btn p s">Open lesson</span></div>
+     <div class="step"><span class="n">2</span><b>Practise 10 Average questions</b><p>You took 2m 10s per question here (ideal ~50s).</p><span class="btn s">Start practice</span></div>
+     <div class="step"><span class="n">3</span><b>Revise your 27 mistakes</b><p>Saved to Mistake Vault. Revise them before the next mock.</p><span class="btn s">Open Mistake Vault</span></div>
+    </div>
+   </div>
+
+   <div class="two">
+    <div class="card rel"><span class="pin" style="left:-10px;top:18px">6</span>
+     <div class="ch"><h3>Weak topics</h3><small>accuracy in this attempt</small></div>
+     <div class="wt"><div><b>Number System</b><small>2 / 8 correct · Quant</small></div><div class="bar"><i style="width:25%"></i></div><div class="acts"><span class="btn t s">Learn</span><span class="btn s">Practise</span></div></div>
+     <div class="wt"><div><b>Average</b><small>1 / 4 correct · Quant</small></div><div class="bar"><i style="width:25%"></i></div><div class="acts"><span class="btn t s">Learn</span><span class="btn s">Practise</span></div></div>
+     <div class="wt"><div><b>Syllogism</b><small>2 / 5 correct · Reasoning</small></div><div class="bar"><i style="width:40%"></i></div><div class="acts"><span class="btn t s">Learn</span><span class="btn s">Practise</span></div></div>
+     <div class="wt"><div><b>Modern History</b><small>2 / 4 correct · GA</small></div><div class="bar"><i style="width:50%"></i></div><div class="acts"><span class="btn t s">Learn</span><span class="btn s">Practise</span></div></div>
+    </div>
+    <div class="card rel"><span class="pin" style="left:-10px;top:18px">7</span>
+     <div class="ch"><h3>Sections</h3><small>score · accuracy · time</small></div>
+     <table class="st">
+      <tr><th>Section</th><th>Score</th><th>Accuracy</th><th>Time</th><th>Pace / question</th></tr>
+      <tr><td>Reasoning</td><td>26 / 50</td><td>68%</td><td>13:20</td><td><span class="pace ok">32s · on pace</span></td></tr>
+      <tr><td>General Awareness</td><td>18.5 / 50</td><td>55%</td><td>7:40</td><td><span class="pace ok">18s · on pace</span></td></tr>
+      <tr><td>Quant</td><td>14 / 50</td><td>48%</td><td>27:30</td><td><span class="pace slow">66s · too slow</span></td></tr>
+      <tr><td>English</td><td>24 / 50</td><td>65%</td><td>9:40</td><td><span class="pace ok">23s · on pace</span></td></tr>
+     </table>
+    </div>
+   </div>
+
+   <div class="card rel">
+    <div class="ch"><h3>Question review</h3><small>100 questions</small></div>
+    <div class="rf rel"><span class="pin" style="left:-34px;top:2px">8</span>
+     <span class="seg"><span>All 100</span><span class="on">Wrong 27</span><span>Skipped 32</span><span>Correct 41</span></span>
+     <span class="seg"><span class="on">All sections</span><span>Reasoning</span><span>GA</span><span>Quant</span><span>English</span></span>
+    </div>
+    <div class="qcard">
+     <div class="qtop"><b style="color:#18191B">Q 52</b> · Quant · Number System <span class="st-w">Wrong · −0.5</span><span style="margin-left:auto">You: 1m 48s</span></div>
+     <p class="qtxt">The sum of three consecutive even numbers is 78. What is the largest of them?</p>
+     <div class="opts rel"><span class="pin" style="right:-10px;top:-12px">9</span>
+      <div class="op"><span class="l">A</span>24</div>
+      <div class="op you"><span class="l">B</span>26<span class="tag">✕ Your answer</span></div>
+      <div class="op ok"><span class="l">C</span>28<span class="tag">✓ Correct answer</span></div>
+      <div class="op"><span class="l">D</span>30</div>
+     </div>
+     <div class="exp rel"><span class="pin" style="left:-13px;top:10px">10</span><b>Explanation</b>Let the numbers be x, x+2, x+4. Then 3x + 6 = 78, so x = 24. Largest = 28.</div>
+     <div class="qact rel"><span class="pin" style="left:-13px;top:6px">11</span>
+      <span class="btn p"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>Learn: Number System</span>
+      <span class="ib" title="Saved in Mistake Vault" aria-label="Saved in Mistake Vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></span>
+      <span class="ib" title="Memory Lock" aria-label="Memory Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+      <span class="ib" title="Report this question" aria-label="Report this question"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 21V4h11l-1 4 4 0-2 6H5"/></svg></span>
+      <span class="tm">Next wrong ›</span>
+     </div>
+    </div>
+    <div class="qrow"><b>Q 57</b><span class="st-w">Wrong</span><span class="q">A train 240 m long crosses a pole in 12 seconds. Find its speed in km/h.</span><span class="chev">⌄</span></div>
+    <div class="qrow"><b>Q 61</b><span class="st-w">Wrong</span><span class="q">If 15% of A equals 20% of B, then A : B is…</span><span class="chev">⌄</span></div>
+    <div class="qrow"><b>Q 64</b><span class="st-w">Wrong</span><span class="q">The average of 8 numbers is 26. One number is removed…</span><span class="chev">⌄</span></div>
+   </div>
+
+   <div class="card rel"><span class="pin" style="left:-10px;top:14px">12</span>
+    <div class="hist"><b>Past attempts of this mock (4)</b> · collapsed by default · only same mock type, in %<span style="margin-left:auto" class="btn s">Show ⌄</span></div>
+   </div>
+
+  </div>
+ </div>
+</div></div>
+</section>
+
+<section>
+<p class="cap">Phone (390 px): top of page · reviewing a question</p>
+<div class="phones">
+ <div class="ph">
+  <div class="tb"><span class="mark"></span><span style="font:600 14px Poppins">Result</span><span class="av" style="width:32px;height:32px">JM</span></div>
+  <nav class="jump rel"><span class="pin" style="left:2px;top:8px">13</span><a class="on">Summary</a><a>Next steps</a><a>Weak topics</a><a>Review</a></nav>
+  <div class="pbody">
+   <div class="card">
+    <div class="meta">SSC CGL Tier 1 · Full Mock 3</div>
+    <div class="big">82.5 <small>/ 200</small></div>
+    <span class="delta">▲ +11.0 vs last attempt</span>
+    <div class="tiles"><div class="tile g"><b>41</b><span>Correct</span></div><div class="tile c"><b>27</b><span>Wrong</span></div><div class="tile"><b>32</b><span>Skipped</span></div><div class="tile"><b>60%</b><span>Accuracy</span></div></div>
+   </div>
+   <div class="card">
+    <div class="ch" style="margin-bottom:6px"><h3>Your next 3 steps</h3></div>
+    <div class="mini"><span class="n">1</span>Learn Number System<span class="go">Open ›</span></div>
+    <div class="mini"><span class="n">2</span>Practise 10 Average Qs<span class="go">Start ›</span></div>
+    <div class="mini"><span class="n">3</span>Revise 27 mistakes<span class="go">Open ›</span></div>
+   </div>
+   <div class="card">
+    <div class="ch" style="margin-bottom:4px"><h3>Weak topics</h3></div>
+    <div class="wt" style="grid-template-columns:1fr 70px"><div><b>Number System</b><small>2 / 8 correct</small></div><div class="bar"><i style="width:25%"></i></div></div>
+    <div class="wt" style="grid-template-columns:1fr 70px"><div><b>Average</b><small>1 / 4 correct</small></div><div class="bar"><i style="width:25%"></i></div></div>
+   </div>
+  </div>
+  <div class="pbar rel"><span class="pin" style="left:6px;top:-14px">14</span><span class="btn">↻ Re-attempt</span><span class="btn p">Review 27 mistakes</span></div>
+ </div>
+
+ <div class="ph" style="grid-template-rows:54px 44px 1fr 76px">
+  <div class="tb"><span style="color:#5B6070">‹</span><span style="font:600 14px Poppins">Review · Wrong (27)</span><span style="margin-left:auto;color:#5B6070;font-size:13px">1 / 27</span></div>
+  <nav class="jump"><a class="on">Wrong 27</a><a>Skipped 32</a><a>Correct 41</a></nav>
+  <div class="pbody">
+   <div class="card">
+    <div class="qtop"><b style="color:#18191B">Q 52</b> · Number System <span class="st-w" style="margin-left:auto">−0.5</span></div>
+    <p class="qtxt" style="font-size:14px">The sum of three consecutive even numbers is 78. What is the largest of them?</p>
+    <div class="opts">
+     <div class="op"><span class="l">A</span>24</div>
+     <div class="op you"><span class="l">B</span>26<span class="tag">✕ Your answer</span></div>
+     <div class="op ok"><span class="l">C</span>28<span class="tag">✓ Correct</span></div>
+     <div class="op"><span class="l">D</span>30</div>
+    </div>
+    <div class="exp"><b>Explanation</b>x + (x+2) + (x+4) = 78 → x = 24. Largest = 28.</div>
+    <div class="qact"><span class="btn p s" style="flex:1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>Learn: Number System</span><span class="ib" aria-label="Saved in Mistake Vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></span><span class="ib">⋯</span></div>
+   </div>
+  </div>
+  <div class="pbar rel"><span class="pin" style="left:6px;top:-14px">15</span><span class="btn">‹ Prev</span><span class="btn p">Next wrong ›</span></div>
+ </div>
+</div>
+</section>
+
+<section>
+<h2>Changes</h2>
+<p class="lead" style="margin-bottom:12px">Approved 23 Nov 2026. No emoji anywhere in the UI: line icons (SVG) only. All presentation only. Uses data the result already has (answers, topics, time, past attempts).</p>
+<ol class="legendlist">
+<li><b>1</b><div><strong>Jump bar</strong><span>Sticky chips: Summary · Next steps · Weak topics · Sections · Review · Past attempts. Re-attempt always one click away.</span></div></li>
+<li><b>2</b><div><strong>Score + change vs last attempt</strong><span>Big clean score "82.5 / 200", ▲/▼ chip vs last attempt of the same mock, one-line plain verdict.</span></div></li>
+<li><b>3</b><div><strong>Five clear tiles</strong><span>Correct · Wrong with negative marks · "Skipped · 0 marks" · Accuracy · Time used. No confusing "% of maximum" line.</span></div></li>
+<li><b>4</b><div><strong>Trend chart in %</strong><span>Only the same mock type (no mixing 50- and 200-mark tests). Rank/percentile slot shown as "coming" until data is enough.</span></div></li>
+<li><b>5</b><div><strong>3 next steps</strong><span>Learn the weakest topic · practise the slowest topic · revise mistakes. Each has one button.</span></div></li>
+<li><b>6</b><div><strong>Weak topics</strong><span>Lowest-accuracy topics with Learn + Practise. Too little data → "Answer more questions to see weak topics".</span></div></li>
+<li><b>7</b><div><strong>Sections with pace</strong><span>Score, accuracy, time for every section, and time per question with "on pace / too slow" (text, not only colour).</span></div></li>
+<li><b>8</b><div><strong>Review filters</strong><span>Wrong / Skipped / Correct / All with counts, plus a section filter. Opens on "Wrong" by default.</span></div></li>
+<li><b>9</b><div><strong>Text labels on options</strong><span>"✕ Your answer" and "✓ Correct answer" — readable without colour. Wrong uses coral, correct uses green.</span></div></li>
+<li><b>10</b><div><strong>One "Explanation" label</strong><span>Same block for wrong, skipped and correct questions.</span></div></li>
+<li><b>11</b><div><strong>One main action</strong><span>"Learn: &lt;topic&gt;" button + 3 icon buttons (Mistake Vault, Memory Lock, Report) with labels/tooltips. "Next wrong ›" to move fast.</span></div></li>
+<li><b>12</b><div><strong>Past attempts collapsed</strong><span>Moved to the bottom, closed by default, same mock type only.</span></div></li>
+<li><b>13</b><div><strong>Phone jump chips</strong><span>Horizontal scroll chips instead of a long scroll.</span></div></li>
+<li><b>14</b><div><strong>Phone bottom bar</strong><span>Re-attempt + "Review 27 mistakes" always reachable with the thumb.</span></div></li>
+<li><b>15</b><div><strong>Phone review mode</strong><span>One question per screen, Prev / Next wrong, filter chips at the top, explanation and Learn button in view.</span></div></li>
+</ol>
+</section>
+</div>

@@ -130,14 +130,14 @@ function scan(root) {
 const PARAM_RESOLUTION = [
   {
     file: 'services/assessment.service.ts', via: /^adminSb$/, client: 'admin',
-    why: 'private helpers realCohortStanding / accountFlags / examTrend take adminSb; every call passes the adminSb of createAdminServerSupabaseClient()',
+    why: 'private helpers realCohortStanding / accountFlags / examTrendRows take adminSb; every call passes the adminSb of createAdminServerSupabaseClient()',
     proof: (src) => {
-      const calls = [...src.matchAll(/(?:this|AssessmentService)\.(realCohortStanding|accountFlags|examTrend)\(\s*([\w$]+)/g)];
+      const calls = [...src.matchAll(/(?:this|AssessmentService)\.(realCohortStanding|accountFlags|examTrendRows)\(\s*([\w$]+)/g)];
       // every adminSb in the file is either assigned the admin client or a parameter of the three helpers
       const assigns = [...src.matchAll(/\badminSb\s*=\s*([^;\n]+)/g)].map((m) => m[1].trim());
       const params = [...src.matchAll(/static async (\w+)\([^)]*\badminSb\s*:/g)].map((m) => m[1]);
       return calls.length >= 3 && calls.every((c) => c[2] === 'adminSb') && assigns.length > 0 && assigns.every((a) => a === 'createAdminServerSupabaseClient()')
-        && params.every((p) => ['realCohortStanding', 'accountFlags', 'examTrend'].includes(p));
+        && params.every((p) => ['realCohortStanding', 'accountFlags', 'examTrendRows'].includes(p));
     },
   },
   {

@@ -81,7 +81,7 @@ test('MV-04 result review: the pinned answered version + the correction', () => 
   assert(/const currentVersions = await loadCurrentVersions\(rawQuestions\.map/.test(fn) && /correction: correctionFor\(qv\?\.id \?\? null, qv\?\.question_id \? currentVersions\.get\(qv\.question_id\) : null\),/.test(fn), 'correction per reviewed question');
   assert(/questionText: qv\?\.question_text/.test(fn), 'the review text is the pinned (answered) version');
   const card = read('components/assessment/question-review-card.tsx');
-  assert(/\{correction && <CorrectedVersion correction=\{correction\} \/>\}/.test(card) && /correction=\{q\.correction \?\? null\}/.test(read('components/assessment/result-view-client.tsx')), 'card renders it; the result view passes it');
+  assert(/\{correction && <CorrectedVersion correction=\{correction\} \/>\}/.test(card) && /correction: q\.correction \?\? null,/.test(read('components/assessment/result-view-client.tsx')) /* RESULT-UX-1: props via cardProps() */, 'card renders it; the result view passes it');
 });
 
 test('MV-05 drills: CURRENT versions served; a corrected stored version is flagged (boolean only) and said', () => {

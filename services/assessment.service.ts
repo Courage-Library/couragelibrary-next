@@ -15,6 +15,7 @@ import { WRITE_FAILURE_TAG, errorCode, reportWriteFailure } from "@/lib/ops/writ
 import { SAVE_GRACE_SECONDS, attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { resolveOwnAttempt } from "@/lib/assessment/result-access";
+import { trendGroup, type TrendGroup, type TrendSource } from "@/lib/assessment/result-ux";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
 import { leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
 import { isPracticeEnabled } from "@/lib/practice/flag";
@@ -362,6 +363,12 @@ export interface TestResultSummary {
     examSlug: string | null;
     /** F5: show "Add to Memory Lock" on reviewed questions */
     memoryLockEnabled: boolean;
+    /** RESULT-UX-1 (read-only): the comparable series of this attempt — same exam + mock kind + max score, oldest first,
+     *  up to this attempt (delta, trend, past attempts); null when it cannot be read */
+    trendGroup: TrendGroup | null;
+    /** RESULT-UX-1: topics of this attempt that can be practised now (practice on + ≥ 1 servable question) */
+    practiceTopicIds: string[];
+    practiceEnabled: boolean;
   };
   sections: Array<{
     id?: string;
@@ -375,6 +382,8 @@ export interface TestResultSummary {
     maxScore: number;
     accuracyPercentage: number;
     timeSpentSeconds?: number;
+    /** RESULT-UX-1: the section's own time limit when the mock defines one (mock_sections.duration_minutes) */
+    durationMinutes?: number | null;
   }>;
   reviewQuestions: Array<{
     mockQuestionId: string;
@@ -1997,7 +2006,7 @@ export class AssessmentService {
 
     // Fetch section results, questions with answers & topics, user answers, and standing across same mock test
     const [sectionsRes, questionsRes, answersRes, allTestResultsRes] = await Promise.all([
-      adminSb.from("section_results").select("*, mock_sections(id, section_name)").eq("test_result_id", r.id),
+      adminSb.from("section_results").select("*, mock_sections(id, section_name, duration_minutes)").eq("test_result_id", r.id),
       adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, is_correct, evaluated_marks, time_spent_seconds").eq("attempt_id", resolvedAttemptId),
       // F4 cohort: every scored result of this mock (only submitted attempts have a test_results row)
@@ -2023,6 +2032,7 @@ export class AssessmentService {
       maxScore: Number(sr.max_section_score),
       accuracyPercentage: Number(sr.accuracy_percentage),
       timeSpentSeconds: sr.time_spent_seconds ? Number(sr.time_spent_seconds) : undefined,
+      durationMinutes: sr.mock_sections?.duration_minutes ?? null,
     }));
 
     const rawQuestions = questionsRes.data || [];
@@ -2112,11 +2122,15 @@ export class AssessmentService {
         : "Needs Improvement";
 
     // F4: exam of this mock (practice links + trend over the same exam)
-    const { data: mockMeta } = await adminSb.from("mock_tests").select("mock_templates(exam_id, exams(slug))").eq("id", mt.id).maybeSingle();
+    const { data: mockMeta } = await adminSb.from("mock_tests").select("mock_templates(exam_id, test_type, exams(slug, title))").eq("id", mt.id).maybeSingle();
     const tmpl = oneToOne(mockMeta?.mock_templates);
     const examId: string | null = tmpl?.exam_id ?? null;
     const examSlug: string | null = oneToOne(tmpl?.exams)?.slug ?? null;
-    const trend = examId ? await AssessmentService.examTrend(adminSb, candidateUserId, examId, resolvedAttemptId) : null;
+    const examTitle: string = oneToOne(tmpl?.exams)?.title ?? "";
+    const trendRows = examId ? await AssessmentService.examTrendRows(adminSb, candidateUserId, examId, examTitle) : null;
+    const trend = trendRows ? buildTrend(trendRows, resolvedAttemptId) : null;
+    // RESULT-UX-1: the comparable series (same exam + mock kind + max score) — never mixes groups
+    const resultTrendGroup = trendRows ? trendGroup(trendRows, resolvedAttemptId) : null;
 
     const wrongTopicIds = [...new Set(reviewQuestions.filter((q) => q.selectedOption !== null && q.correctOption !== null && !q.isCorrect).map((q) => q.topicId).filter((t): t is string => Boolean(t)))];
     const practiceTopicIds = new Set<string>();
@@ -2294,6 +2308,9 @@ export class AssessmentService {
         trend,
         examSlug,
         memoryLockEnabled: isMemoryLockEnabled(),
+        trendGroup: resultTrendGroup,
+        practiceTopicIds: [...practiceTopicIds],
+        practiceEnabled: isPracticeEnabled(),
       },
       sections,
       reviewQuestions,
@@ -2333,34 +2350,41 @@ export class AssessmentService {
   }
 
   /** F4: this user's scored attempts of mocks of the same exam (abandoned attempts excluded) as trend points. */
-  private static async examTrend(adminSb: SupabaseClient<Database>, userId: string, examId: string, currentAttemptId: string): Promise<TrendPoint[] | null> {
-    const { data: mocks } = await adminSb.from("mock_tests").select("id, title, mock_templates!inner(exam_id)").eq("mock_templates.exam_id", examId).limit(500);
-    const titles = new Map((mocks ?? []).map((m) => [m.id, m.title]));
-    if (titles.size === 0) return null;
+  /**
+   * F4 + RESULT-UX-1: this user's scored attempts of every mock of the same exam (abandoned attempts excluded later), with
+   * the mock's KIND (mock_templates.test_type) so the result page only ever compares the same exam + kind + max score.
+   * Read-only; the caller has already proven the attempt is the viewer's own (RESULT-SEC-1).
+   */
+  private static async examTrendRows(adminSb: SupabaseClient<Database>, userId: string, examId: string, examTitle: string): Promise<TrendSource[] | null> {
+    const { data: mocks } = await adminSb.from("mock_tests").select("id, title, mock_templates!inner(exam_id, test_type)").eq("mock_templates.exam_id", examId).limit(500);
+    const meta = new Map((mocks ?? []).map((m) => [m.id, { title: m.title, kind: String(oneToOne(m.mock_templates)?.test_type ?? "") }]));
+    if (meta.size === 0) return null;
     const { data: results } = await adminSb
       .from("test_results")
       .select("attempt_id, mock_test_id, total_score, max_score, accuracy_percentage, created_at")
       .eq("user_id", userId)
-      .in("mock_test_id", [...titles.keys()])
+      .in("mock_test_id", [...meta.keys()])
       .order("created_at", { ascending: true })
       .limit(200);
     const rows = results ?? [];
-    if (rows.length < 2) return null;
+    if (rows.length === 0) return null;
     const { data: attempts } = await adminSb.from("test_attempts").select("id, status, submitted_at").in("id", rows.map((x) => x.attempt_id));
     const att = new Map((attempts ?? []).map((a) => [a.id, a]));
-    return buildTrend(
-      rows.map((x) => ({
-        attemptId: x.attempt_id,
-        status: att.get(x.attempt_id)?.status ?? "abandoned", // unknown attempt: never shown
-        mockTitle: titles.get(x.mock_test_id) ?? "Mock test",
-        submittedAt: String(att.get(x.attempt_id)?.submitted_at ?? x.created_at ?? ""),
-        score: Number(x.total_score),
-        maxScore: Number(x.max_score),
-        accuracy: Number(x.accuracy_percentage),
-      })),
-      currentAttemptId,
-    );
+    return rows.map((x) => ({
+      attemptId: x.attempt_id,
+      status: att.get(x.attempt_id)?.status ?? "abandoned", // unknown attempt: never shown
+      examId,
+      examTitle,
+      mockTestId: x.mock_test_id,
+      mockTitle: meta.get(x.mock_test_id)?.title ?? "Mock test",
+      mockKind: meta.get(x.mock_test_id)?.kind ?? "",
+      submittedAt: String(att.get(x.attempt_id)?.submitted_at ?? x.created_at ?? ""),
+      score: Number(x.total_score),
+      maxScore: Number(x.max_score),
+      accuracy: Number(x.accuracy_percentage),
+    }));
   }
+
 
   /**
    * Leaderboard opt-ins — ONLY from user_profiles.leaderboard_opt_in (migration 096, written by fn_set_leaderboard_opt_in;

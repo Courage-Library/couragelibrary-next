@@ -350,7 +350,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
       const e = al.functions[k];
       assert(e && e.class === 'A' && JSON.stringify(e.client) === '["authenticated"]' && e.search_path === '""', `allow-list ${k}`);
     }
-    assert(read('components/assessment/question-review-card.tsx').includes('<ReportQuestionButton questionId={questionId}') && read('components/assessment/result-view-client.tsx').includes('questionId={q.questionId}'), 'mock review');
+    assert(read('components/assessment/question-review-card.tsx').includes('<ReportQuestionButton questionId={questionId}') && /questionId: q\.questionId,/.test(read('components/assessment/result-view-client.tsx')) && read('components/assessment/question-review-card.tsx').includes('{questionId && <ReportQuestionButton questionId={questionId} questionVersionId={questionVersionId ?? null} iconOnly'), 'mock review'); // RESULT-UX-1: props via cardProps(); the report control is the icon variant
     assert(read('components/mistakes/mistake-drill-result.tsx').includes('<ReportQuestionButton questionId={ev.question_id} questionVersionId={null} />'), 'drills');
     assert(read('components/practice/practice-runner.tsx').includes('<ReportQuestionButton questionId={q.questionId} questionVersionId={view.versionId} />'), 'practice');
     return 'RLS · SECDEF · grants · allow-list · 3 surfaces';

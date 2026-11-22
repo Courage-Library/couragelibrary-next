@@ -487,6 +487,13 @@
   --color-cl-timer-red: #f3a79c;
   --color-cl-timer-red-text: #b42318;
   --color-cl-timer-red-tint: #fdecea;
+  /* RESULT-UX-1 (owner spec 23 Nov 2026 §2.9, values from docs/design/result-ux-v1-reference.html): the review's
+     "Your answer" (coral: cl-coral border, this surface, cl-coral-text) and "Correct answer" (green) options, the delta
+     chip and the tiles. Each *-text on its surface / tint ≥ 4.5:1. */
+  --color-cl-result-coral-surface: #fff7f4;
+  --color-cl-result-green: #2fa36b;
+  --color-cl-result-green-text: #0e7a52;
+  --color-cl-result-green-surface: #f3fbf7;
 }
 :root {
   --cl-band: linear-gradient(135deg, #485bff 0%, #4262f3 45%, #3973d6 100%);

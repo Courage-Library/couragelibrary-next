@@ -7,13 +7,35 @@
 import { useState, useTransition } from "react";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { MEMORY_LOCK } from "@/content/memory-lock";
 import { addToMemoryLockAction } from "@/app/(site)/memory-lock/actions";
 
-export function AddToMemoryLockButton({ questionId, className }: { questionId: string; className?: string }) {
+/** RESULT-UX-1: `iconOnly` = the same action as a 44 px icon button (aria-label + tooltip, aria-pressed once added);
+ *  the default text button and the add flow are unchanged. */
+export function AddToMemoryLockButton({ questionId, className, iconOnly = false }: { questionId: string; className?: string; iconOnly?: boolean }) {
   const [code, setCode] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const done = code === "ADDED" || code === "ALREADY_ADDED";
+  const add = () =>
+    start(async () => {
+      setCode(await addToMemoryLockAction({ questionId }).catch(() => "FAILED" as const));
+    });
+  if (iconOnly) {
+    const label = done ? MEMORY_LOCK.added : MEMORY_LOCK.add;
+    return (
+      <span className="relative inline-flex" data-add-memory-lock="">
+        <Tooltip content={label} side="top">
+          <button type="button" aria-label={label} aria-pressed={done} disabled={pending || done} onClick={add} className={className}>
+            <Lock aria-hidden="true" className="size-[18px]" />
+          </button>
+        </Tooltip>
+        <span role="status" className="sr-only">
+          {code && !done ? MEMORY_LOCK.addResults[code] ?? MEMORY_LOCK.addResults.FAILED : done ? label : ""}
+        </span>
+      </span>
+    );
+  }
   return (
     <span className="inline-flex flex-col gap-1" data-add-memory-lock="">
       <Button

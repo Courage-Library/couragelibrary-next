@@ -10,6 +10,7 @@ import { Flag } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
 import { Radio } from "@/components/ui/radio";
@@ -20,7 +21,9 @@ import { reportQuestionAction } from "@/app/(site)/practice/actions";
 const C = PRACTICE_COPY.report;
 const DONE = new Set(["REPORTED", "ALREADY_REPORTED"]);
 
-export function ReportQuestionButton({ questionId, questionVersionId, mockQuestionId = null, className }: { questionId: string | null; questionVersionId: string | null; mockQuestionId?: string | null; className?: string }) {
+/** RESULT-UX-1: `iconOnly` = the same control as a 44 px icon button with an aria-label + tooltip (mock result review);
+ *  the default text button and the report flow are unchanged. */
+export function ReportQuestionButton({ questionId, questionVersionId, mockQuestionId = null, className, iconOnly = false }: { questionId: string | null; questionVersionId: string | null; mockQuestionId?: string | null; className?: string; iconOnly?: boolean }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -41,10 +44,18 @@ export function ReportQuestionButton({ questionId, questionVersionId, mockQuesti
 
   return (
     <>
-      <Button variant="ghost" size="md" className={className ?? "min-h-12"} onClick={() => setOpen(true)} data-report-question="">
-        <Flag aria-hidden="true" className="size-4" />
-        {C.open}
-      </Button>
+      {iconOnly ? (
+        <Tooltip content={C.open} side="top">
+          <button type="button" aria-label={C.open} onClick={() => setOpen(true)} className={className} data-report-question="">
+            <Flag aria-hidden="true" className="size-[18px]" />
+          </button>
+        </Tooltip>
+      ) : (
+        <Button variant="ghost" size="md" className={className ?? "min-h-12"} onClick={() => setOpen(true)} data-report-question="">
+          <Flag aria-hidden="true" className="size-4" />
+          {C.open}
+        </Button>
+      )}
       <Dialog
         open={open}
         onOpenChange={setOpen}

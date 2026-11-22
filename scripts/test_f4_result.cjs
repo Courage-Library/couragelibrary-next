@@ -7,7 +7,7 @@
  *   F4-04 percentile threshold: null below RANK_MIN_COHORT real students (test accounts / retakes excluded); exact rank
  *   F4-05 trend: abandoned attempts never shown; null below 2; a later retake is not "previous"
  *   F4-06 review filters All / Wrong / Skipped / Marked (keyless questions never "wrong")
- *   F4-07 page: section order, ONE primary action, at most one amber, standing omitted entirely when null, no
+ *   F4-07 page (RESULT-UX-1 layout): section order, ONE primary action in summary + next steps, no amber, standing omitted entirely when null, no
  *         fabricated numbers (score card shows the server values; no average / topper / estimated rank)
  *   F4-08 builder: standing from cohortStanding (fail closed), trend excludes abandoned, practice links behind the flag
  * Run: node scripts/test_f4_result.cjs
@@ -56,6 +56,11 @@ const MOCKS = {
   'server-only': {},
   'next/link': { __esModule: true, default: ({ href, children, prefetch: _p, ...rest }) => h('a', { href, ...rest }, children) },
   '@/components/practice/report-question-button': { ReportQuestionButton: () => h('button', { 'data-report-question': '' }, 'Report this question') },
+  // RESULT-UX-1: the page now reads its review filter from the URL, imports its CSS and the Memory Lock action
+  'next/navigation': { useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push() {}, replace() {} }) },
+  '@/lib/coins/flag-context': { useCoinsEnabled: () => false },
+  '@/components/result/result-ux.css': {},
+  '@/app/(site)/memory-lock/actions': { addToMemoryLockAction: async () => 'ADDED' },
 };
 const origLoad = Module._load;
 Module._load = function (request, parent, isMain) {
@@ -196,7 +201,7 @@ const input = (o = {}) => ({ questions: paper(), maxScore: 50, accuracyPercentag
     security: { candidateId: 'u', maskedId: 'CL••••ABCD', attemptIdShort: 'ATT123', examTitle: 'SSC CGL Mock 1', timestamp: '25 Oct 2026, 4:30 pm' },
     rewards: null,
     insights: { strongestSection: null, weakestSection: null, accuracyLevel: '', speedSecondsPerQuestion: 0, reviewCount: 8 },
-    analysis: { negativeMarksLost: 4, takeaways: RA.buildTakeaways(input()), trend: null, examSlug: 'ssc-cgl' },
+    analysis: { negativeMarksLost: 4, takeaways: RA.buildTakeaways(input()), trend: null, examSlug: 'ssc-cgl', memoryLockEnabled: false, trendGroup: null, practiceTopicIds: [T.td], practiceEnabled: true },
     sections: [
       { id: 's1', sectionName: 'Quantitative Aptitude', totalQuestions: 12, attemptedCount: 12, correctCount: 5, incorrectCount: 7, unansweredCount: 0, sectionScore: 6.5, maxScore: 24, accuracyPercentage: 41.67, timeSpentSeconds: 1500 },
       { id: 's2', sectionName: 'English', totalQuestions: 12, attemptedCount: 8, correctCount: 7, incorrectCount: 1, unansweredCount: 4, sectionScore: 13.5, maxScore: 24, accuracyPercentage: 87.5, timeSpentSeconds: 1230 },
@@ -206,25 +211,26 @@ const input = (o = {}) => ({ questions: paper(), maxScore: 50, accuracyPercentag
   });
   const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
-  await test('F4-07 page: order, one primary, ≤ 1 amber, standing omitted when null, server numbers only', () => {
+  // RESULT-UX-1 (re-pointed, rules kept): the page layout is the owner's RESULT-UX-1 spec (gated in full by
+  // scripts/test_result_ux1.cjs); F4 keeps its own rules on it — server numbers only, ONE primary action in the summary /
+  // next-steps area, no amber, no cohort numbers without a real standing, the standing exactly as computed.
+  await test('F4-07 page: order, one primary, no amber, standing omitted when null, server numbers only', () => {
     const html = renderToStaticMarkup(h(ResultViewClient, { data: fixture() }));
-    const order = [...html.matchAll(/data-result-section="(\w+)"/g)].map((m) => m[1]);
-    eq(order, ['score', 'next', 'sections', 'review'], 'section order (no trend, no standing)');
-    eq((html.match(/data-takeaway-action="primary"/g) || []).length, 1, 'exactly one primary action');
-    assert(/data-takeaway-action="primary"[^>]*>|href="\/practice\/session\?topic=aaaaaaaa-0000-4000-8000-000000000001&amp;exam=ssc-cgl&amp;n=10"[^>]*data-takeaway-action="primary"/.test(html), 'primary = top takeaway practice link');
-    const ambers = html.match(/\b(?:bg|text|border|border-l|from|to|via|ring)-(?:accent|amber|yellow|warning)-\d+/g) || [];
-    assert(ambers.length <= 1, `ambers: ${ambers.join(', ')}`);
+    const order = [...html.matchAll(/data-result-section="([\w-]+)"/g)].map((m) => m[1]);
+    eq(order, ['summary', 'next-steps', 'weak-topics', 'sections', 'review'], 'section order (no past attempts without a series)');
+    const top = html.slice(html.indexOf('data-result-section="summary"'), html.indexOf('data-result-section="weak-topics"'));
+    eq((top.match(/bg-cl-blue text-cl-white/g) || []).length, 1, 'exactly one primary action in the summary + next steps');
+    const ambers = html.match(/\b(?:bg|text|border|border-l|from|to|via|ring)-(?:accent|amber|yellow|warning)-\d+|cl-timer-amber/g) || [];
+    eq(ambers.length, 0, `ambers: ${ambers.join(', ')}`);
     const t = text(html);
-    assert(!/\b(rank|percentile|leaderboard|average|topper|highest score|all india)\b/i.test(t), 'no standing / cohort numbers when standing is null');
-    for (const s of ['20 / 48', '60%', '20 of 24', 'Negative marks lost −4', 'Time used 46 min of 1 h', 'Skipped 4', 'Wrong 8', 'Correct 12']) assert(t.includes(s), `score card misses "${s}"`);
-    assert(t.includes('6.5 / 24') && t.includes('Accuracy 41.7%') && t.includes('25 min'), 'section numbers visible (not colour-only)');
-    assert(t.includes('All (25)') && t.includes('Wrong (8)') && t.includes('Skipped (4)') && t.includes('Marked (1)'), 'filter counts');
-    // trend + standing render only with data
-    const withAll = renderToStaticMarkup(h(ResultViewClient, { data: fixture({ standing: { rank: 20, percentile: 34, n: 30 }, analysis: { ...fixture().analysis, trend: RA.buildTrend([{ attemptId: 'p', status: 'submitted', mockTitle: 'Mock 0', submittedAt: '2026-10-01T10:00:00Z', score: 10, maxScore: 48, accuracy: 40 }, { attemptId: 'att', status: 'submitted', mockTitle: 'SSC CGL Mock 1', submittedAt: '2026-10-25T10:00:00Z', score: 20, maxScore: 48, accuracy: 60 }], 'att') } }) }));
-    eq([...withAll.matchAll(/data-result-section="(\w+)"/g)].map((m) => m[1]), ['score', 'next', 'sections', 'trend', 'review', 'standing'], 'full order');
+    assert(!/\b(average|topper|highest score|all india)\b/i.test(t) && !/Rank \d|percentile \d|\d+(st|nd|rd|th) percentile/i.test(t) && !/data-standing/.test(html), 'no standing / cohort numbers when standing is null');
+    for (const s of ['20 <', '/ 48', '60%', 'Wrong · −4', 'Skipped · 0 marks', '45:30', '12', '8', '4']) assert(html.includes(s) || t.includes(s), `score card misses "${s}"`);
+    assert(t.includes('6.5 / 24') && t.includes('41.7%') && t.includes('25:00'), 'section numbers visible (not colour-only)');
+    assert(/data-filter-count="all">25</.test(html) && /data-filter-count="wrong">8</.test(html) && /data-filter-count="skipped">4</.test(html), 'filter counts');
+    // the standing renders only with real data, exactly as computed
+    const withAll = renderToStaticMarkup(h(ResultViewClient, { data: fixture({ standing: { rank: 20, percentile: 34, n: 30 } }) }));
     const tw = text(withAll);
-    assert(tw.includes('20 of 30') && tw.includes('first attempts of 30 students'), 'standing states n');
-    assert(tw.includes('(this attempt)') && tw.includes('10 / 48 (20.8%)'), 'trend rows with numbers');
+    assert(tw.includes('Rank 20 of 30') && tw.includes('percentile 34'), 'standing states rank, n and percentile');
     return `${order.join(' → ')}; ambers ${ambers.length}`;
   });
 
@@ -238,7 +244,8 @@ const input = (o = {}) => ({ questions: paper(), maxScore: 50, accuracyPercentag
     assert(/if \(isPracticeEnabled\(\) && wrongTopicIds\.length > 0\)/.test(fn) && /servableTopicCounts\(sb, wrongTopicIds\)/.test(fn), 'practice links only with practice on and servable questions');
     assert(/rank: standing\?\.rank \?\? null,\s*percentile: standing\?\.percentile \?\? null,/.test(fn), 'result.rank / percentile only from the standing');
     const card = code(read('components/assessment/question-review-card.tsx'));
-    assert(!/\/practice\?topic=/.test(card) && /Learn more/.test(card) && /<ReportQuestionButton/.test(card), 'review card: report kept, "Learn more", no dead practice link');
+    // RESULT-UX-1: "Learn more" is now the ONE primary "Learn: <topic>" button (same target: learnHref → /articles/<slug>)
+    assert(!/\/practice\?topic=/.test(card) && /<Link href=\{learnHref\(learningSlug\)\}[^>]*data-learn-button="">[\s\S]{0,120}Learn: \{topicName/.test(card) && /<ReportQuestionButton/.test(card), 'review card: report kept, "Learn: <topic>", no dead practice link');
   });
 
   console.log(`\nF4 result: ${passed}/${passed + failed} passed`);
