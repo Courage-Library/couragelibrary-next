@@ -3,16 +3,25 @@
 #   - hourly: receipts / refund confirmations the immediate send missed and retries of failed sends; the D7 / D1 expiry
 #     reminders go out from the first run after 09:00 India time (the route decides; a later run that day finds them sent)
 #   - auth: the one header `Authorization: Bearer $CRON_SECRET` (constant-time on the server); POST only
-#   - secrets used here: CRON_SECRET and EMAILS_URL (the route's full URL; kept as a secret so no host is printed)
-#   - DEPLOY-BEFORE-ACTIVATE: nothing runs until the owner sets the repository variable PAYMENTS_EMAILS_ENABLED=true,
-#     after the B5 app is on main, the production deploy is verified and EMAIL_APP_ENABLED is set in Vercel
+#   - DOMAIN-CUTOVER-2 (2026-11-22): the only secret here is CRON_SECRET. EMAILS_URL is a repository VARIABLE (a public
+#     URL) and must be exactly https://couragelibrary.in/api/cron/emails — any other value fails before the bearer is
+#     sent, so the secret can only ever reach the production apex
+#   - DEPLOY-BEFORE-ACTIVATE: nothing runs on the schedule until the owner sets the repository variable
+#     PAYMENTS_EMAILS_ENABLED=true, after EMAIL-KYC-1 (EMAIL_APP_ENABLED + token in Vercel) and a verified deploy
+#   - probe (manual run, input probe=true, only while the switch is off): one POST that must answer 200 { skipped }
+#     (e-mail off → the route returns before any read); any other answer fails the run
 #   - overlapping runs are safe (the route takes a lease; each e-mail is recorded once); concurrency also queues them here
 name: payments-emails
 
 on:
   schedule:
     - cron: "7 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: 'Probe once while PAYMENTS_EMAILS_ENABLED is off: the route must answer "skipped"'
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -22,19 +31,22 @@ concurrency:
 
 jobs:
   trigger:
-    if: vars.PAYMENTS_EMAILS_ENABLED == 'true'
+    if: vars.PAYMENTS_EMAILS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.probe && vars.PAYMENTS_EMAILS_ENABLED != 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: POST the e-mail route (counts only in the answer)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          EMAILS_URL: ${{ secrets.EMAILS_URL }}
+          EMAILS_URL: ${{ vars.EMAILS_URL }}
+          PROBE: ${{ vars.PAYMENTS_EMAILS_ENABLED != 'true' }}
         run: |
           set -euo pipefail
-          if [ -z "${CRON_SECRET}" ] || [ -z "${EMAILS_URL}" ]; then echo "CRON_SECRET / EMAILS_URL not set"; exit 1; fi
+          if [ -z "${CRON_SECRET}" ]; then echo "CRON_SECRET not set"; exit 1; fi
+          if [ "${EMAILS_URL}" != "https://couragelibrary.in/api/cron/emails" ]; then echo "EMAILS_URL must be https://couragelibrary.in/api/cron/emails"; exit 1; fi
           code=$(curl -s -o body.json -w '%{http_code}' --max-time 90 -X POST -H "Authorization: Bearer ${CRON_SECRET}" "${EMAILS_URL}")
-          echo "HTTP ${code}"  # curl -s: an error never prints the host
+          echo "HTTP ${code}"
           # the body holds counts only (never ids or user data)
           node -e 'const b=JSON.parse(require("fs").readFileSync("body.json","utf8"));const {ok,outcome,skipped,expiredClaims,reminders,counts}=b;console.log(JSON.stringify({ok,outcome,skipped,expiredClaims,reminders,counts}))' || true
           test "${code}" = "200"
+          if [ "${PROBE}" = "true" ]; then node -e 'const b=JSON.parse(require("fs").readFileSync("body.json","utf8"));if(!(typeof b.skipped==="string"&&b.skipped)){console.log("PROBE FAIL: the route did not answer skipped");process.exit(1)}console.log("PROBE PASS: skipped="+b.skipped)'; fi

@@ -422,11 +422,42 @@ Account → Billing. B5 code is deployed (migration 150, 2026-11-18) and stays o
    own agent).
 3. **Zoho:** create the `qa@couragelibrary.in` alias (owner E1: QA-account and test-mode e-mails go there).
 4. **Vercel (production):** set `ZEPTOMAIL_TOKEN` (the app-mail token), then `EMAIL_APP_ENABLED=true`.
-5. **GitHub:** add the repository secret `EMAILS_URL` (the full production URL of `/api/cron/emails`). `CRON_SECRET` is
-   shared with the reconcile job. Then set the repository variable `PAYMENTS_EMAILS_ENABLED=true`.
+5. **GitHub:** the repository **variable** `EMAILS_URL=https://couragelibrary.in/api/cron/emails` exists since
+   DOMAIN-CUTOVER-2 (the workflow refuses any other value). `CRON_SECRET` is shared with the reconcile job. Set the
+   repository variable `PAYMENTS_EMAILS_ENABLED=true`.
 
 **Check after step 5:** run the `payments-emails` workflow once by hand. It must answer 200 with counts only. A QA
 purchase in test mode must deliver one receipt to the QA inbox.
 
 **Related:** EMAIL-DNS-FIX-1 (SPF `+all`, the `0 mx.couragelibrary.in` record) should be done before launch.
 See PAY_1_DESIGN.md §13.
+
+## SMOKE-MOCK-LINK-1: the anonymous smoke never checks a mock-test page
+
+**Status:** logged in DOMAIN-CUTOVER-2, 2026-11-22. One of the 3 prod-smoke warnings (same 3 before the cutover:
+push runs 44943743707, 44949725266; run 44959814213 on the apex).
+
+**Warning:** `VACUOUS: no mock link on /mock-tests — /mock-tests/[id] not checked`.
+
+**Cause:** a smoke matcher, not the site. For an anonymous visitor `/mock-tests` links each mock as
+`/auth/login?next=/mock-tests/<id>/take`; the smoke looks only for a bare `href="/mock-tests/<uuid>"`. The detail page
+`/mock-tests/<id>` answers 200 on the apex.
+
+**How:** take the id from either link form (bare or the `next=` target), then check `/mock-tests/<id>` (200, renders,
+self-canonical). Add a negative control. Not a release blocker.
+
+## SITEMAP-CA-1: published current-affairs articles and date pages are missing from the sitemap
+
+**Status:** logged in DOMAIN-CUTOVER-2, 2026-11-22. Two of the 3 prod-smoke warnings (pre-existing, see
+SMOKE-MOCK-LINK-1).
+
+**Warnings:** `VACUOUS: no current-affairs article in the sitemap` and `… no current-affairs date page in the sitemap`.
+
+**Cause (to confirm):** an SEO gap in the site, not the smoke. `/current-affairs` links live date pages (e.g.
+`/current-affairs/date/2026-11-21`, 200), yet `app/sitemap.ts` section E adds no article / date / month URL. Its read
+(`current_affairs_articles`, `status = PUBLISHED`, `published_version_id` not null) returns no rows or an error that is
+silently skipped; the hub and the sitemap disagree on what "published" means.
+
+**How:** find why the sitemap read is empty (filter vs the hub's read, or a read error), align it with the hub, log a read
+error instead of skipping it silently, and gate it (the sitemap must list every published article and its date page).
+SEO impact: Google finds these pages only through links until fixed.

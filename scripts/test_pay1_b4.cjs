@@ -249,10 +249,18 @@ function routeCheck(src) {
 function workflowCheck(y) {
   const why = [];
   if (/RAZORPAY_[A-Z_]+|rzp_(test|live)_/i.test(y)) why.push('a Razorpay key / secret name or value in GitHub');
-  if (!/if: vars\.PAYMENTS_RECONCILE_ENABLED == 'true'/.test(y)) why.push('not gated by PAYMENTS_RECONCILE_ENABLED');
+  // DOMAIN-CUTOVER-2: the schedule runs only with the switch on; a manual probe runs only while it is off
+  if (!y.includes("    if: vars.PAYMENTS_RECONCILE_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.probe && vars.PAYMENTS_RECONCILE_ENABLED != 'true')\n")) why.push('not gated by PAYMENTS_RECONCILE_ENABLED (or the probe is not dispatch-only / switch-off-only)');
   if (!/^permissions: \{\}$/m.test(y)) why.push('permissions not empty');
   if (!/curl -s -o body\.json -w '%\{http_code\}' --max-time 90 -X POST -H "Authorization: Bearer \$\{CRON_SECRET\}" "\$\{RECONCILE_URL\}"/.test(y) || /curl -sS|curl [^\n]*-v\b|set -x/.test(y)) why.push('POST with the bearer, silent (no host in errors)');
-  if (!/CRON_SECRET: \$\{\{ secrets\.CRON_SECRET \}\}/.test(y) || !/RECONCILE_URL: \$\{\{ secrets\.RECONCILE_URL \}\}/.test(y)) why.push('secrets');
+  if (!/CRON_SECRET: \$\{\{ secrets\.CRON_SECRET \}\}/.test(y)) why.push('secrets');
+  // DOMAIN-CUTOVER-2: the URL is a repository variable, pinned to the apex before the bearer is sent; CRON_SECRET is the only secret
+  if (!/RECONCILE_URL: \$\{\{ vars\.RECONCILE_URL \}\}/.test(y)) why.push('RECONCILE_URL not read from vars');
+  const secretNames = [...y.matchAll(/secrets\.([A-Z_]+)/g)].map((m) => m[1]);
+  if (!secretNames.every((n) => n === 'CRON_SECRET')) why.push(`other secrets: ${secretNames.join(',')}`);
+  const pin = y.indexOf('if [ "${RECONCILE_URL}" != "https://couragelibrary.in/api/cron/reconcile" ]; then echo "RECONCILE_URL must be https://couragelibrary.in/api/cron/reconcile"; exit 1; fi');
+  if (pin < 0 || pin > y.indexOf('code=$(curl')) why.push('RECONCILE_URL not pinned to the apex before the POST');
+  if (!y.includes("PROBE: ${{ vars.PAYMENTS_RECONCILE_ENABLED != 'true' }}") || !/if \[ "\$\{PROBE\}" = "true" \]; then node -e '[^\n]*if\(!\(typeof b\.skipped==="string"&&b\.skipped\)\)\{[^\n]*process\.exit\(1\)/.test(y)) why.push('the probe does not fail on an answer other than skipped');
   if (!/- cron: "\*\/15 \* \* \* \*"/.test(y)) why.push('every 15 min');
   if (/uses: /.test(y)) why.push('no third-party action needed');
   return why;
@@ -429,7 +437,12 @@ function wiringCheck(server, action, admin, bill) {
       ['route query-string auth', () => routeCheck(ROUTE.replace('if (secret.length < 16) return false;', 'if (secret.length < 16) return false;\n  if (req.nextUrl.searchParams.get("key") === secret) return true;'))],
       ['route reads before auth', () => routeCheck(ROUTE.replace('  if (!authorized(req)) return NextResponse.json({ ok: false }, { status: 401 });\n  const deps = getReconcileDeps();', '  const deps = getReconcileDeps();\n  if (!authorized(req)) return NextResponse.json({ ok: false }, { status: 401 });'))],
       ['workflow holds a key', () => workflowCheck(WF + '\n          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}\n')],
-      ['workflow ungated', () => workflowCheck(WF.replace("    if: vars.PAYMENTS_RECONCILE_ENABLED == 'true'\n", ''))],
+      ['workflow ungated', () => workflowCheck(WF.replace(/    if: vars\.PAYMENTS_RECONCILE_ENABLED[^\n]*\n/, ''))],
+      ['DC2 probe also on the schedule', () => workflowCheck(WF.replace("(github.event_name == 'workflow_dispatch' && inputs.probe && ", '(inputs.probe || '))],
+      ['DC2 probe with the switch on', () => workflowCheck(WF.replace(" && vars.PAYMENTS_RECONCILE_ENABLED != 'true')", ')'))],
+      ['DC2 URL from a secret', () => workflowCheck(WF.replace('RECONCILE_URL: ${{ vars.RECONCILE_URL }}', 'RECONCILE_URL: ${{ secrets.RECONCILE_URL }}'))],
+      ['DC2 URL not pinned', () => workflowCheck(WF.replace(/          if \[ "\$\{RECONCILE_URL\}" != [^\n]*\n/, ''))],
+      ['DC2 probe does not assert skipped', () => workflowCheck(WF.replace('process.exit(1)}console.log("PROBE PASS', '}console.log("PROBE PASS'))],
       ['workflow verbose curl', () => workflowCheck(WF.replace('curl -s -o body.json', 'curl -sS -o body.json'))],
       ['action drops the e-mail', () => wiringCheck(SERVER, ACTION.replace('email: session.user.email ?? null, ', ''), ADMIN, BILL)],
       ['admin counts test orders', () => wiringCheck(SERVER, ACTION, ADMIN.replace('.eq("gateway_mode", "live"),', ','), BILL)],

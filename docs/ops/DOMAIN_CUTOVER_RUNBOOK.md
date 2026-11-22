@@ -167,9 +167,15 @@ Run by ENG, anonymous only; the owner does the real-account sign-in check.
 
 | Step | Who | Action | Verify | Roll back |
 |---|---|---|---|---|
-| 1 | OWNER | GitHub → Settings → Secrets and variables → Actions → **Variables**: create `PAYMENTS_RECONCILE_ENABLED` = `true`; **delete the secret** of the same name (F1). Do this only when checkout is to run (until B8 the route answers "skipped") | `gh variable list` shows it | delete the variable |
-| 2 | OWNER | Secret `RECONCILE_URL` = `https://couragelibrary.in/api/cron/reconcile` (`CRON_SECRET` exists; it must equal the Vercel `CRON_SECRET`) | ENG: run the `payments-reconcile` workflow once by hand → HTTP 200 with counts only (`skipped: CHECKOUT_CLOSED` until B8) | set the variable to `false` |
-| 3 | OWNER (after EMAIL-KYC-1) | Secret `EMAILS_URL` = `https://couragelibrary.in/api/cron/emails`; variable `PAYMENTS_EMAILS_ENABLED` = `true` | run `payments-emails` once → 200 counts only | variable `false` |
+**Amended by the owner at DOMAIN-CUTOVER-2 (2026-11-22):** both URLs are repository **variables** (public URLs, not
+secrets), the switches stay `false` until their phases, and each job is proven once with a **probe** run.
+
+| Step | Who | Action | Verify | Roll back |
+|---|---|---|---|---|
+| 1 | OWNER | GitHub → Settings → Secrets and variables → Actions → **Variables**: create `PAYMENTS_RECONCILE_ENABLED` = `false`; **Secrets**: delete the secret of the same name (F1). Set it to `true` only at PAY-1 B8 | `gh variable list` / `gh secret list` (names) | — |
+| 2 | OWNER | **Variables**: `RECONCILE_URL` = `https://couragelibrary.in/api/cron/reconcile`, `EMAILS_URL` = `https://couragelibrary.in/api/cron/emails`. `CRON_SECRET` unchanged (it must equal the Vercel `CRON_SECRET`). The workflows refuse any other URL before the bearer is sent | names + public values | delete the variables |
+| 3 | ENG | Run each workflow once by hand with **probe = true** (allowed only while its switch is off) → HTTP 200 and `skipped` (`CHECKOUT_CLOSED` / `EMAIL_OFF`); any other answer fails the run. Precondition: checkout closed (anonymous `/pricing`) and e-mail off in Vercel (names only) | the run logs | — |
+| 4 | OWNER (after EMAIL-KYC-1) | Variable `PAYMENTS_EMAILS_ENABLED` = `true` | run `payments-emails` once → 200 counts only | variable `false` |
 
 The jobs call the **apex**, never the vercel.app alias, so they run on the production deployment that owns the domain.
 

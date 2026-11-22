@@ -335,10 +335,16 @@ function checkRoute(src) {
 
 function checkWorkflow(wf) {
   assert(/^permissions: \{\}$/m.test(wf), 'permissions not empty');
-  assert(/if: vars\.PAYMENTS_EMAILS_ENABLED == 'true'/.test(wf), 'not gated by PAYMENTS_EMAILS_ENABLED');
-  assert(/secrets\.CRON_SECRET/.test(wf) && /secrets\.EMAILS_URL/.test(wf), 'secrets');
+  // DOMAIN-CUTOVER-2: the schedule runs only with the switch on; a manual probe runs only while it is off
+  assert(wf.includes("    if: vars.PAYMENTS_EMAILS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.probe && vars.PAYMENTS_EMAILS_ENABLED != 'true')\n"), 'not gated by PAYMENTS_EMAILS_ENABLED (or the probe is not dispatch-only / switch-off-only)');
+  assert(/CRON_SECRET: \$\{\{ secrets\.CRON_SECRET \}\}/.test(wf), 'secrets');
+  // DOMAIN-CUTOVER-2: the URL is a repository variable, pinned to the apex before the bearer is sent; CRON_SECRET is the only secret
+  assert(/EMAILS_URL: \$\{\{ vars\.EMAILS_URL \}\}/.test(wf), 'EMAILS_URL not read from vars');
   const secretNames = [...wf.matchAll(/secrets\.([A-Z_]+)/g)].map((m) => m[1]);
-  assert(secretNames.every((n) => n === 'CRON_SECRET' || n === 'EMAILS_URL'), `other secrets: ${secretNames.join(',')}`);
+  assert(secretNames.every((n) => n === 'CRON_SECRET'), `other secrets: ${secretNames.join(',')}`);
+  const pin = wf.indexOf('if [ "${EMAILS_URL}" != "https://couragelibrary.in/api/cron/emails" ]; then echo "EMAILS_URL must be https://couragelibrary.in/api/cron/emails"; exit 1; fi');
+  assert(pin >= 0 && pin < wf.indexOf('code=$(curl'), 'EMAILS_URL not pinned to the apex before the POST');
+  assert(wf.includes("PROBE: ${{ vars.PAYMENTS_EMAILS_ENABLED != 'true' }}") && /if \[ "\$\{PROBE\}" = "true" \]; then node -e '[^\n]*if\(!\(typeof b\.skipped==="string"&&b\.skipped\)\)\{[^\n]*process\.exit\(1\)/.test(wf), 'the probe does not fail on an answer other than skipped');
   assert(!/ZEPTO|enczapikey/i.test(wf.replace(/^#.*$/gm, '')), 'a ZeptoMail value in the workflow');
   assert(/curl -s -o body\.json/.test(wf) && /-X POST/.test(wf), 'curl -s POST');
   assert(/cron: "7 \* \* \* \*"/.test(wf), 'hourly schedule');
@@ -371,6 +377,20 @@ function checkWiring() {
   await test('B5-05 sendEvent: at most once, retries, UNKNOWN, QA / test-mode routing, no address in logs', () => checkCore(C));
   await test('B5-06 runEmailJob: lease, stale claims, 09:00 IST, D7 / D1, existing keys, cap, retries', () => checkJob(C));
   await test('B5-07 the route and the workflow', () => { checkRoute(ROUTE_SRC); checkWorkflow(WF_SRC); });
+  // DOMAIN-CUTOVER-2 negative controls: each broken workflow must be refused (an edit that does not apply counts as missed)
+  await test('B5-07b DC2 workflow negative controls', () => {
+    const muts = [
+      ['ungated', WF_SRC.replace(/    if: vars\.PAYMENTS_EMAILS_ENABLED[^\n]*\n/, '')],
+      ['probe also on the schedule', WF_SRC.replace("(github.event_name == 'workflow_dispatch' && inputs.probe && ", '(inputs.probe || ')],
+      ['probe with the switch on', WF_SRC.replace(" && vars.PAYMENTS_EMAILS_ENABLED != 'true')", ')')],
+      ['URL from a secret', WF_SRC.replace('EMAILS_URL: ${{ vars.EMAILS_URL }}', 'EMAILS_URL: ${{ secrets.EMAILS_URL }}')],
+      ['URL not pinned', WF_SRC.replace(/          if \[ "\$\{EMAILS_URL\}" != [^\n]*\n/, '')],
+      ['probe does not assert skipped', WF_SRC.replace('process.exit(1)}console.log("PROBE PASS', '}console.log("PROBE PASS')],
+    ];
+    const missed = muts.filter(([, w]) => { if (w === WF_SRC) return true; try { checkWorkflow(w); return true; } catch { return false; } }).map(([n]) => n);
+    assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+    return `${muts.length} mutations caught`;
+  });
   await test('B5-08 wiring (receipt / refund hooks, stub + old route gone, sender, switch, admin list)', () => checkWiring());
 
   await test('B5-09 negative controls: each mutation is caught', async () => {
@@ -401,8 +421,8 @@ function checkWiring() {
       ['job: no send cap', () => checkJob(loadTs('lib/email/pro-emails.ts', mut(CORE_SRC, 'maxSends: 25,', 'maxSends: 1000,')))],
       ['route: GET handler', () => checkRoute(ROUTE_SRC + '\nexport async function GET() { return null; }')],
       ['route: query-string auth', () => checkRoute(mut(ROUTE_SRC, 'if (!authorized(req))', 'if (!authorized(req) && !req.nextUrl.searchParams.get("key"))'))],
-      ['workflow: no gate', () => checkWorkflow(mut(WF_SRC, "    if: vars.PAYMENTS_EMAILS_ENABLED == 'true'\n", ''))],
-      ['workflow: a ZeptoMail secret', () => checkWorkflow(mut(WF_SRC, '          EMAILS_URL: ${{ secrets.EMAILS_URL }}', '          EMAILS_URL: ${{ secrets.EMAILS_URL }}\n          ZEPTOMAIL_TOKEN: ${{ secrets.ZEPTOMAIL_TOKEN }}'))],
+      ['workflow: no gate', () => checkWorkflow(mut(WF_SRC, "    if: vars.PAYMENTS_EMAILS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.probe && vars.PAYMENTS_EMAILS_ENABLED != 'true')\n", ''))],
+      ['workflow: a ZeptoMail secret', () => checkWorkflow(mut(WF_SRC, '          EMAILS_URL: ${{ vars.EMAILS_URL }}', '          EMAILS_URL: ${{ vars.EMAILS_URL }}\n          ZEPTOMAIL_TOKEN: ${{ secrets.ZEPTOMAIL_TOKEN }}'))],
     ];
     const missed = [];
     for (const [name, fn] of cases) {
