@@ -48,9 +48,21 @@ rows in `auth.audit_log_entries`. **Next:** make the mint robust: per-job retry 
 `verifyOtp` (re-generate, at most 2 tries), or stagger the jobs. Note: qa-admin / qa-staff hold ~450 sessions each
 (no cleanup); harmless today, worth a cleanup step.
 
-## NIGHTLY-ALERT-1 (proposed, not built): a red nightly live run must reach the owner
+## NIGHTLY-ALERT-1: a red nightly live run must reach the owner — BUILT (LIVE-GREEN-1 deliverable 1)
 
-**Status:** proposal 2026-11-24 (owner: "propose, don't build yet"). See the AUTH-UX-1 report for the options.
+**Status:** built 2026-11-24, proof pending (the first nightly after the release must open the issue; the first green
+nightly must close it). Owner decisions: assignee from the repository variable `NIGHTLY_ALERT_ASSIGNEE` (empty → the
+issue is still opened, unassigned, and says so); nightly only, manual dispatches never touch the issue. The last
+ci-gates job `nightly-alert` (schedule only, `always()`, job permissions `issues: write` + `actions: read`,
+GITHUB_TOKEN, no secret) keeps ONE open issue "Nightly live run red" (label `nightly-red`): red → open or comment;
+green → comment and close. The repository is public: the text is the run link, the commit and the gate summary lines of
+the failed jobs only, each line filtered (`scripts/ci/nightly-alert.cjs`; offline gate NIGHTLY-ALERT, 11 checks,
+18 negative controls).
+
+## SEO-1 note: auth-page indexing (owner, 2026-11-24)
+
+The auth pages are indexable today. Owner plan, done in SEO-1: noindex forgot-password, update-password (reset) and
+confirm-age; keep login and signup indexable.
 
 ## AUTH-PHONE-GAP: short auth forms leave empty space above the footer on phones
 

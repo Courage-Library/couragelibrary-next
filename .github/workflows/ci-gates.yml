@@ -149,6 +149,7 @@ jobs:
           q AUTH1-R6-DIAG-SELFTEST node scripts/test_auth1.cjs --r6-self-test || fail=1
           q RUN-QUIET-SELFTEST node scripts/ci/run-quiet.cjs --self-test || fail=1
           q DEPLOY-GATE-1 node scripts/test_deploy_gate1.cjs || fail=1
+          q NIGHTLY-ALERT node scripts/ci/test_nightly_alert.cjs || fail=1
           q LEGAL-LINK-1 node scripts/test_legal_link1.cjs || fail=1
           q BRAND-ICONS-1 node scripts/test_brand_icons1.cjs || fail=1
           q AUTH-UX-1 node scripts/test_auth_ux1.cjs || fail=1
@@ -630,3 +631,30 @@ jobs:
       - name: Log scan of the captured outputs (always)
         if: always()
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
+
+  # LIVE-GREEN-1 / NIGHTLY-ALERT-1 (owner, 2026-11-24): a red NIGHTLY live run must reach the owner. Nightly only —
+  # manual dispatches and pushes never touch the issue. One open issue "Nightly live run red" (label nightly-red):
+  # red → open it (assigned to vars.NIGHTLY_ALERT_ASSIGNEE; empty → unassigned, and the issue says so) or comment;
+  # green → close it. PUBLIC repo: the text is the run link, the commit and the filtered gate summary lines only
+  # (scripts/ci/nightly-alert.cjs; offline gate NIGHTLY-ALERT). GITHUB_TOKEN only; no secret.
+  nightly-alert:
+    needs: [scope, offline, server-checks, live-journeys, live-gates]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Open / update / close the nightly-red issue (summary lines only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NIGHTLY_ALERT_ASSIGNEE: ${{ vars.NIGHTLY_ALERT_ASSIGNEE }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/ci/nightly-alert.cjs
