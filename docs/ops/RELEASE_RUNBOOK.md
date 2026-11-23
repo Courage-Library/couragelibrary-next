@@ -35,7 +35,21 @@ The per-release checklists (`RELEASE_HOME_1.md`, …) add their own steps; these
    `node scripts/live/with-server.cjs --port=3100 -- "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100"`).
    **Why:** PAY-1 B1 renamed the `/admin/payments` heading; SMOKE-ADMIN-PAGES still expected the old one, and only CI
    dispatch 43621861577 caught it.
-5. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
+5. **Server-checks locally (owner rule, 2026-11-24):** for any phase that changes pages or markup, run the FULL
+   server-checks sequence of `.github/workflows/ci-gates.yml` locally — all four modes — BEFORE asking for a push.
+   On a fresh `npm run build` (output saved as `BUILD_LOG`), with `NODE_OPTIONS="--require ./scripts/live/supabase-blackhole.cjs"`
+   and `WS='node scripts/live/with-server.cjs --port=3300 --health-path=auth/login --gate-timeout=300'`:
+   1. flags OFF, Supabase refused: `BUILD_LOG=<log> AUTH1_BLACKHOLE=refuse $WS --` AUTH1-2B2-PROBE-OFF,
+      AUTH1-2B1-PROBE-OFF, BRAND2-PROBE (each `node scripts/test_… --probe`)
+   2. flags ON with the CI test keys (`AUTH_CAPTCHA_ENABLED=true`, Turnstile test key, `AUTH_GOOGLE_ENABLED=true`, the CI
+      test client id), Supabase refused: AUTH1-2B2-PROBE-ON, AUTH1-2B1-PROBE-ON
+   3. `AUTH1_BLACKHOLE=refuse`: AUTH1-RESILIENCE-REFUSE (`node scripts/test_auth1.cjs --resilience=refuse`)
+   4. `AUTH1_BLACKHOLE=hang`: AUTH1-RESILIENCE-HANG (`--resilience=hang`)
+   Copy the exact commands from the workflow's server-checks step; report any local-only difference (e.g. a BRAND2 P-07
+   route budget that differs from CI) instead of ignoring it.
+   **Why:** AUTH-UX-1 push run 45261736991 failed server-checks (AUTH1-2B1 P-02, BRAND2 P-04 / P-05 still pinned the
+   old auth markup); the offline list cannot see these probes. The deploy gate held production, but a release was lost.
+6. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
 
 **Why:** the COURSE-UX-1 push CI (41625360184) failed `LIVE-LOCK-SWEEP`, an offline gate. The earlier local run had
 skipped it because its name contains "LIVE".
