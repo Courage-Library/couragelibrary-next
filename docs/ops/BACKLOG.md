@@ -2,6 +2,39 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## DEPLOY-GATE-1 (TOP PRIORITY): production must not update until CI passes
+
+**Status:** logged in FOOTER-1, 2026-11-23 (owner). Report only — no change in that phase.
+
+**Why:** every push to `main` deploys to production on Vercel at once, in parallel with the CI push run. In FOOTER-1
+the push runs 45076387392, 45078679939 and 45122761534 failed (server-checks) while those commits were already live; the
+footer was reverted afterwards. A red CI run must never mean a changed production site.
+
+**Options to investigate (pick one, then gate it):**
+1. **Vercel Deployment Checks** (project setting): mark the GitHub `ci-gates` checks (offline, server-checks, …) as
+   required, so a production deployment is built but **not promoted** until they pass. Confirm the plan supports it and
+   move prod-smoke (which today runs against production) to after promotion.
+2. **Promote after CI:** stop auto-assigning the production domain for `main` (deploy to a preview URL) and let a final
+   CI job promote that exact deployment (`vercel promote <deployment>` with a scoped token as a repo secret) only when
+   every required job is green; prod-smoke then runs on the promoted site.
+3. **Branch protection + merge queue:** work lands on `main` only through a PR whose required checks passed (the
+   local-first flow pushes `HEAD:main` today — it would push to a branch and merge after green).
+
+**Done when:** a deliberately red push leaves production on the previous deployment (proved once, with a gate or a
+documented dry run), and RELEASE_RUNBOOK.md describes the new order: push → CI green → promote → prod-smoke.
+
+## FOOTER-1-R6: the footer phase is reverted — AUTH1-RESILIENCE-HANG R-6 fails in CI ("/" not the same page)
+
+**Status:** BLOCKED, 2026-11-23. FOOTER-1 (`0529197`, `3db0ace`, `09d01c5`) was reverted on the owner's instruction;
+the R-6 diagnostics (`56ecc79`, R6-DIAG-1) stay. CI diagnostic (push run 45122761534):
+`R-6 check=same route=/ status=200 ms=5079 same=no anonms=45 at=16 attr=none` — the signed-in "/" (answered after the
+5 s hanging auth read) differs from the anonymous "/" of the same round (45 ms) at character 16, i.e. in the comment
+right after `<!DOCTYPE html>` that only the build-time page carries. Hypothesis (not proven): the anonymous request got
+the stale build-time "/" and triggered ISR regeneration; the slower signed-in request got the regenerated page. Not
+reproduced locally (clean-cache CI-style builds pass, also when stale). Next: use the diagnostic on a branch run to
+confirm, then decide whether R-6 should compare the page content without the build marker or the footer changed what
+makes "/" regenerate during the run. Full work is in git history (revert commits) and the FOOTER-1 report.
+
 ## MAP-EXAM-1: explicit exam links for the 12 unlinked published CGL questions
 
 **Status:** logged by the architect, 2026-10-27 (content-health ruling).
