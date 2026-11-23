@@ -2,6 +2,14 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## AUTH-PHONE-GAP: short auth forms leave empty space above the footer on phones
+
+**Status:** logged in AUTH-UX-1, 2026-11-24 (owner). On phones (< 1024 px) the sign-in / forgot / reset forms are short,
+and the shared site layout keeps the footer below the first screen (the main area's minimum height), so an empty band
+sits between the form and the footer (AUTH-UX-1 screenshot sign-in-390). The auth split itself sets no minimum height
+below 1024 px. **Next:** let auth pages size to their content on phones (or place the footer closer) without a layout
+shift — check CLS at the five sizes and the other visitor pages.
+
 ## FOOTER-BAND-CLAIM: the sign-up band says "Free daily mock, current affairs and practice." ungated
 
 **Status:** logged in AUTH-UX-1, 2026-11-24 (owner decision 3). `content/footer.ts` `bandText` claims a daily mock (no
