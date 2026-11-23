@@ -18,6 +18,8 @@
  *       anonymous smoke of couragelibrary.in with --expect-sha, no bypass; not a required check
  *   G-7 pre-promotion / change-scope / log-scan self-tests pass
  *   G-8 negative controls: each broken variant is caught
+ *   G-9 no workflow job id / job name is "deploy-smoke"; the ONLY producer of the "deploy-smoke" status is the pinned
+ *       Vercel status action in deploy-smoke.yml (no other status action, statuses: write, or direct status / check-run POST)
  * Run: node scripts/test_deploy_gate1.cjs
  */
 const fs = require('fs');
@@ -197,6 +199,42 @@ function checkSelfTests() {
   return out.join(' · ');
 }
 
+// G-9 (owner 2026-11-23): nothing but the pinned status action in deploy-smoke.yml can produce "deploy-smoke" — Vercel
+// matches the required check by NAME (7cc9e50 was promoted on the commit status), so a job / check run / status of that
+// name anywhere else could satisfy the gate for a commit that was never smoked.
+const WF_DIR = path.join(ROOT, '.github/workflows');
+const allWorkflows = () => Object.fromEntries(fs.readdirSync(WF_DIR).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, read(`.github/workflows/${f}`)]));
+function checkNoImpostor(files) {
+  const names = Object.keys(files);
+  assert(names.length >= 3 && names.includes('deploy-smoke.yml'), `workflows found: ${names.join(', ')}`);
+  const bad = [];
+  let producers = 0;
+  for (const [f, raw] of Object.entries(files)) {
+    const text = raw.replace(/^\s*#[^\n]*$/gm, '');
+    const jobsAt = text.indexOf('\njobs:\n');
+    const jobs = jobsAt < 0 ? '' : text.slice(jobsAt);
+    for (const m of jobs.matchAll(/\n {2}([A-Za-z0-9_-]+):\n/g)) if (/^deploy-smoke$/i.test(m[1])) bad.push(`${f}: job id ${m[1]}`);
+    for (const m of jobs.matchAll(/\n {4}name: *['"]?([^'"\n]*)['"]?\n/g)) if (/^\s*deploy-smoke\s*$/i.test(m[1])) bad.push(`${f}: job name "${m[1]}"`);
+    const statusActions = [...text.matchAll(/uses: *['"]?vercel\/repository-dispatch\/actions\/status@([^\s'"]+)/g)];
+    if (statusActions.length && f !== 'deploy-smoke.yml') bad.push(`${f}: uses the Vercel status action`);
+    if (f === 'deploy-smoke.yml') {
+      producers += statusActions.length;
+      if (statusActions.some((m) => !/^[0-9a-f]{40}$/.test(m[1]))) bad.push(`${f}: status action not pinned to a full sha`);
+      if ((text.match(/\n {10}name: deploy-smoke\n/g) || []).length !== 1) bad.push(`${f}: status name deploy-smoke not set exactly once`);
+    }
+    if (/statuses: *write/.test(text) && f !== 'deploy-smoke.yml') bad.push(`${f}: statuses: write`);
+    if (/\/statuses\b|createCommitStatus|check-runs[^\n]*(-X|--method) *POST|checks: *write/i.test(text) && !(f === 'deploy-smoke.yml' && !/\/statuses\b|createCommitStatus|checks: *write/.test(text))) bad.push(`${f}: writes a commit status / check run directly`);
+    if (/context[^\n]*deploy-smoke/i.test(text)) bad.push(`${f}: a "deploy-smoke" status context`);
+  }
+  assert(producers === 1, `the pinned status action appears ${producers}× in deploy-smoke.yml (want 1)`);
+  assert(bad.length === 0, bad.join('; '));
+  // the scripts must not post statuses / check runs either
+  const ciDir = path.join(ROOT, 'scripts/ci');
+  const writers = fs.readdirSync(ciDir).filter((f) => /\.c?js$/.test(f)).filter((f) => /createCommitStatus|\/statuses\/|method: *['"]POST['"][^\n]*check-runs|\/check-runs['"`][^\n]*POST/.test(fs.readFileSync(path.join(ciDir, f), 'utf8')));
+  assert(writers.length === 0, `scripts/ci posts statuses / check runs: ${writers.join(', ')}`);
+  return `${names.length} workflows · no deploy-smoke job id / name · one pinned status producer (deploy-smoke.yml)`;
+}
+
 test('G-1 every push to main runs ci-gates (no paths filter)', () => checkTrigger(SRC.wf));
 test('G-2 docs-only fast path: scope job; offline + server-checks always report', () => checkScope(SRC.wf));
 test('G-3 deploy-smoke.yml: ready event, pinned status action first, validate → on main → CI → smoke', () => checkDeploySmoke(SRC.ds, SRC.wf));
@@ -204,6 +242,7 @@ test('G-4 payload validation refuses foreign host / http / missing sha / preview
 test('G-5 bypass secret: one plain use, fails closed, never printed, log-scanned', () => checkSecret(SRC.ds, SRC.wf, SRC.pp, SRC.smoke));
 test('G-6 post-promotion smoke: repository_dispatch promoted, validated payload, not a required check', () => checkPostPromotion(SRC.pp, SRC.wf));
 test('G-7 pre-promotion / change-scope / log-scan self-tests', () => checkSelfTests());
+test('G-9 no other job / status can satisfy the "deploy-smoke" check', () => checkNoImpostor(allWorkflows()));
 
 test('G-8 negative controls: each broken variant is caught', () => {
   const mut = (s, a, b) => {
@@ -245,6 +284,16 @@ test('G-8 negative controls: each broken variant is caught', () => {
     ['post-promotion payload interpolated', () => checkPostPromotion(mut(SRC.pp, 'node scripts/smoke/wait-for-deploy.cjs "$PROD_BASE_URL" "${PAYLOAD_SHA::7}" 600', 'node scripts/smoke/wait-for-deploy.cjs "$PROD_BASE_URL" "${{ github.event.client_payload.git.sha }}" 600'), W)],
     ['post-promotion payload not validated', () => checkPostPromotion(mut(SRC.pp, "grep -Eq '^[0-9a-f]{7,40}$'", "grep -Eq '.*'"), W)],
     ['post-promotion reports a required status', () => checkPostPromotion(SRC.pp + '      - uses: vercel/repository-dispatch/actions/status@30f760c6640485cd92f8c785ef361382555fb712\n', W)],
+    // G-9 impostors
+    ['G-9 a ci-gates job with id deploy-smoke', () => checkNoImpostor({ ...allWorkflows(), 'ci-gates.yml': W + '\n  deploy-smoke:\n    runs-on: ubuntu-24.04\n' })],
+    ['G-9 a job named deploy-smoke (other id)', () => checkNoImpostor({ ...allWorkflows(), 'ci-gates.yml': mut(W, '  scope:\n    runs-on: ubuntu-24.04\n', '  scope:\n    name: deploy-smoke\n    runs-on: ubuntu-24.04\n') })],
+    ['G-9 a quoted job name deploy-smoke', () => checkNoImpostor({ ...allWorkflows(), 'ci-gates.yml': mut(W, '  scope:\n    runs-on: ubuntu-24.04\n', "  scope:\n    name: 'deploy-smoke'\n    runs-on: ubuntu-24.04\n") })],
+    ['G-9 a new workflow job id deploy-smoke', () => checkNoImpostor({ ...allWorkflows(), 'extra.yml': 'name: x\non: push\njobs:\n  deploy-smoke:\n    runs-on: ubuntu-24.04\n' })],
+    ['G-9 status action in another workflow', () => checkNoImpostor({ ...allWorkflows(), 'post-promotion-smoke.yml': SRC.pp + '      - uses: vercel/repository-dispatch/actions/status@30f760c6640485cd92f8c785ef361382555fb712\n        with:\n          name: deploy-smoke\n' })],
+    ['G-9 status action twice in deploy-smoke.yml', () => checkNoImpostor({ ...allWorkflows(), 'deploy-smoke.yml': D + '      - uses: vercel/repository-dispatch/actions/status@30f760c6640485cd92f8c785ef361382555fb712\n' })],
+    ['G-9 statuses: write elsewhere', () => checkNoImpostor({ ...allWorkflows(), 'ci-gates.yml': mut(W, '\npermissions:\n', '\npermissions:\n  statuses: write\n') })],
+    ['G-9 a direct status POST', () => checkNoImpostor({ ...allWorkflows(), 'post-promotion-smoke.yml': SRC.pp + '      - run: gh api repos/x/y/statuses/$SHA -f state=success -f context=deploy-smoke\n' })],
+    ['G-9 a direct status POST inside deploy-smoke.yml', () => checkNoImpostor({ ...allWorkflows(), 'deploy-smoke.yml': D + '      - run: gh api repos/x/y/statuses/$SHA -f state=success\n' })],
   ];
   const missed = [];
   for (const [name, run] of muts) {
