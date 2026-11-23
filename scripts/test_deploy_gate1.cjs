@@ -242,6 +242,8 @@ test('G-4 payload validation refuses foreign host / http / missing sha / preview
 test('G-5 bypass secret: one plain use, fails closed, never printed, log-scanned', () => checkSecret(SRC.ds, SRC.wf, SRC.pp, SRC.smoke));
 test('G-6 post-promotion smoke: repository_dispatch promoted, validated payload, not a required check', () => checkPostPromotion(SRC.pp, SRC.wf));
 test('G-7 pre-promotion / change-scope / log-scan self-tests', () => checkSelfTests());
+// RED-PROOF (owner 2026-11-23): a deliberate failure to prove a red offline gate blocks promotion — reverted next.
+test('RED-PROOF deliberate failure (DEPLOY-GATE-1 red-path proof; reverted in the next commit)', () => assert(false, 'deliberate red-path failure'));
 test('G-9 no other job / status can satisfy the "deploy-smoke" check', () => checkNoImpostor(allWorkflows()));
 
 test('G-8 negative controls: each broken variant is caught', () => {
