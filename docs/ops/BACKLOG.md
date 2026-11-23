@@ -35,6 +35,22 @@ reproduced locally (clean-cache CI-style builds pass, also when stale). Next: us
 confirm, then decide whether R-6 should compare the page content without the build marker or the footer changed what
 makes "/" regenerate during the run. Full work is in git history (revert commits) and the FOOTER-1 report.
 
+**Update (FOOTER-1 retry, 2026-11-23): root cause confirmed; R-6 fixed in the test (owner-approved).** Branch dispatch
+45192731692 (R6-DIAG-2): anonymous "/" `x-nextjs-cache=STALE`, build-id comment present, 145089 chars; signed-in "/"
+(5 s later) `HIT`, no comment, 145061 chars — exactly the 28-char `<!--BUILD_ID-->`. Next.js 15.5 inserts that comment
+after the doctype ONLY at build-time prerendering (`createPrefetchCommentStream(isBuildTimePrerendering, buildId)`);
+runtime ISR regenerations never carry it. "/" revalidates every 60 s, so a round can straddle a regeneration. R-6 now
+compares the signed-in "/" byte-exact with the anonymous "/" of the SAME generation (fetched before OR right after it),
+and every anonymous "/" must pass a session-marker guard (R6-SAME-GEN).
+
+**Open (no work now): why main's build-time "/" lacks the build-id comment but the branch's has it.** Local builds:
+`8b5b47e` (main) `.next/server/app/index.html` starts `<!DOCTYPE html><html …` (no comment) while the FOOTER-1 branch
+starts `<!DOCTYPE html><!--<BUILD_ID>--><html …`. Both static paths in Next 15.5.23 (`continueFizzStream`,
+`continueStaticPrerender`) insert it when `isBuildTimePrerendering`; so main's "/" is presumably produced by a path where
+that flag is false (e.g. a postponed / dynamic prerender — main's footer band streamed through Suspense, FOOTER-1's
+does not). Also seen on main: "/" changes length between regenerations (135917 ↔ 135966 locally), so the old R-6
+passed by timing only. To confirm: trace which prerender path builds "/" on each commit.
+
 ## MAP-EXAM-1: explicit exam links for the 12 unlinked published CGL questions
 
 **Status:** logged by the architect, 2026-10-27 (content-health ruling).

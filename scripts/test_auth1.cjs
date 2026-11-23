@@ -784,10 +784,35 @@ const RES_MAX_MS = 20000; // middleware + page + shell auth reads, each ≤ AUTH
 const BANNER_RX = /couldn(&#x27;|')t check your sign-in/;
 /** R6-DIAG-2: does a comment follow <!DOCTYPE html> directly (where the CI diff began, at=16)? yes / no */
 const r6Marker = (t) => (/^\s*<!DOCTYPE html><!--/i.test(t || '') ? 'yes' : 'no');
-function r6Check(results, fmt) {
+/**
+ * R6-SAME-GEN (FOOTER-1 retry, owner-approved): every ANONYMOUS "/" (the one fetched with the round and the one fetched
+ * right after the signed-in "/") must carry no session-specific content — asserted explicitly by markers derived from
+ * the fake session, not just by equality: the user id / e-mail / display name, pieces of the session token and cookie,
+ * the "couldn't check your sign-in" banner, a server-set data-auth attribute, the session-unavailable marker, a visible
+ * "Go to dashboard" outside the CSS-hidden auth-in wrapper (PERF-HOME-1: every visitor gets the same cached HTML with
+ * the signed-in variant hidden until the pre-paint hint), and any Set-Cookie on the response.
+ * Returns the name of the first marker found, or null.
+ */
+function r6AnonLeak(r, markers = []) {
+  const t = r.text || '';
+  for (const [name, value] of markers) if (value && t.includes(value)) return name;
+  if (BANNER_RX.test(t)) return 'banner';
+  if (r.setCookie) return 'setcookie';
+  const markup = t.replace(/<script\b[\s\S]*?<\/script>/gi, '');
+  if (/\sdata-auth="[^"]*"/.test(markup)) return 'dataauth';
+  if (/data-session-unavailable/.test(markup)) return 'session';
+  let i = -1;
+  while ((i = markup.indexOf('>Go to dashboard<', i + 1)) >= 0) {
+    const wrap = [...markup.slice(Math.max(0, i - 700), i).matchAll(/class="([^"]*\bauth-(?:in|out)\b[^"]*)"/g)].map((m) => m[1]).pop();
+    if (!wrap || !/\bauth-in\b/.test(wrap)) return 'dashboard';
+  }
+  return null;
+}
+
+function r6Check(results, fmt, markers = []) {
   const d = (o) => `DIAG R-6 ${Object.entries(o).map(([k, v]) => `${k}=${String(v).replace(/[^A-Za-z0-9/_.-]/g, '_').slice(0, 40)}`).join(' ')}`;
   const row = (check, r, extra = {}) => d({ check, route: r.p, status: r.status, ms: r.ms, banner: BANNER_RX.test(r.text || '') ? 'yes' : 'no', round: r.round, ...extra });
-  const anon = results.filter((r) => r.kind === 'public page' || r.kind === 'auth page');
+  const anon = results.filter((r) => r.kind === 'public page' || r.kind === 'auth page' || r.kind === 'public page after');
   const withCookie = results.filter((r) => r.kind === 'public page + session cookie');
   const bad = anon.concat(withCookie).filter((r) => r.status !== 200);
   if (bad.length > 0) return { msg: `${bad.length}: ${fmt(bad)}`, diag: bad.slice(0, 8).map((r) => row('status', r)) };
@@ -795,14 +820,26 @@ function r6Check(results, fmt) {
   if (noBanner.length > 0) return { msg: 'banner missing for the signed-in visitor', diag: noBanner.slice(0, 8).map((r) => row('banner', r)) };
   const anonBanner = anon.filter((r) => r.p === '/' && BANNER_RX.test(r.text));
   if (anonBanner.length > 0) return { msg: 'banner shown to an anonymous visitor', diag: anonBanner.slice(0, 8).map((r) => row('anonbanner', r)) };
-  // the cached "/" for a signed-in visitor: 200, no redirect, the same page as for an anonymous one (no banner, no session data)
+  // R6-SAME-GEN guard: every anonymous "/" (before and after) carries no session-specific content
+  const anonHome = anon.filter((r) => r.p === '/');
+  const leaks = anonHome.map((r) => [r, r6AnonLeak(r, markers)]).filter(([, m]) => m);
+  if (leaks.length > 0) return { msg: `an anonymous "/" carries session-specific content (${leaks.map(([r, m]) => `round ${r.round} ${r.kind === 'public page after' ? 'after' : 'before'}: ${m}`).slice(0, 4).join('; ')})`, diag: leaks.slice(0, 8).map(([r, m]) => d({ check: 'anonguard', route: r.p, status: r.status, round: r.round, which: r.kind === 'public page after' ? 'after' : 'before', marker: m })) };
+  // the cached "/" for a signed-in visitor: 200, no redirect, byte-identical (nothing normalised beyond the existing
+  // <!-- --> text separators) to an anonymous "/" of the SAME cache generation — the one fetched with the round (before)
+  // OR the one fetched right after the signed-in response (after). Both neighbours passed the guard above.
   const cached = results.filter((r) => r.kind === 'cached page + session cookie');
   const strip = (t) => t.replace(/<!-- -->/g, '');
-  const same = (r) => { const a = anon.find((x) => x.p === '/' && x.round === r.round); return r.status === 200 && a && strip(r.text) === strip(a.text); };
+  const before = (r) => anon.find((x) => x.kind === 'public page' && x.p === '/' && x.round === r.round);
+  const after = (r) => anon.find((x) => x.kind === 'public page after' && x.p === '/' && x.round === r.round);
+  const same = (r) => {
+    if (r.status !== 200) return false;
+    return [before(r), after(r)].some((a) => a && a.status === 200 && strip(r.text) === strip(a.text));
+  };
   if (!(cached.length >= 1 && cached.every(same))) {
-    // ≤ 4 failing rounds × 2 lines = the run-quiet maximum of 8 DIAG lines
-    const diag = (cached.length ? cached : [{ p: '/', status: 0, ms: 0, text: '', round: -1 }]).filter((r) => !same(r)).slice(0, 4).flatMap((r) => {
-      const a = anon.find((x) => x.p === '/' && x.round === r.round);
+    // ≤ 2 failing rounds × 3 lines = 6 DIAG lines (the run-quiet maximum is 8)
+    const diag = (cached.length ? cached : [{ p: '/', status: 0, ms: 0, text: '', round: -1 }]).filter((r) => !same(r)).slice(0, 2).flatMap((r) => {
+      const a = before(r);
+      const n = after(r);
       const x = strip(r.text || '');
       const y = strip((a && a.text) || '');
       let i = 0;
@@ -814,9 +851,11 @@ function r6Check(results, fmt) {
       return [
         d({ check: 'same', route: r.p, status: r.status, ms: r.ms, same: 'no', anonms: a ? a.ms : 'missing', at: i, attr }),
         d({ sxcache: r.xcache || 'none', sage: r.age || 'none', slen: (r.text || '').length, smark: r6Marker(r.text), axcache: (a && a.xcache) || 'none', aage: (a && a.age) || 'none', alen: ((a && a.text) || '').length, amark: a ? r6Marker(a.text) : 'missing' }),
+        // R6-SAME-GEN: the anonymous "/" fetched right after the signed-in one (n = next)
+        d({ nxcache: (n && n.xcache) || (n ? 'none' : 'missing'), nage: (n && n.age) || 'none', nlen: ((n && n.text) || '').length, nmark: n ? r6Marker(n.text) : 'missing', nms: n ? n.ms : 'missing', nsame: n && strip(r.text || '') === strip(n.text || '') ? 'yes' : 'no' }),
       ];
     });
-    return { msg: `cached "/" with a session cookie: ${cached.map((r) => r.status)} (must be 200 and identical to the anonymous page of the same round)`, diag };
+    return { msg: `cached "/" with a session cookie: ${cached.map((r) => r.status)} (must be 200 and identical to an anonymous page of the same round, fetched before or right after it)`, diag };
   }
   return null;
 }
@@ -834,7 +873,7 @@ function r6SelfTest() {
     ['status', ok.map((r) => (r.p === '/auth/signup' ? { ...r, status: 500 } : r)), 'check=status', 1],
     ['banner missing', ok.map((r) => (r.p === '/about' ? { ...r, text: '<p>about</p>' } : r)), 'check=banner route=/about status=200 ms=5100 banner=no', 1],
     ['anon banner', ok.map((r) => (r.kind === 'public page' ? { ...r, text: HOME + ABOUT } : r)), 'check=anonbanner', 1],
-    ['"/" differs', ok.map((r) => (r.kind === 'cached page + session cookie' ? { ...r, text: HOME.replace('>f<', '>g<') } : r)), 'check=same route=/ status=200 ms=120 same=no', 2],
+    ['"/" differs', ok.map((r) => (r.kind === 'cached page + session cookie' ? { ...r, text: HOME.replace('>f<', '>g<') } : r)), 'check=same route=/ status=200 ms=120 same=no', 3],
   ];
   let fails = 0;
   for (const [name, rs, want, n] of cases) {
@@ -862,13 +901,60 @@ function r6SelfTest() {
     fails++;
     console.log(`  FAIL  R6-DIAG-2 headers line (present headers): ${hdr && hdr.diag[1]}`);
   } else console.log(`  headers: ${hdr.diag[1]}`);
-  // never more than 8 lines: 6 failing rounds → 4 rounds × 2 lines
+  // never more than 8 lines: 6 failing rounds → 2 rounds × 3 lines
   const many = r6Check([0, 1, 2, 3, 4, 5].flatMap((rd) => [page('/', 'public page', rd, HOME), page('/', 'cached page + session cookie', rd, HOME.replace('>f<', '>g<'))]).concat([page('/about', 'public page + session cookie', 0, ABOUT)]), fmt);
-  if (!many || many.diag.length !== 8) {
+  if (!many || many.diag.length !== 6 || !many.diag.every((l) => DIAG_RX.test(l))) {
     fails++;
     console.log(`  FAIL  R6-DIAG-2 line cap: ${many ? many.diag.length : 'null'} lines`);
   }
-  console.log(`R6-DIAG self-test: ${cases.length + 3 - fails}/${cases.length + 3} passed`);
+  // R6-DIAG-2 third line: the anonymous "/" fetched right after the signed-in one (missing → missing)
+  if (!/^DIAG R-6 nxcache=missing nage=none nlen=0 nmark=missing nms=missing nsame=no$/.test(same.diag[2] || '')) {
+    fails++;
+    console.log(`  FAIL  R6-DIAG-2 after line: ${same.diag[2]}`);
+  }
+
+  // ---- R6-SAME-GEN (owner-approved): before OR right-after, byte-exact; every anonymous "/" guarded by markers
+  const UID = '00000000-0000-4000-8000-0000000a0711';
+  const MK = [['userid', UID], ['email', 'resilience@example.test'], ['name', 'resilience']];
+  const OLD = `<!DOCTYPE html><!--b1d-->${HOME}`; // build-time generation (build-id comment)
+  const NEW = `<!DOCTYPE html>${HOME}`; // a runtime regeneration
+  const round = (before, signed, after, extra = {}) => [
+    page('/', 'public page', 0, before),
+    { ...page('/', 'cached page + session cookie', 0, signed), ...(extra.signed || {}) },
+    ...(after === null ? [] : [{ ...page('/', 'public page after', 0, after), ...(extra.after || {}) }]),
+    page('/about', 'public page + session cookie', 0, ABOUT, 200, 5100),
+  ];
+  const GEN = [
+    // the CI case: before = build-time page, signed-in + after = the regenerated page → pass
+    ['regeneration between before and signed-in, after = same generation → pass', round(OLD, NEW, NEW), null],
+    ['no regeneration: before = signed-in → pass', round(NEW, NEW, NEW), null],
+    // owner negative control (1): the signed-in page carries the banner / the user id → fail
+    ['(1) signed-in page with the banner → fail', round(NEW, NEW.replace('>x<', `>x${ABOUT}<`), NEW), 'check=same'],
+    ['(1) signed-in page with the user id → fail', round(NEW, NEW.replace('>x<', `>${UID}<`), NEW), 'check=same'],
+    // owner negative control (2): a poisoned anonymous-after page that carries the user marker AND equals the signed-in page
+    ['(2) poisoned after page = signed-in page with the user id → fail (guard)', round(NEW, NEW.replace('>x<', `>${UID}<`), NEW.replace('>x<', `>${UID}<`)), 'check=anonguard route=/ status=200 round=0 which=after marker=userid'],
+    ['(2) poisoned after page with the e-mail → fail (guard)', round(NEW, NEW.replace('>x<', '>resilience@example.test<'), NEW.replace('>x<', '>resilience@example.test<')), 'check=anonguard'],
+    ['(2) poisoned before page with the banner → fail (guard)', round(NEW.replace('>x<', `>x${ABOUT}<`), NEW.replace('>x<', `>x${ABOUT}<`), NEW), 'check=anon'],
+    // owner negative control (3): both neighbours from other generations → fail
+    ['(3) before and after both from other generations → fail', round(OLD, NEW, NEW.replace('>f<', '>h<')), 'check=same'],
+    ['(3) after missing, before from another generation → fail', round(OLD, NEW, null), 'check=same'],
+    // the guard's other markers
+    ['anonymous "/" sets a cookie → fail', round(NEW, NEW, NEW, { after: { setCookie: true } }), 'marker=setcookie'],
+    ['anonymous "/" with a server-set data-auth → fail', round(NEW, NEW, NEW.replace('<html>', '<html data-auth="in">')), 'marker=dataauth'],
+    ['anonymous "/" with a visible "Go to dashboard" → fail', round(NEW, NEW, NEW.replace('>x<', '><a href="/dashboard">Go to dashboard</a><')), 'marker=dashboard'],
+    ['"Go to dashboard" inside the CSS-hidden auth-in wrapper → pass', round(NEW.replace('>x<', '><span class="auth-in cl-vh__auth"><a href="/dashboard">Go to dashboard</a></span><'), NEW.replace('>x<', '><span class="auth-in cl-vh__auth"><a href="/dashboard">Go to dashboard</a></span><'), NEW), null],
+    ['the hint script itself (data-auth inside <script>) → pass', round(`${NEW}<script>document.documentElement.setAttribute("data-auth","in")</script>`, `${NEW}<script>document.documentElement.setAttribute("data-auth","in")</script>`, NEW), null],
+  ];
+  for (const [name, rs, want] of GEN) {
+    const f = r6Check(rs, fmt, MK);
+    const good = want === null ? f === null : !!f && f.diag.length >= 1 && f.diag.every((l) => DIAG_RX.test(l)) && f.diag[0].includes(want);
+    if (!good) {
+      fails++;
+      console.log(`  FAIL  R6-SAME-GEN ${name}: ${f ? JSON.stringify(f.diag.slice(0, 2)) : 'null (passed)'}`);
+    } else if (want !== null) console.log(`  ${name}: ${f.diag[0]}`);
+  }
+  const total = cases.length + 4 + GEN.length;
+  console.log(`R6-DIAG self-test: ${total - fails}/${total} passed`);
   return fails === 0;
 }
 
@@ -896,7 +982,9 @@ async function resilience(mode) {
       const res = await fetch(BASE + p, { method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(RES_MAX_MS + 10000) });
       const text = await res.text();
       // FOOTER-1 retry R6-DIAG-2: only these two cache headers are kept (for the failure-only DIAG lines) — never others
-      return { p, status: res.status, location: res.headers.get('location') || '', text, ms: Date.now() - started, xcache: res.headers.get('x-nextjs-cache'), age: res.headers.get('age') };
+      // R6-SAME-GEN: whether the response sets a cookie (a yes / no only — the value is never kept)
+      const setCookie = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie().length > 0 : !!res.headers.get('set-cookie');
+      return { p, status: res.status, location: res.headers.get('location') || '', text, ms: Date.now() - started, xcache: res.headers.get('x-nextjs-cache'), age: res.headers.get('age'), setCookie };
     } catch (e) {
       return { p, status: 0, location: '', text: '', ms: Date.now() - started, err: e.name };
     }
@@ -918,9 +1006,30 @@ async function resilience(mode) {
   ];
   const results = [];
   for (let round = 0; round < 6; round++) {
-    // 10 concurrent requests per round, 6 rounds = 60 requests
-    results.push(...(await Promise.all(TARGETS.map(([m, p, o, kind]) => timed(m, p, o).then((r) => ({ ...r, kind, round }))))));
+    // 11 concurrent requests per round, 6 rounds = 66 requests; R6-SAME-GEN: right after the signed-in "/" answers, one
+    // more ANONYMOUS "/" (same cache generation as the signed-in page) → 72 requests
+    const rs = await Promise.all(
+      TARGETS.map(([m, p, o, kind]) =>
+        timed(m, p, o).then(async (r) => {
+          const row = { ...r, kind, round };
+          if (kind !== 'cached page + session cookie') return [row];
+          const next = await timed('GET', '/', { cookie: false });
+          return [row, { ...next, kind: 'public page after', round }];
+        }),
+      ),
+    );
+    results.push(...rs.flat());
   }
+  // R6-SAME-GEN: markers derived from the fake session — none may appear in an anonymous "/"
+  const sessionB64 = COOKIE.split('=base64-')[1] || '';
+  const R6_MARKERS = [
+    ['userid', fakeUser.id],
+    ['email', fakeUser.email],
+    ['name', fakeUser.email.split('@')[0]],
+    ['token', fakeJwt.split('.')[1]],
+    ['refresh', session.refresh_token],
+    ['cookie', sessionB64.slice(0, 40)],
+  ];
   const fmt = (rs) => rs.map((r) => `${r.p} ${r.status}${r.location ? ' → ' + r.location : ''} ${r.ms}ms${r.err ? ' ' + r.err : ''}`).slice(0, 4).join('; ');
 
   await test(`R-1 [${mode}] ${results.length} requests across public / student / admin pages, admin + student API: all answered within ${RES_MAX_MS / 1000} s`, () => {
@@ -952,7 +1061,7 @@ async function resilience(mode) {
   });
   await test(`R-6 [${mode}] public pages render (200); the signed-in visitor sees the "couldn't check your sign-in" banner on session-shell pages, not a login redirect; cached "/" is the same page for everyone`, () => {
     // R6-DIAG-1: the SAME assertions (unchanged), moved into r6Check so a failure also prints which sub-check failed
-    const failure = r6Check(results, fmt);
+    const failure = r6Check(results, fmt, R6_MARKERS);
     if (failure) {
       for (const l of failure.diag) console.log(l);
       throw new Error(failure.msg);
