@@ -220,6 +220,10 @@ async function mintWith429Retry(e, cfg, deps) {
   }
 }
 
+/** QA-SESSION-RACE: attempts in all for the 403 race signature, and the random pause between them */
+const RACE_TRIES = 3;
+const raceDelayMs = (deps) => (typeof deps.raceDelayMs === 'function' ? deps.raceDelayMs() : 2000 + Math.floor(Math.random() * 4000));
+
 async function mint(e, cfg, deps) {
   const { createClient } = deps.supabase || require('@supabase/supabase-js');
   const { findUserByEmail } = deps.findUser || require('../e2e/find-user.cjs');
@@ -232,18 +236,30 @@ async function mint(e, cfg, deps) {
       throw new QaSessionError('NETWORK');
     }
     if (!user) throw new QaSessionError('IDENTITY_MISSING'); // never let generateLink create it
-    const link = await admin.auth.admin.generateLink({ type: 'magiclink', email: e });
-    if (link.error) throw new QaSessionError(link.error.status ? 'GENERATE_LINK_FAILED' : 'NETWORK', link.error.status);
-    const tokenHash = link.data && link.data.properties && link.data.properties.hashed_token;
-    if (!tokenHash) throw new QaSessionError('NO_TOKEN_HASH');
     const anon = createClient(cfg.url, cfg.anon, NO_SESSION);
-    let res = await anon.auth.verifyOtp({ type: 'email', token_hash: tokenHash });
-    if (res.error && !isCaptcha(res.error) && res.error.status && res.error.status !== 429) {
-      // older auth servers only accept the deprecated 'magiclink' type for admin-generated magic links;
-      // a hashed token is single use, so mint a fresh one for the second attempt
-      const again = await admin.auth.admin.generateLink({ type: 'magiclink', email: e });
-      const h2 = again.data && again.data.properties && again.data.properties.hashed_token;
-      if (h2) res = await anon.auth.verifyOtp({ type: 'magiclink', token_hash: h2 });
+    let res;
+    for (let attempt = 1; ; attempt++) {
+      const link = await admin.auth.admin.generateLink({ type: 'magiclink', email: e });
+      if (link.error) throw new QaSessionError(link.error.status ? 'GENERATE_LINK_FAILED' : 'NETWORK', link.error.status);
+      const tokenHash = link.data && link.data.properties && link.data.properties.hashed_token;
+      if (!tokenHash) throw new QaSessionError('NO_TOKEN_HASH');
+      res = await anon.auth.verifyOtp({ type: 'email', token_hash: tokenHash });
+      if (res.error && !isCaptcha(res.error) && res.error.status && res.error.status !== 429) {
+        // older auth servers only accept the deprecated 'magiclink' type for admin-generated magic links;
+        // a hashed token is single use, so mint a fresh one for the second attempt
+        const again = await admin.auth.admin.generateLink({ type: 'magiclink', email: e });
+        const h2 = again.data && again.data.properties && again.data.properties.hashed_token;
+        if (h2) res = await anon.auth.verifyOtp({ type: 'magiclink', token_hash: h2 });
+      }
+      // LIVE-GREEN-1 / QA-SESSION-RACE: parallel CI jobs mint the same identity; generateLink keeps ONE token per user,
+      // so a job whose token was replaced by another job's gets 403 (dispatch 45270202994: two jobs 50 ms apart).
+      // Only that signature — a plain 403, never a captcha refusal, a 429 or any other status — gets a fresh link after
+      // a random 2–6 s pause, at most RACE_TRIES attempts in all.
+      if (res.error && !isCaptcha(res.error) && res.error.status === 403 && attempt < RACE_TRIES) {
+        await new Promise((r) => setTimeout(r, raceDelayMs(deps)));
+        continue;
+      }
+      break;
     }
     if (res.error) {
       if (isCaptcha(res.error)) throw new QaSessionError('VERIFY_CAPTCHA_GATED', res.error.status); // HARD STOP signal

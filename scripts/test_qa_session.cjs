@@ -13,6 +13,9 @@
  *   Q-09 no password sign-in API is used by the helper (static)
  *   Q-13 (CI-LEAN-1 root cause) supabase-js clients construct on Node < 22 once the helper is loaded (WebSocket stand-in)
  *   Q-14 (CI-LEAN-1) scripts that use the helper never sign out (any scope revokes the shared job session on the server)
+ *   Q-15 (LIVE-GREEN-1 QA-SESSION-RACE) a plain 403 from /verify (another job's link replaced this token) → a fresh link
+ *        after a random 2–6 s pause, at most 3 attempts in all; captcha / 400 / 429 never take this path
+ *   Q-16 negative controls: each broken race-retry variant is caught
  */
 require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
@@ -43,8 +46,9 @@ const GOOD_REF = 'abcdefghijklmnopqrst';
 const EMAIL = 'qa-student@courage-library.test';
 const SECRETS = { access: 'ACCESS-TOKEN-q4z', refresh: 'REFRESH-TOKEN-q4z', hash1: 'HASH-ONE-q4z', hash2: 'HASH-TWO-q4z', link: 'https://x.test/verify?token=LINK-q4z' };
 const makeEnv = (ref) => (k) => ({ NEXT_PUBLIC_SUPABASE_URL: `https://${ref}.supabase.co`, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key-q4z', SUPABASE_SERVICE_ROLE_KEY: 'service-key-q4z' })[k];
-function makeDeps({ ref = GOOD_REF, userExists = true, verify = 'ok' } = {}) {
-  const calls = { createClient: 0, generateLink: [], verifyOtp: [], findUser: 0, setSession: 0 };
+function makeDeps({ ref = GOOD_REF, userExists = true, verify = 'ok', fail403 = 0 } = {}) {
+  const calls = { createClient: 0, generateLink: [], verifyOtp: [], findUser: 0, setSession: 0, raceDelays: 0 };
+  let n403 = 0;
   let hashN = 0;
   const supabase = {
     createClient: () => {
@@ -60,6 +64,11 @@ function makeDeps({ ref = GOOD_REF, userExists = true, verify = 'ok' } = {}) {
           },
           verifyOtp: async (args) => {
             calls.verifyOtp.push(args);
+            // QA-SESSION-RACE: the first fail403 verifies lose the race (another job's link replaced this token)
+            if (n403 < fail403) { n403++; return { data: {}, error: { status: 403, code: 'otp_expired', message: 'Token has expired or is invalid' } }; }
+            if (verify === 'always-403') return { data: {}, error: { status: 403, code: 'otp_expired', message: 'Token has expired or is invalid' } };
+            if (verify === 'bad-400') return { data: {}, error: { status: 400, code: 'validation_failed', message: 'bad request' } };
+            if (verify === 'rate-429') return { data: {}, error: { status: 429, code: 'over_request_rate_limit', message: 'rate limited' } };
             if (verify === 'captcha') return { data: {}, error: { status: 400, code: 'captcha_failed', message: 'captcha protection: request disallowed' } };
             if (verify === 'email-rejected' && args.type === 'email') return { data: {}, error: { status: 403, code: 'otp_expired', message: 'Email link is invalid or has expired' } };
             return { data: { session: { access_token: SECRETS.access, refresh_token: SECRETS.refresh, expires_at: 1 }, user: { email: EMAIL } }, error: null };
@@ -81,7 +90,7 @@ function makeDeps({ ref = GOOD_REF, userExists = true, verify = 'ok' } = {}) {
     },
   };
   const findUser = { findUserByEmail: async () => (calls.findUser++, userExists ? { id: 'uid-q4z', email: EMAIL } : null) };
-  return { calls, deps: { env: makeEnv(ref), genTypes, supabase, findUser } };
+  return { calls, deps: { env: makeEnv(ref), genTypes, supabase, findUser, retryDelayMs: 0, raceDelayMs: () => (calls.raceDelays++, 0) } };
 }
 
 const logs = [];
@@ -332,6 +341,64 @@ const spyOff = () => Object.assign(console, { error: orig.error, warn: orig.warn
     }
     assert(bad.length === 0, bad.join('; '));
     return `${users.length} scripts; no sign-out on shared sessions`;
+  });
+
+  /** Q-15 behaviour, run against the real helper or a mutated copy (Q-16) */
+  async function checkRace(Hm, src) {
+    const run = async (opt) => {
+      const D = makeDeps(opt);
+      let err = null;
+      let s = null;
+      try { s = await Hm.qaSession(EMAIL, { ...D.deps, noCache: true }); } catch (e) { err = e; }
+      return { D, s, err };
+    };
+    // lost the race on both verifies of attempt 1 and of attempt 2 → attempt 3 wins
+    const a = await run({ fail403: 4 });
+    assert(a.s && a.s.access_token === SECRETS.access, `4 race losses then success: ${a.err && a.err.code}`);
+    assert(a.D.calls.raceDelays === 2 && a.D.calls.generateLink.length === 5, `pauses ${a.D.calls.raceDelays}, links ${a.D.calls.generateLink.length} (want 2 pauses, 5 links)`);
+    // lost only once → the existing fresh-link fallback wins, no pause
+    const b = await run({ fail403: 1 });
+    assert(b.s && b.D.calls.raceDelays === 0, `1 race loss: pauses ${b.D.calls.raceDelays}`);
+    // always 403 → 3 attempts in all, then the same fixed error as before
+    const c = await run({ verify: 'always-403' });
+    assert(c.err && c.err.code === 'QA_SESSION_VERIFY_FAILED' && c.err.status === 403, `always 403: ${c.err && c.err.code}`);
+    assert(c.D.calls.raceDelays === 2 && c.D.calls.generateLink.length === 6, `always 403: pauses ${c.D.calls.raceDelays}, links ${c.D.calls.generateLink.length} (want 2, 6)`);
+    // never on the race path: captcha (hard stop), 400, 429
+    for (const [v, code] of [['captcha', 'QA_SESSION_VERIFY_CAPTCHA_GATED'], ['bad-400', 'QA_SESSION_VERIFY_FAILED'], ['rate-429', 'QA_SESSION_VERIFY_FAILED']]) {
+      const r = await run({ verify: v });
+      assert(r.err && r.err.code === code && r.D.calls.raceDelays === 0, `${v}: ${r.err && r.err.code}, pauses ${r.D.calls.raceDelays}`);
+    }
+    // the real pause is a random 2–6 s (the tests inject 0)
+    assert(/const RACE_TRIES = 3;/.test(src) && /: 2000 \+ Math\.floor\(Math\.random\(\) \* 4000\)\);/.test(src), 'the race pause is not a random 2–6 s / tries not 3');
+    return '4 losses → 3rd attempt (2 pauses) · 1 loss → fallback, no pause · always 403 → 3 attempts, then VERIFY_FAILED · captcha / 400 / 429 never retried';
+  }
+  const HELPER_SRC = fs.readFileSync(path.join(__dirname, 'live', 'qa-session.cjs'), 'utf8');
+  await test('Q-15 (LIVE-GREEN-1 QA-SESSION-RACE) a plain 403 from /verify → fresh link after a random 2–6 s pause, at most 3 attempts', () => checkRace(H, HELPER_SRC));
+
+  await test('Q-16 (LIVE-GREEN-1) negative controls: each broken race-retry variant is caught', async () => {
+    const loadMut = (a, b) => {
+      assert(HELPER_SRC.includes(a), `anchor missing: ${a.slice(0, 50)}`);
+      const s = HELPER_SRC.replace(a, b);
+      const f = path.join(__dirname, 'live', `.qa-session-mut-${process.pid}.cjs`);
+      fs.writeFileSync(f, s);
+      try { return { m: require(f), s }; } finally { fs.unlinkSync(f); delete require.cache[f]; }
+    };
+    const variants = [
+      ['no race retry', 'res.error.status === 403 && attempt < RACE_TRIES', 'res.error.status === 403 && attempt < 1'],
+      ['unbounded retry', 'res.error.status === 403 && attempt < RACE_TRIES', 'res.error.status === 403 && attempt < 99'],
+      ['captcha retried', 'if (res.error && !isCaptcha(res.error) && res.error.status === 403 && attempt', 'if (res.error && (isCaptcha(res.error) || res.error.status === 403) && attempt'],
+      ['every status retried', '&& res.error.status === 403 && attempt < RACE_TRIES', '&& res.error.status && attempt < RACE_TRIES'],
+      ['no pause', '        await new Promise((r) => setTimeout(r, raceDelayMs(deps)));\n', ''],
+      ['fixed pause', ': 2000 + Math.floor(Math.random() * 4000));', ': 2000);'],
+    ];
+    const missed = [];
+    for (const [name, a, b] of variants) {
+      let caught = false;
+      try { const { m, s } = loadMut(a, b); await checkRace(m, s); } catch { caught = true; }
+      if (!caught) missed.push(name);
+    }
+    assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+    return `${variants.length}/${variants.length} broken variants caught`;
   });
 
   console.log(`\nQA session helper: ${passed}/${passed + failed} passed`);

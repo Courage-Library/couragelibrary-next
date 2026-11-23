@@ -37,7 +37,12 @@ been red since 22 Nov and nobody was told (see NIGHTLY-ALERT-1).
 
 ## QA-SESSION-RACE: parallel live jobs mint the same QA session at the same moment → verifyOtp 403
 
-**Status:** found 2026-11-24 (AUTH-UX-1 dispatch 45270202994, QA-SESSION-PROBE Q-01 `QS-VERIFYFAILED-403`).
+**Fix built 2026-11-24 (LIVE-GREEN-1 deliverable 2), proof pending (live dispatch):** `scripts/live/qa-session.cjs`
+retries ONLY the race signature, a plain 403 from `/verify` (never captcha, 400 or 429): a fresh link after a random
+2–6 s pause, at most 3 attempts in all; then the same `QS-VERIFYFAILED-403` as before. Offline gate QA-SESSION-UNIT
+Q-15 + Q-16 (6 negative controls).
+
+**Found** 2026-11-24 (AUTH-UX-1 dispatch 45270202994, QA-SESSION-PROBE Q-01 `QS-VERIFYFAILED-403`).
 Read-only finding, no fix yet. The five live jobs each mint a qa-student magic-link session at start-up. In
 45270202994 they did so within 9 s, and the two that failed (dbfree, db) finished 50 ms apart (21:34:24.13 / .18):
 `generateLink` issues ONE magic-link token per user, so a newer request replaces the older token and its `verifyOtp`
