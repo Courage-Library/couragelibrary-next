@@ -255,7 +255,36 @@ function checkSocials(overrides = {}, src = SRC) {
   // JSON-LD sameAs = exactly the five
   const org = loadTs('lib/seo/jsonld.ts', overrides).generateOrganizationSchema();
   assert(Array.isArray(org.sameAs) && org.sameAs.length === 5 && [...org.sameAs].sort().join() === OFFICIAL.map(([, , u]) => u).sort().join(), `JSON-LD sameAs is not exactly the five: ${JSON.stringify(org.sameAs)}`);
-  return 'five accounts · YouTube Instagram Facebook X LinkedIn · aria-labels · _blank + noopener · monochrome · sameAs = 5';
+  // brief: sameAs = the configured NON-EMPTY links (whatever is configured, not a hard-coded list)
+  assert([...org.sameAs].sort().join() === set.map(([, v]) => v).sort().join(), 'JSON-LD sameAs differs from the configured non-empty links');
+  // brief: the config is set → 5 icons + the mailto render
+  assert(as.length === 5 && /href="mailto:[^"]+"[^>]*data-footer-email=""/.test(html), 'configured: 5 icons + mailto not rendered');
+  return 'five accounts · YouTube Instagram Facebook X LinkedIn · aria-labels · _blank + noopener · monochrome · sameAs = configured 5';
+}
+
+/** F-13 brief: an empty / unset value still hides its element (component behaviour), though the config is now filled */
+function checkUnsetHides(overrides = {}) {
+  const cfgSrc = overrides[CFG] ?? SRC.cfg;
+  const blankOne = renderPublic({}, { ...overrides, [CFG]: cfgSrc.replace('linkedin: siteConfig.links.linkedin,', 'linkedin: "",') });
+  assert((blankOne.match(/class="cl-ft__soc-a"/g) || []).length === 4 && !/linkedin\.com/.test(blankOne), 'an empty social still renders its icon');
+  const spaces = renderPublic({}, { ...overrides, [CFG]: cfgSrc.replace('youtube: siteConfig.links.youtube,', 'youtube: "   ",') });
+  assert((spaces.match(/class="cl-ft__soc-a"/g) || []).length === 4 && !/youtube\.com/.test(spaces), 'a blank (spaces) social still renders its icon');
+  let none = cfgSrc;
+  for (const k of ['youtube', 'instagram', 'telegram', 'twitter', 'linkedin', 'facebook', 'whatsapp']) none = none.replace(`${k}: siteConfig.links.${k},`, `${k}: "",`);
+  const noneHtml = renderPublic({}, { ...overrides, [CFG]: none });
+  assert(!/data-footer-social/.test(noneHtml) && !/cl-ft__soc/.test(noneHtml), 'no socials configured, but the social list renders');
+  const noMail = renderPublic({}, { ...overrides, [CFG]: cfgSrc.replace(/contactEmail: "[^"]*",/, 'contactEmail: null,') });
+  assert(!/mailto:/.test(noMail) && !/data-footer-email/.test(noMail), 'an unset e-mail still renders');
+  const emptyMail = renderPublic({}, { ...overrides, [CFG]: cfgSrc.replace(/contactEmail: "[^"]*",/, 'contactEmail: "",') });
+  assert(!/mailto:/.test(emptyMail), 'an empty e-mail still renders');
+  // and the JSON-LD drops an empty link too
+  const site = loadTs('config/site.ts', { ...overrides, 'config/site.ts': SRC.site.replace('linkedin: "https://www.linkedin.com/company/courage-library",', 'linkedin: "",') }).siteConfig;
+  const org = loadTs('lib/seo/jsonld.ts', { ...overrides, 'config/site.ts': SRC.site.replace('linkedin: "https://www.linkedin.com/company/courage-library",', 'linkedin: "",') }).generateOrganizationSchema();
+  assert(org.sameAs.length === 4 && !org.sameAs.some((u) => /linkedin/.test(u)) && !site.links.linkedin, 'an empty link stays in the JSON-LD sameAs');
+  // the gate never fetches a social URL (offline)
+  const self = fs.readFileSync(__filename, 'utf8');
+  assert(!/\bfetch\(|https?\.get\(|require\(['"]https?['"]\)|undici/.test(self.replace(/assert\(!\/[^\n]*/g, '')), 'the gate makes a network request');
+  return 'one empty / blank social → 4 icons · none → no list · unset / empty e-mail → no mailto · sameAs drops empties · gate offline';
 }
 
 function checkRoutes(overrides = {}) {
@@ -382,6 +411,7 @@ function checkStudent(overrides = {}, css = SRC.css) {
   await test('F-2 config: the approved public e-mail (footer-config only, one mailto), unset → hidden, no placeholders, library /about#started', () => checkConfig());
   await test('F-2b configured values render safely (test-only values)', () => checkConfigured());
   await test('F-12 FOOTER-1b socials: five accounts, order, labels, link safety, monochrome, JSON-LD sameAs', () => checkSocials());
+  await test('F-13 an empty / unset value still hides its element (social icon, social list, mailto, sameAs entry)', () => checkUnsetHides());
   await test('F-3 only real routes are links; not-ready items muted / left out', () => checkRoutes());
   await test('F-4 sign-up band rules', () => checkBand());
   await test('F-5 language switch on / and /hi only; Hindi copy on /hi', () => checkLang());
@@ -412,6 +442,9 @@ function checkStudent(overrides = {}, css = SRC.css) {
       ['FOOTER-1b a wrong URL', () => checkSocials({ 'config/site.ts': mut(SRC.site, 'https://x.com/CourageLibrary', 'https://x.com/CourageLibrary1') })],
       ['FOOTER-1b social without noopener', () => checkSocials({ [PF]: mut(SRC.pf, 'target="_blank" rel="noopener noreferrer" aria-label={t.socialOn(s.label)}', 'target="_blank" aria-label={t.socialOn(s.label)}') })],
       ['FOOTER-1b a coloured icon', () => checkSocials({}, { ...SRC, icon: SRC.icon.replace('stroke: "currentColor"', 'stroke: "#ff0000"') })],
+      ['F-13 an empty social still renders', () => checkUnsetHides({ [CFG]: mut(SRC.cfg, 'return /^https:\\/\\/[^\\s]+$/.test(v) && !PLACEHOLDER_RX.test(v) ? [{ key, href: v, label: SOCIAL_LABEL[key] }] : [];', 'return [{ key, href: v || "https://x.invalid/", label: SOCIAL_LABEL[key] }];') })],
+      ['F-13 the social list renders with no socials', () => checkUnsetHides({ [PF]: mut(SRC.pf, '{socials.length > 0 && (', '{socials.length >= 0 && (') })],
+      ['F-13 an unset e-mail still renders', () => checkUnsetHides({ [PF]: mut(SRC.pf, '{email && (', '{true && (') })],
       ['socials without rel', () => checkConfigured({ [PF]: mut(SRC.pf, 'target="_blank" rel="noopener noreferrer" ', 'target="_blank" ') })],
       ['a link to a missing route', () => checkRoutes({ [LINKS]: mut(SRC.links, 'about: "/about",', 'about: "/about-us",') })],
       ['a not-ready category as a link', () => checkRoutes({ [LINKS]: mut(SRC.links, 'top.map((c) => (c.href ? { label: c.name, href: c.href } : { label: c.name, href: null, soon: true }))', 'top.map((c) => ({ label: c.name, href: `/exams/${c.slug}` }))') })],
