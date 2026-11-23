@@ -4,7 +4,7 @@ Each item has an owner condition. It is not started until the architect schedule
 
 ## DEPLOY-GATE-1 (TOP PRIORITY): production must not update until CI passes
 
-**Status:** IN PROGRESS (2026-11-23) — option (a) Vercel Deployment Checks, design (i): the required check is the commit status deploy-smoke from .github/workflows/deploy-smoke.yml (repository_dispatch vercel.deployment.ready). The push-run deploy-smoke deadlocked (ab3fd08, run 45138608215: Vercel publishes the deployment to GitHub only after the checks). Pending: dashboard switch of the required check, red-path and green-path proofs.
+**Status:** CLOSED (2026-11-23). Vercel Deployment Checks hold every production promotion on the commit status deploy-smoke (.github/workflows/deploy-smoke.yml on vercel.deployment.ready: payload validated, sha on main, scope/offline/server-checks of that sha green, anonymous bypass smoke incl. /api/health == sha); post-promotion-smoke.yml after promotion. Proofs: green 7cc9e50 (run 45145649905), f20d72e (45172463095); red 4f03c5e (ci-gates 45177694506 offline red → deploy-smoke 45178045777 failure → not promoted, production stayed f20d72e, 11 samples); green 6ab82a0 revert (45179269980, post-promotion 45180852313).
 
 **Why:** every push to `main` deploys to production on Vercel at once, in parallel with the CI push run. In FOOTER-1
 the push runs 45076387392, 45078679939 and 45122761534 failed (server-checks) while those commits were already live; the
