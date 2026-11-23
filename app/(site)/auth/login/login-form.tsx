@@ -44,6 +44,8 @@ export function LoginForm({ google, captcha = null, signupOpen = false, preview 
   const slot = state?.error ? errorSlot(state.code) : null;
   const noticeSlot = notice && notice.tone === "error" ? errorSlot(m) : null;
   const showSecurityCard = phase === "failed" || slot === "captcha" || (!state?.error && noticeSlot === "captcha");
+  // SEC1D fix: the server-returned captcha code rides on the card (never a client-only failure)
+  const securityCode = slot === "captcha" ? state?.code : !state?.error && noticeSlot === "captcha" ? (m ?? undefined) : undefined;
   const emailRef = useRef<HTMLInputElement>(null);
   const alertRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -90,7 +92,7 @@ export function LoginForm({ google, captcha = null, signupOpen = false, preview 
           {isPending ? "Signing in…" : "Sign in"}
         </button>
         {phase === "waiting" && <SecurityWaiting />}
-        {showSecurityCard && <SecurityCheckCard onRetry={gate.retry} />}
+        {showSecurityCard && <SecurityCheckCard onRetry={gate.retry} code={securityCode} />}
         {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="login" resetKey={state} onToken={gate.onToken} onStatus={gate.onStatus} resetRef={gate.resetRef} />}
         {captcha && <CloudflareLine />}
       </form>

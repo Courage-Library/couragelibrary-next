@@ -237,25 +237,38 @@ const VALID = [
         await page.goto(`${LIVE_BASE}/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: 'networkidle', timeout: 30000 });
         await page.fill('input[name="email"]', 'qa-student@courage-library.test');
         await page.fill('input[name="password"]', 'not-the-password-1');
+        // SEC1D fix (owner, 2026-11-24): every main-frame navigation after the submit is recorded → "never redirected"
+        const navs = [];
+        page.on('framenavigated', (f) => { if (f === page.mainFrame()) navs.push(new URL(f.url())); });
         await page.click('button[type="submit"]');
         const err = page.locator('[data-auth-error]').first();
         await err.waitFor({ state: 'visible', timeout: 30000 });
-        return { code: await err.getAttribute('data-auth-error'), url: new URL(page.url()) };
+        // AUTH-UX-1: a server captcha code renders the security card, which carries the code itself
+        const card = page.locator('[data-security-check]').first();
+        const cardVisible = await card.isVisible();
+        const cardCode = cardVisible ? await card.getAttribute('data-auth-error') : null;
+        return { code: await err.getAttribute('data-auth-error'), cardVisible, cardCode, url: new URL(page.url()), navs };
       } finally {
         await ctx.close();
       }
     };
-    await test(`L-01 login form under CAPTCHA, ?next=/mistakes → fixed captcha code, stays on /auth/login (${LIVE_BASE})`, async () => {
+    await test(`L-01 login form under CAPTCHA, ?next=/mistakes → security card with the fixed captcha code, stays on /auth/login, never redirected (${LIVE_BASE})`, async () => {
       const r = await formUnderCaptcha('/mistakes');
       assert(['captcha-failed', 'captcha-required'].includes(r.code), `code ${r.code}`);
+      assert(r.cardVisible && r.cardCode === r.code, `security card ${r.cardVisible ? `code ${r.cardCode}` : 'not shown'}`);
       assert(r.url.origin === baseOrigin && r.url.pathname === '/auth/login', `${r.url.origin === baseOrigin ? 'same origin' : 'OTHER ORIGIN'} ${r.url.pathname}`);
-      return r.code;
+      const away = r.navs.filter((u) => u.origin !== baseOrigin || u.pathname !== '/auth/login');
+      assert(away.length === 0, `redirected: ${away.map((u) => (u.origin === baseOrigin ? u.pathname : 'OTHER ORIGIN')).join(', ')}`);
+      return `${r.code} on the security card`;
     });
-    await test('L-02 login form under CAPTCHA, ?next=//evil.com → fixed captcha code, same origin, never redirected', async () => {
+    await test('L-02 login form under CAPTCHA, ?next=//evil.com → security card with the fixed captcha code, same origin, never redirected', async () => {
       const r = await formUnderCaptcha('//evil.com');
       assert(['captcha-failed', 'captcha-required'].includes(r.code), `code ${r.code}`);
+      assert(r.cardVisible && r.cardCode === r.code, `security card ${r.cardVisible ? `code ${r.cardCode}` : 'not shown'}`);
       assert(r.url.origin === baseOrigin && r.url.pathname === '/auth/login', `${r.url.origin === baseOrigin ? 'same origin' : 'OTHER ORIGIN'} ${r.url.pathname}`);
-      return r.code;
+      const away = r.navs.filter((u) => u.origin !== baseOrigin || u.pathname !== '/auth/login');
+      assert(away.length === 0, `redirected: ${away.map((u) => (u.origin === baseOrigin ? u.pathname : 'OTHER ORIGIN')).join(', ')}`);
+      return `${r.code} on the security card`;
     });
     await test('L-03 /auth/callback?next=//evil.com (no valid code) → redirect stays on origin', async () => {
       for (let i = 1; i <= 3; i++) {

@@ -47,7 +47,7 @@ export function ForgotPasswordForm({ captcha = null, preview }: { captcha?: Capt
             {isPending ? "Sending…" : "Send reset link"}
           </button>
           {phase === "waiting" && <SecurityWaiting />}
-          {(phase === "failed" || slot === "captcha") && <SecurityCheckCard onRetry={gate.retry} />}
+          {(phase === "failed" || slot === "captcha") && <SecurityCheckCard onRetry={gate.retry} code={slot === "captcha" ? state?.code : undefined} />}
           {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="forgot-password" resetKey={state} onToken={gate.onToken} onStatus={gate.onStatus} resetRef={gate.resetRef} />}
           {captcha && <CloudflareLine />}
         </form>

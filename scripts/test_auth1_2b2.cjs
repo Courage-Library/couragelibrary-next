@@ -469,6 +469,8 @@ async function offline() {
         // AUTH-UX-1 (spec §3.8; re-pointed, rule kept): an allow-listed security code renders the fixed "Quick security
         // check" card with Retry (the texts above stay = the action texts); nothing else is taken from the URL
         assert(html.includes('data-security-check') && html.includes('Quick security check') && html.includes('data-security-retry'), `${c} not rendered as the security-check card`);
+        // SEC1D fix (owner, 2026-11-24): the card carries the same fixed code as data-auth-error
+        assert(new RegExp(`data-security-check="" data-auth-error="${c}"`).test(html), `${c}: the security card does not carry data-auth-error="${c}"`);
       }
       for (const bad of ['captcha', 'CAPTCHA-FAILED', 'captcha_failed', '<b>captcha-failed</b>']) {
         assert(msgs.authNotice(bad) === null, `${bad} rendered`);

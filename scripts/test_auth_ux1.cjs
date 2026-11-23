@@ -204,10 +204,14 @@ function checkTurnstile(src = {}) {
   assert(/if \(\(s === "error" \|\| s === "expired"\) && waitingForm\.current\)/.test(gate), 'an error / expiry while waiting does not show the card');
   for (const k of ['login', 'signup', 'forgot']) {
     const f = src[k] ?? read(P[k]);
-    assert(/<SecurityCheckCard onRetry=\{gate\.retry\} \/>/.test(f) && /\{phase === "waiting" && <SecurityWaiting \/>\}/.test(f) && /resetRef=\{gate\.resetRef\}/.test(f), `${k}: no waiting text / card / Retry`);
+    assert(/<SecurityCheckCard onRetry=\{gate\.retry\} code=\{[^{}]+\} \/>/.test(f) && /\{phase === "waiting" && <SecurityWaiting \/>\}/.test(f) && /resetRef=\{gate\.resetRef\}/.test(f), `${k}: no waiting text / card / Retry`);
     assert(!/<button type="submit"[^>]*disabled/.test(f), `${k}: the submit is disabled (owner decision 4: it stays enabled)`);
+    // SEC1D fix (owner, 2026-11-24): the card carries the SERVER captcha code (state.code; on login / sign-up also an
+    // allow-listed ?m= captcha notice) — never a client-only failure
+    assert(/code=\{slot === "captcha" \? state\?\.code : /.test(f) || (/<SecurityCheckCard onRetry=\{gate\.retry\} code=\{securityCode\} \/>/.test(f) && /const securityCode = slot === "captcha" \? state\?\.code : !state\?\.error && noticeSlot === "captcha" \? \(m \?\? undefined\) : undefined;/.test(f)), `${k}: the security card does not carry the server captcha code`);
   }
   const ui = read(P.ui);
+  assert(/export function SecurityCheckCard\(\{ onRetry, code \}: \{ onRetry: \(\) => void; code\?: string \}\)/.test(ui) && /data-security-check="" data-auth-error=\{code \|\| undefined\}/.test(ui), 'the security card does not render data-auth-error from its code');
   assert(/Quick security check/.test(ui) && /Cloudflare needs one more check\. It usually finishes by itself\./.test(ui) && /Try turning off VPN or ad-blocker\./.test(ui) && /data-security-retry/.test(ui) && /aria-live="polite"[^>]*>\s*Finishing security check…|Finishing security check…/.test(ui), 'card / waiting copy');
   const app = ['app', 'components', 'lib'].flatMap((d) => walk(d)).filter((f) => /\.(ts|tsx)$/.test(f)).map(read).join('\n');
   assert(!/siteverify|TURNSTILE_SECRET/.test(app), 'Turnstile verification moved into app code');
@@ -289,7 +293,9 @@ test('A-10 negative controls: each broken variant is caught', () => {
     ['the eye toggle as a div', () => checkEye({ [P.pw]: mut(S.pw, '<button\n          type="button"\n          onClick={() => setVisible((v) => !v)}', '<button\n          onClick={() => setVisible((v) => !v)}') })],
     ['Turnstile always visible', () => checkTurnstile({ tw: mut(S.tw, '      appearance: "interaction-only",\n', '') })],
     ['the submit disabled until a token', () => checkTurnstile({ login: mut(S.login, '<button type="submit" className={PRIMARY_BUTTON_CLASS}', '<button type="submit" disabled={!gate.getToken()} className={PRIMARY_BUTTON_CLASS}') })],
-    ['no Retry', () => checkTurnstile({ forgot: mut(S.forgot, '<SecurityCheckCard onRetry={gate.retry} />', '<SecurityCheckCard onRetry={() => undefined} />') })],
+    ['no Retry', () => checkTurnstile({ forgot: mut(S.forgot, '<SecurityCheckCard onRetry={gate.retry} code=', '<SecurityCheckCard onRetry={() => undefined} code=') })],
+    ['the card drops the server code (login)', () => checkTurnstile({ login: mut(S.login, '<SecurityCheckCard onRetry={gate.retry} code={securityCode} />', '<SecurityCheckCard onRetry={gate.retry} />') })],
+    ['the card drops the server code (forgot)', () => checkTurnstile({ forgot: mut(S.forgot, 'code={slot === "captcha" ? state?.code : undefined}', 'code={undefined}') })],
     ['a daily-mock claim in the panel', () => checkClaims({ [P.shell]: mut(S.shell, '{ icon: "practice", text: "Practice by topic" }', '{ icon: "practice", text: "Daily free mock" }') })],
     ['early access while the switch is unknown', () => checkClaims({ 'app/(site)/auth/login/page.tsx': mut(read('app/(site)/auth/login/page.tsx'), 'earlyAccess={paywall === "off"}', 'earlyAccess={paywall !== "on"}') })],
     ['two h1 on sign-in', () => checkCopy({ [P.login]: mut(S.login, '<AuthHeading title="Welcome back"', '<h1>x</h1>\n      <AuthHeading title="Welcome back"') })],

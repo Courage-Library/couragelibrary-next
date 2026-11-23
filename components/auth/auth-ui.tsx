@@ -122,10 +122,15 @@ export function SecurityWaiting() {
   );
 }
 
-/** spec §3.8: the check failed / expired / never finished — Retry re-runs it (turnstile.reset) */
-export function SecurityCheckCard({ onRetry }: { onRetry: () => void }) {
+/**
+ * spec §3.8: the check failed / expired / never finished — Retry re-runs it (turnstile.reset).
+ * SEC1D fix (owner, 2026-11-24): when the SERVER returned the captcha code (captcha-failed / captcha-required), the card
+ * carries it as data-auth-error="<code>" — the same fixed code AuthAlert carries, so gates can read it. A client-only
+ * failure (the widget never finished) has no server code and no attribute.
+ */
+export function SecurityCheckCard({ onRetry, code }: { onRetry: () => void; code?: string }) {
   return (
-    <div role="alert" className="flex flex-col gap-2 rounded-xl border border-cl-line-2 bg-cl-cloud px-4 py-3.5" data-security-check="">
+    <div role="alert" className="flex flex-col gap-2 rounded-xl border border-cl-line-2 bg-cl-cloud px-4 py-3.5" data-security-check="" data-auth-error={code || undefined}>
       <p className="text-body-sm font-semibold text-cl-charcoal">Quick security check</p>
       <p className="text-body-sm text-cl-slate">Cloudflare needs one more check. It usually finishes by itself.</p>
       <div className="flex flex-wrap items-center gap-3">
