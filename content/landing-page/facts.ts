@@ -49,6 +49,8 @@ export const LANDING_ROUTES = {
   terms: "/terms",
   privacy: "/privacy",
   refund: "/refund-policy",
+  // LEGAL-LINK-1 (owner 2026-11-23): compliance — every public footer links all five legal pages
+  shipping: "/shipping-policy",
   grievance: "/contact#grievance-officer",
   about: "/about",
   contact: "/contact",

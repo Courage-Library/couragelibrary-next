@@ -148,6 +148,7 @@ jobs:
           q AUTH1-R6-DIAG-SELFTEST node scripts/test_auth1.cjs --r6-self-test || fail=1
           q RUN-QUIET-SELFTEST node scripts/ci/run-quiet.cjs --self-test || fail=1
           q DEPLOY-GATE-1 node scripts/test_deploy_gate1.cjs || fail=1
+          q LEGAL-LINK-1 node scripts/test_legal_link1.cjs || fail=1
           q AUTH1-2B1-OFFLINE node scripts/test_auth1_2b1.cjs || fail=1
           q AUTH1-2B2-OFFLINE node scripts/test_auth1_2b2.cjs || fail=1
           q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1

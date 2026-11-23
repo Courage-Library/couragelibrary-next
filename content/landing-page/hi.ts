@@ -145,6 +145,7 @@ export const LANDING_HI: LandingCopy = {
       terms: "Terms",
       privacy: "Privacy",
       refund: "Refund policy",
+      shipping: "शिपिंग पॉलिसी",
       grievance: "Grievance officer",
     },
   },

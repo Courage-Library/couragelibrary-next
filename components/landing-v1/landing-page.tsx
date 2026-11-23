@@ -383,7 +383,7 @@ function Footer({ t }: { t: LandingCopy }) {
   const cols: Array<[string, Array<[string, string]>]> = [
     [t.footer.platform, [[l.exams, R.exams], [l.mockTests, R.mockTests], [l.currentAffairs, R.currentAffairs]]],
     [t.footer.company, [[l.about, R.about], [l.library, R.about], [l.contact, R.contact], [l.help, R.help]]],
-    [t.footer.legal, [[l.terms, R.terms], [l.privacy, R.privacy], [l.refund, R.refund], [l.grievance, R.grievance]]],
+    [t.footer.legal, [[l.terms, R.terms], [l.privacy, R.privacy], [l.refund, R.refund], [l.shipping, R.shipping], [l.grievance, R.grievance]]],
   ];
   return (
     <footer className="lp-ft" data-landing-section="footer">

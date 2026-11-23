@@ -66,6 +66,7 @@ export interface LandingCopy {
       terms: string;
       privacy: string;
       refund: string;
+      shipping: string;
       grievance: string;
     };
   };

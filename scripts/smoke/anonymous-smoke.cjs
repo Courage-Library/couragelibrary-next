@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { readModelForSlug, checkSyllabusFresh } = require('./_syllabus-expect.cjs');
 const { scanRef, chunkPaths, selfTest } = require('./_ref-scan.cjs');
+const { LEGAL_PAGES, checkLegalPages, describe: describeLegal } = require('./_legal-links.cjs');
 if (process.argv.includes('--self-test')) process.exit(selfTest() ? 0 : 1); // offline: planted-ref fixture
 const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 // CI-1 (ci-public, least privilege): the anonymous smoke needs ONLY public values — the ref lock uses the public API URL
@@ -66,6 +67,15 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   const home = await get('/');
   const html = await home.text();
   check('GET / → 200', home.status === 200, String(home.status));
+  // LEGAL-LINK-1 (owner 2026-11-23): every public footer links all five compliance pages (counts only in the log)
+  // each page's COMPLETE final HTML (redirects followed, ≤ 30 s × 3 attempts); a fetch failure is reported as such
+  {
+    const res = await checkLegalPages(BASE, { headers: BYPASS_HEADERS });
+    const fetchFailed = res.filter((r) => r.kind === 'fetch-failed');
+    const missing = res.filter((r) => r.kind === 'missing');
+    if (fetchFailed.length) check(`LEGAL-LINK-1 fetch failed — links NOT checked for ${fetchFailed.map((r) => r.page).join(' ')}`, false, fetchFailed.map(describeLegal).join(' | '));
+    check(`LEGAL-LINK-1 footers of ${LEGAL_PAGES.join(' ')} link /privacy /terms /refund-policy /shipping-policy /contact (5/5 each)`, fetchFailed.length === 0 && missing.length === 0, res.map(describeLegal).join(' | '));
+  }
   for (const bad of ['Supabase', 'Connection State', 'Phase 1B', 'Auth Probe', 'Target Project', 'Production']) check(`GET / has no "${bad}"`, !html.includes(bad));
   // DOMAIN-CUTOVER-1: the base URL is a parameter (the vercel.app alias before the cutover, couragelibrary.in after) —
   // "couragelibrary-next" may appear only as a site URL (the alias origin or this run's own base)
