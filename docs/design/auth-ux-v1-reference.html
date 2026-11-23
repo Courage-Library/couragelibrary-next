@@ -1,0 +1,198 @@
+<title>Sign-in Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap">
+<style>
+:root{--bg:#F5F6FA;--fg:#18191B;--mu:#5B6070;--ln:#E3E5EC;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:1320px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+h1{font:600 clamp(22px,3vw,30px) Poppins,sans-serif;margin:0}
+h2{font:600 19px Poppins,sans-serif;margin:0}
+.lead{color:var(--mu);margin:6px 0 0;max-width:82ch}
+.cap{font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:0 0 8px}
+.scroll{overflow-x:auto;padding-bottom:6px}
+.rel{position:relative}
+.pin{position:absolute;z-index:5;width:26px;height:26px;border-radius:50%;background:#18191B;color:#fff;font:700 12px Inter,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff,0 4px 10px rgba(0,0,0,.25)}
+.legendlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.legendlist li{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
+.legendlist li b{flex:none;width:24px;height:24px;border-radius:50%;background:#18191B;color:#fff;font:700 12px Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+:root[data-theme="dark"] .legendlist li b{background:#F1F2F5;color:#18191B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .legendlist li b{background:#F1F2F5;color:#18191B}}
+.legendlist li span{color:var(--mu)}.legendlist li strong{color:var(--fg);display:block;font-weight:600}
+
+/* ===== fixed-light mock ===== */
+.site{width:1240px;height:760px;background:#fff;border:1px solid #E6E8EF;border-radius:14px;overflow:hidden;color:#18191B;font:14px/1.5 Inter,sans-serif;display:grid;grid-template-rows:66px 1fr;box-shadow:0 16px 50px rgba(24,25,27,.10)}
+.hdr{display:flex;align-items:center;gap:26px;padding:0 32px;border-bottom:1px solid #E6E8EF}
+.lockup{display:flex;align-items:center;gap:9px;font:600 16px Poppins,sans-serif;white-space:nowrap}
+.nl{color:#5B6070;font-weight:500}
+.hr{margin-left:auto;display:flex;gap:14px;align-items:center}
+.pill{height:40px;padding:0 18px;border-radius:999px;background:#475BFF;color:#fff;font-weight:600;display:inline-flex;align-items:center}
+.split{display:grid;grid-template-columns:1fr 1fr;min-height:0}
+.brand{background:linear-gradient(135deg,#485BFF,#3973D6);color:#fff;padding:56px 64px;display:flex;flex-direction:column;gap:22px;position:relative;overflow:hidden}
+.brand h3{font:600 30px/1.25 Poppins,sans-serif;margin:0;max-width:16ch}
+.brand p{margin:0;opacity:.88;max-width:40ch}
+.feat{display:flex;flex-direction:column;gap:14px;margin-top:8px}
+.feat div{display:flex;gap:12px;align-items:center;font-weight:500}
+.feat i{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none}
+.feat svg{width:19px;height:19px}
+.brand .note{margin-top:auto;font-size:12.5px;opacity:.75}
+.deco{position:absolute;right:-60px;bottom:-60px;width:260px;height:260px;opacity:.12}
+.formside{display:flex;align-items:center;justify-content:center;background:#fff}
+.form{width:400px;display:flex;flex-direction:column;gap:16px}
+.form h4{font:600 26px Poppins,sans-serif;margin:0}
+.form .sub{color:#5B6070;margin:-8px 0 2px}
+.gbtn{height:48px;border:1.5px solid #E6E8EF;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;background:#fff}
+.gbtn svg{width:18px;height:18px}
+.or{display:flex;align-items:center;gap:12px;color:#A9AEBB;font-size:12.5px}
+.or:before,.or:after{content:"";flex:1;height:1px;background:#E6E8EF}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-weight:600;font-size:13.5px;display:flex;justify-content:space-between}
+.fld label a{color:#3A4BEB;font-weight:500}
+.in{height:48px;border:1.5px solid #D9DCE5;border-radius:12px;padding:0 14px;display:flex;align-items:center;color:#18191B;background:#fff}
+.in.focus{border-color:#475BFF;box-shadow:0 0 0 3px #EEF0FF}
+.in.err{border-color:#C2401F;box-shadow:0 0 0 3px #FFEDE7}
+.in .eye{margin-left:auto;color:#5B6070;display:flex}
+.in .eye svg{width:19px;height:19px}
+.in .plc{color:#A9AEBB}
+.emsg{color:#C2401F;font-size:12.5px;display:flex;gap:6px;align-items:center}
+.btn{height:48px;border-radius:12px;background:#475BFF;color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center}
+.prot{display:flex;align-items:center;justify-content:center;gap:6px;color:#A9AEBB;font-size:12px}
+.prot svg{width:13px;height:13px}
+.alt{text-align:center;color:#5B6070}
+.alt a{color:#3A4BEB;font-weight:600}
+.toast{display:flex;align-items:center;gap:8px;background:#F5F6FA;border:1px solid #E6E8EF;border-radius:10px;padding:8px 12px;font-size:13px;color:#5B6070}
+.toast svg{width:16px;height:16px;color:#0E7A52}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:#18191B;background:#F7F8FB;border:1px solid #E6E8EF;border-radius:12px;padding:12px}
+.box{width:20px;height:20px;border-radius:6px;border:1.5px solid #475BFF;background:#475BFF;flex:none;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.box svg{width:13px;height:13px;color:#fff}
+.chk a{color:#3A4BEB;font-weight:500}
+.hint{font-size:12px;color:#5B6070}
+.meter{display:flex;gap:4px;margin-top:2px}.meter i{flex:1;height:4px;border-radius:2px;background:#E6E8EF}.meter i.on{background:#0E7A52}
+
+/* phones */
+.phones{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.ph{position:relative;width:360px;height:760px;border-radius:34px;border:8px solid #18191B;background:#fff;overflow:hidden;color:#18191B;font:14px/1.5 Inter,sans-serif;box-shadow:0 16px 40px rgba(24,25,27,.15);display:flex;flex-direction:column}
+.ph .hdr{height:58px;padding:0 16px;gap:10px;flex:none}
+.ph .pill{height:34px;padding:0 13px;font-size:13px}
+.ph .form{width:auto;padding:22px 20px;gap:14px}
+.ph .form h4{font-size:23px}
+.cap2{font:600 12px Inter,sans-serif;color:var(--mu);margin:8px 0 0;text-align:center}
+</style>
+
+<div class="w">
+<header>
+<p class="cap">Sign-in &amp; sign-up · proposal v1</p>
+<h1>Sign-in: calmer, clearer, on-brand</h1>
+<p class="lead">Same features (Google, email + password, Cloudflare protection, eligibility rule), less confusion. No age number on screen — sign-up asks for one friendly consent that points to the Terms; the Cloudflare box appears only when it's actually needed; colours and logo follow our locked palette.</p>
+</header>
+
+<section>
+<p class="cap">Desktop · sign in</p>
+<div class="scroll"><div class="site">
+ <div class="hdr"><span class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" id="m1"></svg>Courage Library</span><span class="nl">Exams ▾</span><span class="nl">Current Affairs</span><span class="nl">Mock Tests</span><span class="hr"><span class="nl">Sign in</span><span class="pill">Start free</span></span></div>
+ <div class="split">
+  <div class="brand rel"><span class="pin" style="left:20px;top:20px">1</span>
+   <h3>Learn smarter. Prepare independently.</h3>
+   <p>Free daily mock, exam-focused current affairs and a Mistake Vault that turns every wrong answer into revision.</p>
+   <div class="feat">
+    <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="13.6" r="8"/><path d="M10 2.6h4M12 2.6v3"/></svg></i>Daily free mock with full analysis</div>
+    <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.75" stroke-linecap="round"><rect x="4" y="4" width="14" height="16" rx="2"/><path d="M7 9h8M7 13h8M7 17h5"/></svg></i>Current affairs mapped to your exam</div>
+    <div><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.75" stroke-linecap="round"><rect x="3.5" y="4" width="17" height="15" rx="2.5"/><circle cx="11" cy="11.5" r="3.5"/></svg></i>Mistake Vault for smart revision</div>
+   </div>
+   <span class="note">Free during early access.</span>
+   <svg class="deco" viewBox="0 0 24 24" id="m2"></svg>
+  </div>
+  <div class="formside">
+   <div class="form">
+    <div class="toast rel"><span class="pin" style="left:-36px;top:3px">2</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5 9-10"/></svg>You've been signed out.</div>
+    <h4 class="rel">Welcome back<span class="pin" style="left:-36px;top:4px">3</span></h4>
+    <p class="sub">Sign in to continue your preparation.</p>
+    <div class="gbtn rel"><span class="pin" style="left:-36px;top:11px">4</span><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1-3.7 1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.2a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A11 11 0 0 0 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>Continue with Google</div>
+    <div class="or">or sign in with email</div>
+    <div class="fld"><label>Email</label><div class="in focus">jan@example.com</div></div>
+    <div class="fld rel"><span class="pin" style="left:-36px;top:30px">5</span><label>Password <a>Forgot password?</a></label><div class="in">••••••••••<span class="eye"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span></div></div>
+    <div class="btn">Sign in</div>
+    <div class="prot rel"><span class="pin" style="left:22px;top:-6px">6</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg>Protected by Cloudflare · shown only if needed</div>
+    <p class="alt" style="margin:4px 0 0">New here? <a>Create a free account</a></p>
+   </div>
+  </div>
+ </div>
+</div></div>
+</section>
+
+<section>
+<p class="cap">Phone · sign in · error state · create account</p>
+<div class="phones">
+ <div>
+ <div class="ph">
+  <div class="hdr"><span class="lockup" style="font-size:14px"><svg width="24" height="24" viewBox="0 0 24 24" class="mk"></svg>Courage Library</span><span class="hr"><span class="pill">Start free</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5B6070" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span></div>
+  <div class="form">
+   <h4>Welcome back</h4><p class="sub">Sign in to continue your preparation.</p>
+   <div class="gbtn"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1-3.7 1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.2a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A11 11 0 0 0 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>Continue with Google</div>
+   <div class="or">or sign in with email</div>
+   <div class="fld"><label>Email</label><div class="in"><span class="plc">you@example.com</span></div></div>
+   <div class="fld"><label>Password <a>Forgot?</a></label><div class="in"><span class="plc">Your password</span><span class="eye"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span></div></div>
+   <div class="btn">Sign in</div>
+   <div class="prot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg>Protected by Cloudflare</div>
+   <p class="alt">New here? <a>Create a free account</a></p>
+  </div>
+ </div><p class="cap2">Sign in</p></div>
+
+ <div>
+ <div class="ph rel">
+  <div class="hdr"><span class="lockup" style="font-size:14px"><svg width="24" height="24" viewBox="0 0 24 24" class="mk"></svg>Courage Library</span><span class="hr"><span class="pill">Start free</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5B6070" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span></div>
+  <div class="form">
+   <h4>Welcome back</h4><p class="sub">Sign in to continue your preparation.</p>
+   <div class="fld"><label>Email</label><div class="in">jan@example.com</div></div>
+   <div class="fld rel"><span class="pin" style="right:-8px;top:24px">7</span><label>Password <a>Forgot?</a></label><div class="in err">••••••<span class="eye"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span></div>
+    <span class="emsg"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Email or password is incorrect. Try again or reset your password.</span></div>
+   <div class="rel" style="border:1px solid #E6E8EF;border-radius:12px;padding:12px;background:#F7F8FB;font-size:13px;color:#5B6070"><span class="pin" style="right:-8px;top:-10px">8</span><b style="color:#18191B;display:block;margin-bottom:2px">Quick security check</b>Cloudflare needs one more check. It usually finishes by itself.<div style="margin-top:8px;height:52px;border:1px dashed #D4D7E1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#A9AEBB">Cloudflare widget</div><div style="margin-top:6px">Stuck? <a style="color:#3A4BEB;font-weight:600">Retry</a> · try turning off VPN or ad-blocker</div></div>
+   <div class="btn" style="opacity:.55">Sign in</div>
+  </div>
+ </div><p class="cap2">Error + security check (only when needed)</p></div>
+
+ <div>
+ <div class="ph rel">
+  <div class="hdr"><span class="lockup" style="font-size:14px"><svg width="24" height="24" viewBox="0 0 24 24" class="mk"></svg>Courage Library</span><span class="hr"><span class="nl" style="font-size:13px">Sign in</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5B6070" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span></div>
+  <div class="form">
+   <h4>Create your free account</h4><p class="sub">Takes less than a minute.</p>
+   <div class="chk rel"><span class="pin" style="right:-8px;top:-10px">9</span><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg></span><span>I agree to the <a>Terms</a> and <a>Privacy Policy</a>, and confirm I'm eligible to create an account.</span></div>
+   <div class="gbtn"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1-3.7 1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.2a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A11 11 0 0 0 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>Sign up with Google</div>
+   <div class="or">or with email</div>
+   <div class="fld"><label>Full name</label><div class="in"><span class="plc">Your name</span></div></div>
+   <div class="fld"><label>Email</label><div class="in"><span class="plc">you@example.com</span></div></div>
+   <div class="fld rel"><span class="pin" style="right:-8px;top:24px">10</span><label>Password</label><div class="in"><span class="plc">At least 8 characters</span><span class="eye"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span></div><div class="meter"><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+   <div class="btn">Create account</div>
+  </div>
+ </div><p class="cap2">Create account</p></div>
+</div>
+</section>
+
+<section>
+<h2>Changes</h2>
+<p class="lead" style="margin-bottom:12px">Login logic, Google sign-in, Cloudflare protection and the eligibility rule (now worded via the Terms) all stay — only layout, wording and when things appear change.</p>
+<ol class="legendlist">
+<li><b>1</b><div><strong>Brand panel (desktop only)</strong><span>Blue band with the tagline and 3 true features. Hidden on phones so the form comes first.</span></div></li>
+<li><b>2</b><div><strong>Quiet notices</strong><span>"You've been signed out" as a small grey notice that fades after a few seconds, instead of a big teal box.</span></div></li>
+<li><b>3</b><div><strong>Honest heading</strong><span>"Sign in to continue your preparation" — no promise of notes or study plans we don't have. Charcoal heading, Space Blue button (our palette).</span></div></li>
+<li><b>4</b><div><strong>Clean order, no age box on sign-in</strong><span>Google → "or sign in with email" → email + password → Sign in. Existing users are never asked anything extra.</span></div></li>
+<li><b>5</b><div><strong>Password helpers</strong><span>Show/hide eye, "Forgot password?" next to the label, no red asterisks, email keyboard on phones, autofill works.</span></div></li>
+<li><b>6</b><div><strong>Cloudflare in invisible mode</strong><span>A small "Protected by Cloudflare" line. The widget appears only when Cloudflare needs a check.</span></div></li>
+<li><b>7</b><div><strong>Clear errors</strong><span>Message under the field in words (coral + icon, not colour only). Never says which of email/password was wrong.</span></div></li>
+<li><b>8</b><div><strong>Friendly security check</strong><span>If verification fails: plain explanation, Retry, and a hint about VPN/ad-blockers — instead of "Verification failed".</span></div></li>
+<li><b>9</b><div><strong>One friendly consent line on sign-up</strong><span>"I agree to the Terms and Privacy Policy, and confirm I'm eligible to create an account" — no age number on screen; the eligibility rule lives in the Terms. Covers both Google and email.</span></div></li>
+<li><b>10</b><div><strong>Password strength hint</strong><span>"At least 8 characters" + a simple strength bar. Same design for Forgot password and Reset password pages.</span></div></li>
+</ol>
+</section>
+</div>
+<script>
+// logo mark (traced triangle with depth)
+function rt(cx,cy,s){const W=.925,R=.21,BX=.3467,BY=.5,BH=.7155,sc=s/BH,P=[[0,0],[W,.5],[0,1]];const T=q=>[(cx+(q[0]-BX)*sc).toFixed(2),(cy+(q[1]-BY)*sc).toFixed(2)];let d='';P.forEach((p1,i)=>{const p0=P[(i+2)%3],p2=P[(i+1)%3],u=[p0[0]-p1[0],p0[1]-p1[1]],v=[p2[0]-p1[0],p2[1]-p1[1]],lu=Math.hypot(...u),lv=Math.hypot(...v),un=[u[0]/lu,u[1]/lu],vn=[v[0]/lv,v[1]/lv],th=Math.acos(un[0]*vn[0]+un[1]*vn[1]),t=R/Math.tan(th/2),A=T([p1[0]+un[0]*t,p1[1]+un[1]*t]),B=T([p1[0]+vn[0]*t,p1[1]+vn[1]*t]),r=(R*sc).toFixed(2);d+=(i?'L':'M')+A.join(' ')+` A${r} ${r} 0 0 1 `+B.join(' ')+' '});return d+'Z'}
+const d=rt(11,11.4,18);let n=0;
+const mark=(white)=>{const id='lg'+(n++);return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FF0F7"/><stop offset="1" stop-color="#1FC9E8"/></linearGradient></defs><path d="${d}" fill="${white?'rgba(255,255,255,.5)':'#4B00E6'}" transform="translate(2.1 1)"/><path d="${d}" fill="${white?'#fff':`url(#${id})`}"/>`};
+document.getElementById('m1').innerHTML=mark();document.getElementById('m2').innerHTML=mark(true);
+document.querySelectorAll('.mk').forEach(e=>e.innerHTML=mark());
+</script>
