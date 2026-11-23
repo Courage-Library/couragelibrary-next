@@ -104,16 +104,14 @@ export async function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  // FOOTER-1: a signed-in student gets THE student slim line; a visitor gets THE public footer (only its Exams column
-  // streams, bounded ≤ 800 ms — the shell never waits; the band never reads anything); admin has no footer (its own layout)
+  // FOOTER-1: a signed-in student gets THE student slim line; a visitor gets THE public footer (its Exams column and the
+  // band's start action stream in — the shell never waits); admin has no footer (its own layout)
   const footer = <StudentFooter />;
   const visitorFooter = pathname.startsWith("/admin") ? null : (
     <PublicFooter
       t={FOOTER_EN}
       categories={loadNavLive().then((live) => navCategories(navLabels("en"), live))}
-      // FOOTER-1 (owner, R-6 follow-up): the band never waits on a read — on a per-request page the sign-up state is not
-      // known without one, so the band shows the safe default "Explore exams" (the header still streams its own start)
-      band={bandAllowed(pathname) ? { open: false, authHint: false } : null}
+      band={bandAllowed(pathname) ? { open: signupOpen(), authHint: false } : null}
       langSwitch={null}
       paymentsEnabled={isPaymentsEnabled()}
     />

@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Mail } from "lucide-react";
 import type { FooterCopy } from "@/content/footer";
@@ -12,8 +12,7 @@ import { FOOTER_ROUTES, footerColumns, trustLine, type FooterCategory, type Foot
  * FOOTER-1 — THE public footer (owner spec docs/design/FOOTER_V1_SPEC.md §2, 23 Nov 2026), one shared server component
  * for every visitor page: the landing (/ and /hi), the cached public shell and the per-request visitor pages (auth and
  * legal included). Never inside a live exam, never for a signed-in student (StudentFooter).
- *   1 sign-up band (not on / and /hi, never on auth pages; hidden when signed in by CSS; never waits on a read —
- *     "Start free" only with a sign-up state already resolved, else "Explore exams")
+ *   1 sign-up band (not on / and /hi, never on auth pages; hidden when signed in; "Explore exams" when sign-up is closed)
  *   2 brand block (logo lockup, tagline, contact e-mail ONLY when configured) · 3 library line (configured path only)
  *   4 four columns in <nav aria-label="Footer"> — only live routes are links; not-ready items muted, never links
  *   5 trust line (Razorpay only while payments are on) + the not-affiliated line · 6 configured socials only
@@ -26,13 +25,8 @@ const LOGO_RATIO = 694.36 / 148;
 export interface PublicFooterProps {
   t: FooterCopy;
   categories: FooterCategory[] | Promise<FooterCategory[]>;
-  /**
-   * null = no band. `open` is a VALUE, never a promise (owner, FOOTER-1 R-6 follow-up): the band never waits on a DB /
-   * auth / settings read. The cached public pages pass the sign-up state they already resolved before rendering (ISR,
-   * no request-time read); per-request pages pass false → "Explore exams" (the safe default). A signed-in visitor's band
-   * is hidden by CSS only (the pre-paint data-auth hint) — authHint.
-   */
-  band: { open: boolean; authHint: boolean } | null;
+  /** null = no band; open = the sign-up setting (a promise streams; "Explore exams" until it is known) */
+  band: { open: boolean | Promise<boolean>; authHint: boolean } | null;
   /** THE header switch labels — only on / and /hi */
   langSwitch: NavLabels | null;
   paymentsEnabled: boolean;
@@ -54,9 +48,11 @@ export function PublicFooter({ t, categories, band, langSwitch, paymentsEnabled,
               </h2>
               <p className="cl-ft-band__p">{t.bandText}</p>
             </div>
-            <Link className="cl-ft-band__cta" href={band.open ? FOOTER_ROUTES.signUp : FOOTER_ROUTES.exams} data-footer-start={band.open ? "signup" : "explore"}>
-              {band.open ? t.startFree : t.exploreExams}
-            </Link>
+            <BandSlot open={band.open} render={(open) => (
+              <Link className="cl-ft-band__cta" href={open ? FOOTER_ROUTES.signUp : FOOTER_ROUTES.exams} data-footer-start={open ? "signup" : "explore"}>
+                {open ? t.startFree : t.exploreExams}
+              </Link>
+            )} />
           </div>
         </aside>
       )}
@@ -159,4 +155,16 @@ function ColumnsSlot({ t, categories }: { t: FooterCopy; categories: FooterCateg
 }
 async function ResolvedColumns({ t, categories }: { t: FooterCopy; categories: Promise<FooterCategory[]> }) {
   return <Columns t={t} categories={await categories.catch(() => [])} />;
+}
+
+function BandSlot({ open, render }: { open: boolean | Promise<boolean>; render: (open: boolean) => ReactNode }) {
+  if (!(open instanceof Promise)) return <>{render(open)}</>;
+  return (
+    <Suspense fallback={render(false)}>
+      <ResolvedBand open={open} render={render} />
+    </Suspense>
+  );
+}
+async function ResolvedBand({ open, render }: { open: Promise<boolean>; render: (open: boolean) => ReactNode }) {
+  return <>{render(await open.catch(() => false))}</>;
 }
