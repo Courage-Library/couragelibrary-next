@@ -2,6 +2,27 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## DEPLOY-GATE-1 (TOP PRIORITY): production must not update until CI passes
+
+**Status:** logged in FOOTER-1, 2026-11-23 (owner). Report only — no change in that phase.
+
+**Why:** today every push to `main` deploys to production on Vercel at once, in parallel with the CI push run. In
+FOOTER-1 the push runs 45076387392 and 45078679939 failed (server-checks: BRAND2 P-01, AUTH1 R-6) while commits
+`0529197` and `3db0ace` were already live. A red CI run must never mean a changed production site.
+
+**Options to investigate (pick one, then gate it):**
+1. **Vercel Deployment Checks** (project setting): mark the GitHub `ci-gates` checks (offline, server-checks, …) as
+   required, so a production deployment is built but **not promoted** until they pass. Confirm the plan supports it and
+   that prod-smoke (which today runs against production) is moved to the preview / or runs after promotion.
+2. **Promote after CI:** turn off auto-assignment of the production domain for `main` (deploy to a preview URL), and
+   let a final CI job promote that exact deployment (`vercel promote <deployment>` with a scoped token as a repo secret)
+   only when every required job is green; prod-smoke then runs on the promoted site.
+3. **Branch protection + merge queue:** work lands on `main` only through a PR whose required checks passed (the local-
+   first flow pushes `HEAD:main` today — it would push to a branch and merge after green).
+
+**Done when:** a deliberately red push leaves production on the previous deployment (proved once, with a gate or a
+documented dry run), and RELEASE_RUNBOOK.md describes the new order: push → CI green → promote → prod-smoke.
+
 ## MAP-EXAM-1: explicit exam links for the 12 unlinked published CGL questions
 
 **Status:** logged by the architect, 2026-10-27 (content-health ruling).
