@@ -856,7 +856,6 @@
    it the form alone with 20 px side padding. Band gradient + white only (cl-* tokens). */
 .cl-auth {
   display: grid;
-  min-height: min(820px, calc(100dvh - 64px));
 }
 .cl-auth__panel {
   display: none;
@@ -876,6 +875,8 @@
 @media (min-width: 1024px) {
   .cl-auth {
     grid-template-columns: 1fr 1fr;
+    /* the split fills the first screen on desktop only (phones: the form, then the footer — no empty gap) */
+    min-height: min(820px, calc(100dvh - 64px));
   }
   .cl-auth__panel {
     position: relative;
