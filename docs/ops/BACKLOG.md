@@ -2,6 +2,56 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## LIVE-GREEN-1 (PRIORITY — right after AUTH-UX-1 closes, before any new UI phase): the nightly live run is red
+
+**Status:** logged 2026-11-24 (owner). Step 1 (read-only history) done; no fix yet. The nightly `ci-gates` live run has
+been red since 22 Nov and nobody was told (see NIGHTLY-ALERT-1).
+
+- **Last green nightly:** 44852785211 on d54da39 (21 Nov). Dispatches 45207451871 / 45205186255 / 45192731692 /
+  44959814213 ran without live jobs, so they prove nothing here.
+- **Cluster A, first red 44968433798 on 475342d (22 Nov):** the range d54da39..475342d brought LANDING-1 (d53f632,
+  ee48129, the new "/"), DOMAIN-CUTOVER-1 (3612e5a, legacy redirect map) and DOMAIN-CUTOVER-2 (c5c26a7, cron URLs).
+  - UX2A-LIVE L-9, L-10, L-14, L-15b: all four check "/" (hero in the first flush, h1 / JSON-LD, the live counts,
+    the signed-in "Go to dashboard"). L-9 / L-15b fail in 0.0 s, i.e. on markup. Likely cause: UX2A still pins the
+    pre-LANDING-1 home page.
+  - CA6-SEO-LIVE S-05 (sitemap lessons: published only, at the canonical path). Cause not yet read; suspects: the
+    LANDING-1 / DOMAIN-CUTOVER-1 sitemap or redirect changes.
+  - Also red that night: FLAGS-LIVE FL-2 (known FLAGS-LIVE-FLAKE-1) and ANON-SMOKE-LOCAL [GET] (once; green since).
+- **Cluster B, first red 45093554555 on 3db0ace (23 Nov):** the range 475342d..3db0ace brought SITEMAP-CA-1, SEO-1,
+  NAV-1 A + B (visitor header on every public page, student shell), EXAM-UX-1, RESULT-SEC-1, RESULT-UX-1 and FOOTER-1.
+  - SMOKE-STUDENT-PAGES, SMOKE-STUDENT-MISTAKE-2/-3, SMOKE-ADMIN-PAGES-2/-3, SMOKE-ADMIN-HOME,
+    SMOKE-STAFF-CONTENT: **one shared root cause**. Every one stops at the FIRST page, `/auth/login`, before any
+    sign-in: the email field is visible (1 PASS) and the second check, the request pattern (no path > 3×, static
+    > 10×, nothing open > 30 s), fails (fail-fast). An anonymous run of the same check against production (60be48f)
+    passes: 47 requests, none repeated. Suspects: the NAV-1 header / FOOTER-1 footer on `/auth/login` on the CI
+    local server (its env differs from production, e.g. the Turnstile / category reads).
+  - JOURNEY E2E-08 (reload restores the exam answers). Suspect: EXAM-UX-1 (8bc87ad, the attempt screen).
+  - UX2A-LIVE L-17 (every sitemap URL answers 200 on the local build). Suspects: SITEMAP-CA-1 / SEO-1.
+- Unchanged on the AUTH-UX-1 dispatch 45270202994 (60be48f); its two new reds are handled in AUTH-UX-1 (SEC1D) and
+  QA-SESSION-RACE.
+- **Not one root cause overall:** cluster A is the new "/" (and S-05); cluster B is three causes, the seven smokes
+  sharing one at `/auth/login`.
+- **Next (step 2):** the CI gate logs hold summary lines only, so reproduce each locally on a production build:
+  `signed-in-smoke.cjs … --all` up to the first page only (anonymous; no QA session needed for `/auth/login`), the
+  UX2A / CA6-SEO checks, then E2E-08. Fix per cluster; a dispatch only when the fixes are in.
+
+## QA-SESSION-RACE: parallel live jobs mint the same QA session at the same moment → verifyOtp 403
+
+**Status:** found 2026-11-24 (AUTH-UX-1 dispatch 45270202994, QA-SESSION-PROBE Q-01 `QS-VERIFYFAILED-403`).
+Read-only finding, no fix yet. The five live jobs each mint a qa-student magic-link session at start-up. In
+45270202994 they did so within 9 s, and the two that failed (dbfree, db) finished 50 ms apart (21:34:24.13 / .18):
+`generateLink` issues ONE magic-link token per user, so a newer request replaces the older token and its `verifyOtp`
+gets 403. In the green nightly 45093554555 the same five probes were spread over 30 s and all passed. The QA users
+are unchanged (confirmed, not banned, not deleted, no MFA factor, no pending one-time token), and qa-student signed in
+normally at 21:42. The auth settings could not be read (the Management API token answers 403); this project keeps no
+rows in `auth.audit_log_entries`. **Next:** make the mint robust: per-job retry with jitter on a 403 from
+`verifyOtp` (re-generate, at most 2 tries), or stagger the jobs. Note: qa-admin / qa-staff hold ~450 sessions each
+(no cleanup); harmless today, worth a cleanup step.
+
+## NIGHTLY-ALERT-1 (proposed, not built): a red nightly live run must reach the owner
+
+**Status:** proposal 2026-11-24 (owner: "propose, don't build yet"). See the AUTH-UX-1 report for the options.
+
 ## AUTH-PHONE-GAP: short auth forms leave empty space above the footer on phones
 
 **Status:** logged in AUTH-UX-1, 2026-11-24 (owner). On phones (< 1024 px) the sign-in / forgot / reset forms are short,
