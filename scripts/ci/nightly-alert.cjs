@@ -103,8 +103,9 @@ const NOTE_REFUSED = 'Unassigned: GitHub refused the NIGHTLY_ALERT_ASSIGNEE user
  */
 async function run({ repo, runId, sha, needs, assignee, gh, serverUrl = 'https://github.com' }) {
   const state = verdict(needs);
-  const issues = await gh.get(`/repos/${repo}/issues?state=open&labels=${LABEL}&per_page=10`);
-  const open = (issues || []).find((i) => !i.pull_request && i.title === TITLE) || null;
+  // found by its exact title (and author type Bot), NOT by the label: the label is optional and may be missing
+  const issues = await gh.get(`/repos/${repo}/issues?state=open&per_page=100&sort=created&direction=desc`);
+  const open = (issues || []).find((i) => !i.pull_request && i.title === TITLE && (!i.user || i.user.type === 'Bot')) || null;
   const action = plan(state, open);
   const runUrl = `${serverUrl}/${repo}/actions/runs/${runId}`;
   if (action === 'none') return { action, issue: open ? open.number : null, assigned: null, lines: 0 };
@@ -130,7 +131,17 @@ async function run({ repo, runId, sha, needs, assignee, gh, serverUrl = 'https:/
     return { action, issue: open.number, assigned: null, lines: lines.length };
   }
 
-  // open
+  // open — the label is best effort: creating it may fail, and an issue the label is refused on opens without it
+  const createIssue = async (payload) => {
+    try {
+      return await gh.post(`/repos/${repo}/issues`, payload);
+    } catch (e) {
+      if (!(e && e.status === 422) || !payload.labels) throw e;
+      const rest = { ...payload };
+      delete rest.labels;
+      return gh.post(`/repos/${repo}/issues`, rest);
+    }
+  };
   try { await gh.post(`/repos/${repo}/labels`, { name: LABEL, color: 'b60205', description: 'NIGHTLY-ALERT-1: the nightly live run is red' }); } catch { /* exists */ }
   const raw = String(assignee || '').trim();
   const who = validAssignee(raw);
@@ -138,7 +149,7 @@ async function run({ repo, runId, sha, needs, assignee, gh, serverUrl = 'https:/
   let created;
   if (who) {
     try {
-      created = await gh.post(`/repos/${repo}/issues`, { title: TITLE, labels: [LABEL], assignees: [who], body: buildBody({ runUrl, sha, lines }) });
+      created = await createIssue({ title: TITLE, labels: [LABEL], assignees: [who], body: buildBody({ runUrl, sha, lines }) });
       if (!created || !(created.assignees || []).some((a) => a && a.login && a.login.toLowerCase() === who.toLowerCase())) {
         // GitHub silently drops an assignee without access → say so on the issue
         await gh.post(`/repos/${repo}/issues/${created.number}/comments`, { body: NOTE_REFUSED });
@@ -150,7 +161,7 @@ async function run({ repo, runId, sha, needs, assignee, gh, serverUrl = 'https:/
       note = NOTE_REFUSED; // invalid assignee → open it unassigned below
     }
   }
-  created = await gh.post(`/repos/${repo}/issues`, { title: TITLE, labels: [LABEL], body: buildBody({ runUrl, sha, lines, assigneeNote: note }) });
+  created = await createIssue({ title: TITLE, labels: [LABEL], body: buildBody({ runUrl, sha, lines, assigneeNote: note }) });
   return { action, issue: created.number, assigned: false, lines: lines.length };
 }
 

@@ -14,6 +14,8 @@
  *   N-10 the ci-gates job: schedule-only, after every job, job-level issues: write + actions: read only, GITHUB_TOKEN,
  *        the assignee from vars, no secrets, pinned actions; workflow-level permissions stay contents: read
  *   N-11 negative controls: each broken variant is caught
+ *   N-12 the nightly-red label is optional: a label that cannot be created / is refused never stops the issue; the
+ *        open issue is found by title + bot author, not by the label
  */
 'use strict';
 const fs = require('fs');
@@ -76,14 +78,18 @@ const stamp = (l) => `2026-11-23T22:52:55.4991624Z ${l}`;
 const LOG = [...GOOD, ...NON_SUMMARY, ...SECRET_SHAPED].map(stamp).join('\n');
 
 /** in-memory GitHub; records every call */
-function fakeGh({ openIssue = null, dropAssignee = false, rejectAssignee = false, jobs = null, logs = null } = {}) {
+function fakeGh({ openIssue = null, dropAssignee = false, rejectAssignee = false, jobs = null, logs = null, labelFails = false, labelRejected = false, humanTwin = false } = {}) {
   const calls = [];
   let next = 7;
   const gh = {
     calls,
     async get(p) {
       calls.push(['GET', p]);
-      if (/\/issues\?state=open/.test(p)) return openIssue ? [openIssue] : [];
+      if (/\/issues\?state=open/.test(p)) {
+        if (/labels=/.test(p)) return []; // a label filter would miss an issue opened without the label
+        const twin = humanTwin ? [{ number: 99, title: 'Nightly live run red', user: { type: 'User' } }] : [];
+        return [...twin, ...(openIssue ? [openIssue] : [])];
+      }
       if (/\/actions\/runs\/\d+\/jobs/.test(p)) return { jobs: jobs || [{ id: 1, conclusion: 'failure' }, { id: 2, conclusion: 'success' }, { id: 3, conclusion: 'failure' }] };
       throw Object.assign(new Error('unexpected GET'), { status: 404 });
     },
@@ -95,9 +101,10 @@ function fakeGh({ openIssue = null, dropAssignee = false, rejectAssignee = false
     },
     async post(p, b) {
       calls.push(['POST', p, b]);
-      if (/\/labels$/.test(p)) return {};
+      if (/\/labels$/.test(p)) { if (labelFails) throw Object.assign(new Error('HTTP 403'), { status: 403 }); return {}; }
       if (/\/comments$/.test(p)) return { id: 1 };
       if (/\/issues$/.test(p)) {
+        if (b.labels && labelRejected) throw Object.assign(new Error('HTTP 422'), { status: 422 });
         if (b.assignees && rejectAssignee) throw Object.assign(new Error('HTTP 422'), { status: 422 });
         return { number: next++, assignees: b.assignees && !dropAssignee ? b.assignees.map((login) => ({ login })) : [] };
       }
@@ -109,7 +116,7 @@ function fakeGh({ openIssue = null, dropAssignee = false, rejectAssignee = false
 }
 const RED = { scope: { result: 'success' }, offline: { result: 'success' }, 'server-checks': { result: 'success' }, 'live-journeys': { result: 'failure' }, 'live-gates': { result: 'failure' } };
 const GREEN = { scope: { result: 'success' }, offline: { result: 'success' }, 'server-checks': { result: 'success' }, 'live-journeys': { result: 'success' }, 'live-gates': { result: 'success' } };
-const OPEN = { number: 3, title: 'Nightly live run red', assignees: [] };
+const OPEN = { number: 3, title: 'Nightly live run red', assignees: [], user: { type: 'Bot' } };
 
 /** every body line must be one of the allowed kinds — nothing else may reach the public issue */
 function bodyOnly(m, body, lines, note) {
@@ -210,6 +217,29 @@ async function checkClose(m) {
   assert(r3.action === 'none' && gh3.calls.every((c) => c[0] === 'GET'), 'a skipped live job closed / commented');
   return 'green → #3 commented + closed · green, no issue → nothing · skipped → nothing';
 }
+async function checkLabelOptional(m) {
+  const out = [];
+  for (const [label, opt, expectLabels] of [['label cannot be created (403)', { labelFails: true }, true], ['issue refuses the label (422)', { labelRejected: true }, false], ['both', { labelFails: true, labelRejected: true }, false]]) {
+    for (const assignee of ['owner-login', '']) {
+      const gh = fakeGh(opt);
+      const r = await m.run({ repo: REPO, runId: RUN, sha: SHA, needs: RED, assignee, gh });
+      const created = gh.calls.filter((c) => c[0] === 'POST' && /\/issues$/.test(c[1]));
+      const last = created[created.length - 1][2];
+      assert(r.action === 'open' && r.issue, `${label} (${assignee || 'no assignee'}): not opened`);
+      assert(!!last.labels === expectLabels, `${label}: labels ${JSON.stringify(last.labels)}`);
+      if (assignee) assert((last.assignees || []).join() === assignee && r.assigned === true, `${label}: lost the assignee`);
+    }
+    out.push(label);
+  }
+  // an open issue WITHOUT the label is still found (by title, bot author); a human issue with the same title is not
+  const gh = fakeGh({ openIssue: { ...OPEN, labels: [] }, humanTwin: true });
+  const r = await m.run({ repo: REPO, runId: RUN, sha: SHA, needs: RED, assignee: 'owner-login', gh });
+  assert(r.action === 'comment' && r.issue === 3, `unlabelled open issue: ${r.action} #${r.issue}`);
+  const gh2 = fakeGh({ humanTwin: true });
+  const r2 = await m.run({ repo: REPO, runId: RUN, sha: SHA, needs: GREEN, assignee: '', gh: gh2 });
+  assert(r2.action === 'none', 'a human issue with the same title was closed');
+  return `opens anyway: ${out.join(', ')} · unlabelled issue found by title · human twin ignored`;
+}
 function checkEventOnly(src = SRC) {
   const f = path.join(os.tmpdir(), `nightly-alert-cli-${process.pid}-${n++}.cjs`);
   fs.writeFileSync(f, src);
@@ -260,6 +290,7 @@ function checkWorkflow(wf) {
   await test('N-7 comment path: comment on the open issue, no second issue', () => checkComment(M));
   await test('N-8 close path: green closes the open issue; otherwise nothing', () => checkClose(M));
   await test('N-9 only the nightly schedule touches the issue', () => checkEventOnly());
+  await test('N-12 the nightly-red label is optional: never blocks opening, never needed to find the issue', () => checkLabelOptional(M));
   await test('N-10 ci-gates job wiring + permissions', () => checkWorkflow(WF));
 
   const mut = (s, a, b) => { assert(s.includes(a), `negative control anchor missing: ${a.slice(0, 50)}`); return s.replace(a, b); };
@@ -275,6 +306,10 @@ function checkWorkflow(wf) {
     ['unassigned without saying so', async () => checkAssignee(load(mut(SRC, "body: buildBody({ runUrl, sha, lines, assigneeNote: note }) });", "body: buildBody({ runUrl, sha, lines }) });")))],
     ['body carries the job names', async () => checkOpen(load(mut(SRC, "if (assigneeNote) parts.push('', assigneeNote);", "if (assigneeNote) parts.push('', assigneeNote);\n  parts.push('jobs: live-gates');")))],
     ['logs of green jobs read', async () => checkOpen(load(mut(SRC, ".filter((j) => j.conclusion === 'failure');", ';')))],
+    ['issue creation fails when the label is refused', async () => checkLabelOptional(load(mut(SRC, '      if (!(e && e.status === 422) || !payload.labels) throw e;', '      throw e;')))],
+    ['label creation failure is fatal', async () => checkLabelOptional(load(mut(SRC, '} catch { /* exists */ }', '} catch (e) { throw e; }')))],
+    ['open issue found by label', async () => checkLabelOptional(load(mut(SRC, '/issues?state=open&per_page=100', '/issues?state=open&labels=${LABEL}&per_page=100')))],
+    ['a human issue with the title is used', async () => checkLabelOptional(load(mut(SRC, " && (!i.user || i.user.type === 'Bot')", '')))],
     ['dispatch touches the issue', async () => checkEventOnly(mut(SRC, "if (process.env.GITHUB_EVENT_NAME !== 'schedule') {", "if (process.env.GITHUB_EVENT_NAME === 'never') {"))],
     ['job also on dispatch', async () => checkWorkflow(mut(WF, "    if: always() && github.event_name == 'schedule'\n", "    if: always() && github.event_name != 'push'\n"))],
     ['job without always()', async () => checkWorkflow(mut(WF, "    if: always() && github.event_name == 'schedule'\n", "    if: github.event_name == 'schedule'\n"))],
