@@ -18,19 +18,15 @@ import { OnboardingCard } from "@/components/onboarding/onboarding-card";
 import {
   Flame,
   Coins,
-  Target,
   BookOpen,
   CheckCircle2,
-  AlertTriangle,
-  Zap,
   ArrowRight,
   Clock,
-  Swords,
   GraduationCap,
   Layers,
-  Lock,
 } from "lucide-react";
-import { MEMORY_LOCK } from "@/content/memory-lock";
+import { QuickActionCards } from "@/components/dashboard/quick-action-cards";
+import { Icon } from "@/components/icons/icon";
 import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
 import { isProEnabled } from "@/config/payments";
 import { isCoinsEnabled } from "@/lib/coins/flag";
@@ -105,93 +101,7 @@ export default async function DashboardPage() {
         <NextStepCard step={nextStep} />
 
         {/* Quick Action Hub */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-          <Link href="/mock-tests" className="group">
-            <Card className="p-4 hover:border-blue-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Target className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900">Take Mock Test</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Timed mock tests</p>
-              </div>
-            </Card>
-          </Link>
-          <Link href="/practice" className="group">
-            <Card className="p-4 hover:border-indigo-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900">Custom Practice</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Topic & difficulty filters</p>
-              </div>
-            </Card>
-          </Link>
-          <Link href="/mistakes" className="group">
-            <Card className="p-4 hover:border-red-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
-              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm text-slate-900">Mistake Vault</h4>
-                  {data.mistakesCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold">
-                      {data.mistakesCount}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">Remediation drills</p>
-              </div>
-            </Card>
-          </Link>
-          {/* Memory Lock (F5): ONE real link to /memory-lock when MEMORY_LOCK_ENABLED (migration 095 applied); until then a
-              plain, non-interactive card — no link, no dead link; the visible "Coming soon" says it is not available yet */}
-          {isMemoryLockEnabled() ? (
-          <Link href="/memory-lock" className="group" data-memory-lock-card="" data-memory-lock-live="">
-            <Card className="p-4 h-full flex flex-col justify-between hover:border-primary-300 hover:shadow-md transition-all">
-              <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-3">
-                <Lock aria-hidden="true" className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900">{MEMORY_LOCK.name}</h4>
-                <p className="text-xs text-slate-500 mt-0.5">{MEMORY_LOCK.tagline}</p>
-              </div>
-            </Card>
-          </Link>
-          ) : (
-          <div data-memory-lock-card="">
-            <Card className="p-4 h-full flex flex-col justify-between">
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center">
-                  <Lock aria-hidden="true" className="w-5 h-5" />
-                </div>
-                <span className="px-1.5 py-0.5 rounded-md border border-primary-200 bg-primary-50 text-primary-800 text-caption font-medium">
-                  {MEMORY_LOCK.comingSoon}
-                </span>
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900">{MEMORY_LOCK.name}</h4>
-                <p className="text-xs text-slate-500 mt-0.5">{MEMORY_LOCK.tagline}</p>
-              </div>
-            </Card>
-          </div>
-          )}
-          {isFeatureEnabled("BATTLES") && (
-          <Link href="/battles" className="group">
-            <Card className="p-4 hover:border-accent-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
-              <div className="w-10 h-10 rounded-xl bg-accent-50 text-accent-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Swords className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900">1v1 Quiz Battle</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Live multiplayer challenge</p>
-              </div>
-            </Card>
-          </Link>
-          )}
-        </div>
+        <QuickActionCards mistakesCount={data.mistakesCount} battles={isFeatureEnabled("BATTLES")} memoryLock={isMemoryLockEnabled()} />
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-3 gap-8">
@@ -261,7 +171,7 @@ export default async function DashboardPage() {
                   </CardDescription>
                 </div>
                 <Link href="/practice" className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
-                  View All <ArrowRight className="w-3 h-3" />
+                  View All <Icon icon={ArrowRight} size={12} className="w-3 h-3" />
                 </Link>
               </CardHeader>
               <CardContent>

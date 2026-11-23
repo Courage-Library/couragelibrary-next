@@ -2,6 +2,13 @@
 
 Visual reference: `docs/design/brand-icons-v1-reference.html`. SVG masters: `public/brand/icons/` from `brand-icons-v1.zip` (27 files: each icon × idle / active / on-blue).
 
+> **Superseded (owner, BRAND-ICONS-1, 23 Nov 2026):** the masters live in `docs/design/brand-icons-v1/` and are NOT
+> served from `public/brand/icons/`. The icons are rendered inline by `components/icons/brand-icon.tsx` from the data
+> module `lib/icons/brand-icon-data.ts`, generated from these masters by `scripts/gen-brand-icons.cjs` (a sync check
+> fails if the two differ). On-blue uses `currentColor` (the masters' hardcoded `#fff` is superseded); onBlue beats
+> active. Nav items follow `aria-current` (the student shell keeps it current after client-side navigation), so exactly
+> the current item shows the active style.
+
 ## 0. Decision
 - **Hybrid set.** 9 custom **brand icons** for the core loop; everything else stays **Lucide**, styled to match (same 24 grid, 1.75 stroke, round caps/joins).
 - **Direction: Signature triangle.** Each brand icon contains the logo's rounded play triangle (traced from the logo: circular fillets, same proportions). Idle = slate outline; active = cl-blue-text outline + triangle filled with the logo gradient (#22E3F2 → #475BFF → #4B00E6).

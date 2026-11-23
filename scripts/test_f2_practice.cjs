@@ -333,7 +333,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     // FOOTER-1 (re-pointed, rule kept): the old footer's flag-dependent Practice / drills entries went with it (the
     // owner's footer has no practice link); THE navigation shows Practice ONLY with the flag on (sidebar + bottom bar)
     const sn = read('lib/nav/student-nav.ts');
-    assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "book" \}\);/g) || []).length === 2 && !/\/practice/.test(read('lib/site/footer-links.ts')), 'nav follows the flag');
+    assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "practice" \}\);/g) || []).length === 2 && !/\/practice/.test(read('lib/site/footer-links.ts')), 'nav follows the flag');
     return 'hub · 404 · legacy reports';
   });
 
@@ -361,15 +361,19 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
   await test('T-13 Memory Lock card: one real link when MEMORY_LOCK_ENABLED, else the plain "Coming soon" card; primary-blue lock; brand spelling', () => {
     const ML = require(path.join(ROOT, 'content/memory-lock.ts')).MEMORY_LOCK;
     assert(ML.name === 'Memory Lock' && ML.tagline === 'Spaced revision, right on time' && ML.comingSoon === 'Coming soon', JSON.stringify(ML));
-    const dash = code(read('app/(site)/dashboard/page.tsx'));
-    const card = (dash.match(/<div data-memory-lock-card="">[\s\S]*?\n {10}<\/div>/) || [''])[0];
+    // BRAND-ICONS-1 (re-pointed, rule kept): the quick-action cards moved to components/dashboard/quick-action-cards.tsx
+    // (the dashboard passes memoryLock={isMemoryLockEnabled()}); the lock is THE brand icon memory-lock — active (logo
+    // gradient, cl-blue-tint tile, spec §3) on the live card, idle in the primary-blue tile on the "Coming soon" card
+    assert(/<QuickActionCards [^>]*memoryLock=\{isMemoryLockEnabled\(\)\}/.test(code(read('app/(site)/dashboard/page.tsx'))), 'the dashboard does not pass the Memory Lock flag to the cards');
+    const dash = code(read('components/dashboard/quick-action-cards.tsx'));
+    const card = (dash.match(/<div data-memory-lock-card="">[\s\S]*?\n {8}<\/div>/) || [''])[0];
     assert(card, 'Memory Lock card missing');
     // flag off: a plain card — no link, no button, no click handler, and no interactive ARIA on a non-interactive element
     assert(!/href=|<Link\b|<a\b|<button\b|onClick|role=|aria-disabled|tabIndex/.test(card), 'Memory Lock card must be a plain, non-interactive card while the flag is off');
     // flag on (F5): exactly ONE link to /memory-lock, nothing interactive inside it, no "Coming soon"
-    const live = (dash.match(/\{isMemoryLockEnabled\(\) \? \(\s*<Link href="\/memory-lock"[^>]*data-memory-lock-live=""[^>]*>[\s\S]*?<\/Link>\s*\) : \(/) || [''])[0];
-    assert(live && (live.match(/<Link\b|<a\b|href=/g) || []).length === 2 && !/<button\b|onClick|comingSoon/.test(live) && /<Lock aria-hidden="true"/.test(live), 'live card: one link to /memory-lock');
-    assert(/<Lock aria-hidden="true"/.test(card) && /bg-primary-50 text-primary-700/.test(card) && !/red-|rose-|amber-|accent-|Alarm|Bell/.test(card), 'lock icon in the primary blue family only');
+    const live = (dash.match(/\{memoryLock \? \(\s*<Link\s+href="\/memory-lock"[^>]*data-memory-lock-live=""[^>]*>[\s\S]*?<\/Link>\s*\) : \(/) || [''])[0];
+    assert(live && (live.match(/<Link\b|<a\b|href=/g) || []).length === 2 && !/<button\b|onClick|comingSoon/.test(live) && /<BrandIcon name="memory-lock" size=\{26\} active \/>/.test(live), 'live card: one link to /memory-lock (active brand lock)');
+    assert(/<BrandIcon name="memory-lock" size=\{26\} \/>/.test(card) && /bg-primary-50 text-primary-700/.test(card) && !/red-|rose-|amber-|accent-|Alarm|Bell/.test(card), 'idle brand lock in the primary blue family only');
     assert(/\{MEMORY_LOCK\.comingSoon\}/.test(card) && /\{MEMORY_LOCK\.name\}/.test(card) && /\{MEMORY_LOCK\.tagline\}/.test(card), 'copy from content/memory-lock.ts');
     const order = ['href="/mock-tests"', 'href="/practice"', 'href="/mistakes"', 'data-memory-lock-card=""'].map((s) => dash.indexOf(s));
     assert(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), 'Memory Lock must be the 4th core card');

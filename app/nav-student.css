@@ -36,7 +36,7 @@
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.75; /* BRAND-ICONS-1: utility icons match the brand icons */
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -334,10 +334,6 @@ html[data-sidebar="collapsed"] .cl-ss__toggle .cl-ss__ic {
   color: var(--color-cl-slate);
   text-decoration: none;
 }
-.cl-ss__tab .cl-ss__ic {
-  width: 22px;
-  height: 22px;
-}
 .cl-ss__tab[aria-current="page"] {
   color: var(--color-cl-blue-text);
   font-weight: 600;
@@ -358,10 +354,6 @@ html[data-sidebar="collapsed"] .cl-ss__toggle .cl-ss__ic {
   align-items: center;
   justify-content: center;
   box-shadow: var(--cl-shadow-pri);
-}
-.cl-ss__ic--fab {
-  fill: currentColor;
-  stroke: none;
 }
 
 /* phone + tablet (< 1024 px): top bar 58 px, bottom bar, avatar SHEET */

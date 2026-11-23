@@ -5,7 +5,7 @@
  * the server says Memory Lock is on (MEMORY_LOCK_ENABLED). Fixed result copy; the state is announced politely.
  */
 import { useState, useTransition } from "react";
-import { Lock } from "lucide-react";
+import { BrandIcon } from "@/components/icons/brand-icon";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MEMORY_LOCK } from "@/content/memory-lock";
@@ -27,7 +27,7 @@ export function AddToMemoryLockButton({ questionId, className, iconOnly = false 
       <span className="relative inline-flex" data-add-memory-lock="">
         <Tooltip content={label} side="top">
           <button type="button" aria-label={label} aria-pressed={done} disabled={pending || done} onClick={add} className={className}>
-            <Lock aria-hidden="true" className="size-[18px]" />
+            <BrandIcon name="memory-lock" size={18} />
           </button>
         </Tooltip>
         <span role="status" className="sr-only">
@@ -49,7 +49,7 @@ export function AddToMemoryLockButton({ questionId, className, iconOnly = false 
           })
         }
       >
-        <Lock aria-hidden="true" className="size-4" />
+        <BrandIcon name="memory-lock" size={18} />
         {done ? MEMORY_LOCK.added : MEMORY_LOCK.add}
       </Button>
       <span role="status" className="text-body-sm text-fg-secondary">

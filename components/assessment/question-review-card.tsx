@@ -1,6 +1,8 @@
 import React from "react";
 import Link from "next/link";
-import { Archive, BookOpen, ChevronRight, ChevronUp } from "lucide-react";
+import { ChevronRight, ChevronUp } from "lucide-react";
+import { BrandIcon } from "@/components/icons/brand-icon";
+import { Icon } from "@/components/icons/icon";
 import { cn } from "@/lib/utils";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 import { ReportQuestionButton } from "@/components/practice/report-question-button";
@@ -114,7 +116,7 @@ export function QuestionReviewCard({
           )}
           {onCollapse && (
             <button type="button" onClick={onCollapse} aria-expanded="true" aria-label={`Collapse question ${questionOrder}`} className="focus-ring inline-flex size-11 items-center justify-center rounded-xl text-cl-slate hover:bg-cl-cloud">
-              <ChevronUp aria-hidden="true" className="size-5" />
+              <Icon icon={ChevronUp} size={20} className="size-5" />
             </button>
           )}
         </span>
@@ -193,13 +195,13 @@ export function QuestionReviewCard({
       <div className="flex flex-wrap items-center gap-2 pt-1" data-review-actions="">
         {learningSlug && (
           <Link href={learnHref(learningSlug)} className="focus-ring inline-flex min-h-11 items-center gap-1.5 rounded-full bg-cl-blue px-4 text-body-sm font-semibold text-cl-white hover:bg-cl-blue-hover" data-learn-button="">
-            <BookOpen aria-hidden="true" className="size-4" /> Learn: {topicName || "this topic"}
+            <BrandIcon name="learn" size={16} onBlue /> Learn: {topicName || "this topic"}
           </Link>
         )}
         {state === "wrong" && (
           <Tooltip content="Saved in Mistake Vault" side="top">
             <Link href="/mistakes" aria-label="Saved in Mistake Vault" className={iconBtn} data-mistake-vault="">
-              <Archive aria-hidden="true" className="size-[18px]" />
+              <BrandIcon name="mistake-vault" size={18} />
             </Link>
           </Tooltip>
         )}
@@ -207,7 +209,7 @@ export function QuestionReviewCard({
         {questionId && <ReportQuestionButton questionId={questionId} questionVersionId={questionVersionId ?? null} iconOnly className={iconBtn} />}
         {onNextWrong && (
           <button type="button" onClick={onNextWrong} className="focus-ring ml-auto hidden min-h-11 items-center gap-1 rounded-full px-3 text-body-sm font-semibold text-cl-blue-text hover:bg-cl-blue-tint lg:inline-flex" data-next-wrong="">
-            Next wrong <ChevronRight aria-hidden="true" className="size-4" />
+            Next wrong <Icon icon={ChevronRight} size={16} className="size-4" />
           </button>
         )}
       </div>

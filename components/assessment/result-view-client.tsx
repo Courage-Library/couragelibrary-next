@@ -4,7 +4,9 @@ import "@/components/result/result-ux.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { BrandIcon } from "@/components/icons/brand-icon";
+import { Icon } from "@/components/icons/icon";
 import type { TestResultSummary } from "@/services/assessment.service";
 import { useCoinsEnabled } from "@/lib/coins/flag-context";
 import { QuestionReviewCard } from "@/components/assessment/question-review-card";
@@ -147,7 +149,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
       <div className={cn("mx-auto flex max-w-[1320px] flex-col gap-5 px-4 pt-5 sm:px-6 lg:pt-7", reviewMode && "max-lg:hidden")}>
         <div className="flex flex-col gap-1">
           <Link href="/mock-tests" prefetch={false} className="focus-ring inline-flex min-h-11 w-fit items-center gap-1.5 text-body-sm font-medium text-cl-slate hover:text-cl-charcoal">
-            <ArrowLeft aria-hidden="true" className="size-4" /> Mock tests
+            <Icon icon={ArrowLeft} size={16} className="size-4" /> Mock tests
           </Link>
           <h1 className="font-heading text-h2 font-semibold text-cl-charcoal sm:text-h1">{test.title}</h1>
         </div>
@@ -206,7 +208,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                     Rank <strong className="tabular-nums">{standing.rank}</strong> of {standing.n} · percentile <strong className="tabular-nums">{standing.percentile}</strong>
                   </span>
                   <Link href={`/mock-tests/${test.id}/leaderboard`} className="focus-ring inline-flex min-h-11 items-center gap-1 font-semibold text-cl-blue-text">
-                    Leaderboard <ArrowRight aria-hidden="true" className="size-4" />
+                    Leaderboard <Icon icon={ArrowRight} size={16} className="size-4" />
                   </Link>
                 </div>
               ) : (
@@ -282,12 +284,12 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                     <div className="flex gap-1.5">
                       {t.learningSlug && (
                         <Link href={learnHref(t.learningSlug)} className={cn(btnOutline, "px-3")} aria-label={`Learn ${t.topicName}`}>
-                          <BookOpen aria-hidden="true" className="size-4" /> Learn
+                          <BrandIcon name="learn" size={16} /> Learn
                         </Link>
                       )}
                       {analysis.practiceEnabled && practiceIds.has(t.topicId) && (
                         <Link href={practiceTopicHref(t.topicId, analysis.examSlug)} className={cn(btnSoft, "px-3")} aria-label={`Practice ${t.topicName}`}>
-                          <Dumbbell aria-hidden="true" className="size-4" /> Practice
+                          <BrandIcon name="practice" size={18} /> Practice
                         </Link>
                       )}
                     </div>
@@ -528,7 +530,7 @@ function ReviewList({
                       {statusChip(q)}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-cl-charcoal">{q.questionText}</span>
-                    <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-cl-silver" />
+                    <Icon icon={ChevronDown} size={16} className="size-4 shrink-0 text-cl-silver" />
                   </button>
                 )}
               </li>
@@ -597,7 +599,7 @@ function ReviewMode({
     <div className="mx-auto flex max-w-[720px] flex-col gap-3 px-4 pt-3 pb-4 lg:hidden" data-review-mode="">
       <div className="flex items-center gap-2">
         <button type="button" onClick={onBack} className="focus-ring -ml-2 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-body-sm font-semibold text-cl-charcoal" data-review-back="">
-          <ChevronLeft aria-hidden="true" className="size-5" /> Review · {label} ({counts[filter]})
+          <Icon icon={ChevronLeft} size={20} className="size-5" /> Review · {label} ({counts[filter]})
         </button>
         <span className="ml-auto text-body-sm font-semibold text-cl-slate tabular-nums" data-review-counter="">
           {list.length ? `${idx + 1} / ${list.length}` : "0 / 0"}
@@ -610,13 +612,13 @@ function ReviewMode({
       {q ? <QuestionReviewCard {...cardProps(q, memoryLockEnabled)} headingId={`rm-h-${q.questionOrder}`} /> : <p className={cn(card, "text-center text-body text-cl-slate")}>No questions in this view.</p>}
       <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-cl-line bg-cl-white px-4 pt-2 pb-[calc(8px+env(safe-area-inset-bottom,0px))]" data-result-bar="review">
         <button type="button" disabled={!prev} onClick={() => prev && onGo(prev.questionOrder)} className={cn(btnOutline, "min-h-12 flex-1 disabled:opacity-50")} data-review-prev="">
-          <ChevronLeft aria-hidden="true" className="size-4" /> Prev
+          <Icon icon={ChevronLeft} size={16} className="size-4" /> Prev
         </button>
         <span className="min-w-14 text-center text-body-sm font-semibold text-cl-slate tabular-nums" aria-hidden="true">
           {list.length ? `${idx + 1} / ${list.length}` : ""}
         </span>
         <button type="button" disabled={!next} onClick={() => next && onGo(next.questionOrder)} className={cn(btnPrimary, "min-h-12 flex-1 disabled:opacity-50")} data-review-next="">
-          {wrongNav ? "Next wrong" : "Next"} <ChevronRight aria-hidden="true" className="size-4" />
+          {wrongNav ? "Next wrong" : "Next"} <Icon icon={ChevronRight} size={16} className="size-4" />
         </button>
       </div>
     </div>
@@ -635,7 +637,7 @@ function PastAttempts({ points, label }: { points: NonNullable<TestResultSummary
             {label} · {points.length}
           </span>
           <span className="ml-auto inline-flex items-center gap-1 text-body-sm font-semibold text-cl-blue-text">
-            {open ? "Hide" : "Show"} <ChevronDown aria-hidden="true" className={cn("size-4 motion-safe:transition-transform", open && "rotate-180")} />
+            {open ? "Hide" : "Show"} <Icon icon={ChevronDown} size={16} className={cn("size-4 motion-safe:transition-transform", open && "rotate-180")} />
           </span>
         </button>
       </h2>

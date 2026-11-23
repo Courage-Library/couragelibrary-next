@@ -2,7 +2,10 @@ import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { logoutAction } from "@/app/(site)/auth/actions";
 import type { NavLabels } from "@/content/nav/labels";
-import { accountLinks, activeStudentKey, bottomItems, initials, studentItems, studentTitle, STUDENT_HOME, type AccountView, type StudentFlags, type StudentIcon, type StudentItem } from "@/lib/nav/student-nav";
+import { accountLinks, activeStudentKey, bottomItems, initials, studentItems, studentTitle, STUDENT_HOME, type AccountView, type StudentFlags, type StudentItem } from "@/lib/nav/student-nav";
+import { ChevronLeft, CircleHelp, Languages, LogOut } from "lucide-react";
+import { BrandIcon } from "@/components/icons/brand-icon";
+import { Icon } from "@/components/icons/icon";
 import { StudentNavEnhancer } from "./student-nav-enhancer";
 import { CoinBalance } from "./coin-balance";
 
@@ -15,31 +18,9 @@ import { CoinBalance } from "./coin-balance";
  * StudentNavEnhancer adds the collapse toggle, focus handling, the active item after client navigation and the language
  * preference. It shows only the signed-in user's own name (from the session the shell already read). Sign out = the
  * existing sign-out form (logoutAction), unchanged. Colours: cl-* tokens only (app/nav.css).
+ * BRAND-ICONS-1: the nav meanings are THE brand icons (active style on the aria-current item only), the centre button is
+ * todays-mock on blue; help / collapse / language / sign out are Lucide utility icons via <Icon>.
  */
-
-const ICONS: Record<StudentIcon | "help" | "collapse" | "play" | "lang" | "out" | "user", string> = {
-  home: "M4 11 12 4l8 7v9h-5v-6H9v6H4z",
-  book: "M4 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4zM20 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z",
-  clock: "M12 5a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 9v4l3 2M10 3h4",
-  news: "M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 9h8M8 13h8M8 17h5",
-  chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
-  vault: "M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM12 9.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 9h2",
-  learn: "M3 9 12 4l9 5-9 5zM7 11v5c1.5 1.5 3 2 5 2s3.5-.5 5-2v-5",
-  help: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.3M12 17h.01",
-  collapse: "M15 6l-6 6 6 6",
-  play: "M8 5v14l11-7z",
-  lang: "M4 6h12M10 4v2M6.5 6c.8 4 3.5 7 7.5 8.5M13.5 6C12.5 10 9.5 13 5 15M14 20l4-9 4 9M15.3 17h5.4",
-  out: "M10 4H5v16h5M15 8l4 4-4 4M19 12H9",
-  user: "M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 20a8 8 0 0 1 16 0",
-};
-
-function Icon({ k, className = "cl-ss__ic" }: { k: keyof typeof ICONS; className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d={ICONS[k]} />
-    </svg>
-  );
-}
 
 function Brand({ variant }: { variant: "side" | "phone" }) {
   // static SVGs of the final logo suite (never recoloured): the lock-up expanded / on phones, the mark when collapsed
@@ -70,7 +51,7 @@ function SideItem({ it, current, paywall }: { it: StudentItem; current: boolean;
   return (
     <li>
       <Link className="cl-ss__it" href={it.href} aria-current={current ? "page" : undefined} data-student-key={it.key} title={it.label}>
-        <Icon k={it.icon} />
+        <BrandIcon name={it.icon} size={20} active="current" />
         <span className="cl-ss__lbl">{it.label}</span>
         {it.key === "mistakeVault" && <ProChip paywall={paywall} />}
       </Link>
@@ -81,7 +62,7 @@ function SideItem({ it, current, paywall }: { it: StudentItem; current: boolean;
 function BarItem({ it, current }: { it: StudentItem; current: boolean }) {
   return (
     <Link className="cl-ss__tab" href={it.href} aria-current={current ? "page" : undefined} data-student-key={it.key}>
-      <Icon k={it.icon} />
+      <BrandIcon name={it.icon} size={22} active="current" />
       <span>{it.label}</span>
     </Link>
   );
@@ -125,11 +106,11 @@ export function StudentShell({ t, account, flags, paywall, pathname, lessonCoins
         </nav>
         <div className="cl-ss__foot">
           <Link className="cl-ss__it" href="/help" title={t.help} aria-current={pathname === "/help" ? "page" : undefined}>
-            <Icon k="help" />
+            <Icon icon={CircleHelp} className="cl-ss__ic" />
             <span className="cl-ss__lbl">{t.help}</span>
           </Link>
           <button type="button" className="cl-ss__it cl-ss__toggle" data-sidebar-toggle="" data-label-collapse={t.collapse} data-label-expand={t.expand} aria-label={t.collapse} title={t.collapse}>
-            <Icon k="collapse" />
+            <Icon icon={ChevronLeft} className="cl-ss__ic" />
             <span className="cl-ss__lbl">{t.collapse}</span>
           </button>
         </div>
@@ -178,7 +159,7 @@ export function StudentShell({ t, account, flags, paywall, pathname, lessonCoins
               </ul>
               <div className="cl-ss__lang" data-student-lang="">
                 <span className="cl-ss__lang-l">
-                  <Icon k="lang" className="cl-ss__ic cl-ss__ic--sm" />
+                  <Icon icon={Languages} size={18} className="cl-ss__ic cl-ss__ic--sm" />
                   {t.language}
                 </span>
                 <span className="cl-ss__seg" role="group" aria-label={t.language}>
@@ -194,7 +175,7 @@ export function StudentShell({ t, account, flags, paywall, pathname, lessonCoins
               {/* the existing sign-out flow, unchanged (app/(site)/auth/actions.ts) */}
               <form action={logoutAction} className="cl-ss__outf">
                 <button type="submit" className="cl-ss__out" data-sign-out="">
-                  <Icon k="out" className="cl-ss__ic cl-ss__ic--sm" />
+                  <Icon icon={LogOut} size={18} className="cl-ss__ic cl-ss__ic--sm" />
                   {t.signOut}
                 </button>
               </form>
@@ -214,7 +195,7 @@ export function StudentShell({ t, account, flags, paywall, pathname, lessonCoins
         ))}
         <Link className="cl-ss__fab" href={bar.centre.href} aria-label={bar.centre.aria} data-todays-mock="">
           <span className="cl-ss__fab-c">
-            <Icon k="play" className="cl-ss__ic cl-ss__ic--fab" />
+            <BrandIcon name="todays-mock" size={22} onBlue />
           </span>
           <span aria-hidden="true">{bar.centre.label}</span>
         </Link>

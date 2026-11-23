@@ -837,3 +837,17 @@
     font-family: var(--font-heading);
   }
 }
+
+/* BRAND-ICONS-1 (components/icons/brand-icon.tsx): a nav icon shows the active brand style only on the CURRENT item —
+   the triangle takes the icon's own (useId) gradient; logo colours appear nowhere else in the nav */
+.cl-bi {
+  flex: none;
+}
+[aria-current="page"] .cl-bi__tri {
+  fill: var(--cl-bi-fill);
+  stroke: none;
+}
+[aria-current="page"] .cl-bi__depth {
+  fill: var(--color-cl-logo-violet);
+  stroke: none;
+}

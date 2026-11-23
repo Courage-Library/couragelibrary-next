@@ -171,6 +171,12 @@ const FN = /(?<![a-zA-Z])(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/g;
 // PAY-1 B5: lib/email/pro-templates.ts holds the transactional e-mail templates (inline CSS needs literal token colours,
 // like docs/auth/email-templates/*.html); its links / images / colours are gated by PAY1-B5 B5-04
 const ALLOW = new Set(['app/globals.css', 'config/brand.ts', 'lib/email/pro-templates.ts']);
+// BRAND-ICONS-1 (owner spec §2, re-pointed — rule kept): the brand icons' gradient stops are fixed brand values, allowed in
+// ONE place only — the data module generated from the 27 masters (scripts/gen-brand-icons.cjs; in sync = BRAND-ICONS-1
+// B-1). It may carry exactly these six master colours and nothing else (checked below).
+const BRAND_ICON_DATA = 'lib/icons/brand-icon-data.ts';
+const BRAND_ICON_COLOURS = ['#1FC9E8', '#22E3F2', '#3FF0F7', '#475BFF', '#4B00E6', '#C9CDF2'];
+ALLOW.add(BRAND_ICON_DATA);
 
 test('B-03 no colour literals outside the token file, its mirror and the email templates (admin included)', () => {
   const files = [...['app', 'components', 'lib', 'config', 'services', 'types'].flatMap((d) => walk(path.join(ROOT, d))), path.join(ROOT, 'middleware.ts')];
@@ -184,6 +190,9 @@ test('B-03 no colour literals outside the token file, its mirror and the email t
     if (n) bad.push(`${r}: ${n}`);
   }
   assert(bad.length === 0, bad.join('; '));
+  const bi = fs.readFileSync(path.join(ROOT, BRAND_ICON_DATA), 'utf8');
+  const biColours = [...new Set((bi.match(/#[0-9A-Fa-f]{3,8}\b/g) || []).map((c) => c.toUpperCase()))].sort();
+  assert(JSON.stringify(biColours) === JSON.stringify(BRAND_ICON_COLOURS) && !(bi.match(FN) || []).length, `${BRAND_ICON_DATA}: colours ${biColours.join(' ')} (only the six brand-icon master colours are allowed)`);
   return `${files.length} files; allow-list: ${[...ALLOW].join(', ')}, docs/auth/email-templates/*.html`;
 });
 

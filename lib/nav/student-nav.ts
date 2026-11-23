@@ -1,5 +1,6 @@
 import type { NavLabels } from "@/content/nav/labels";
 import { LEARN_INDEX_READY } from "@/lib/nav/visitor-nav";
+import type { BrandIconName } from "@/lib/icons/brand-icon-data";
 
 /**
  * NAV-1 Stage B — pure rules of the student navigation (docs/design/NAV_V1_SPEC.md §2–§4), gated by scripts/test_nav1.cjs.
@@ -11,7 +12,8 @@ import { LEARN_INDEX_READY } from "@/lib/nav/visitor-nav";
  */
 
 export type StudentKey = "home" | "practice" | "mocks" | "currentAffairs" | "results" | "mistakeVault" | "learn";
-export type StudentIcon = "home" | "book" | "clock" | "news" | "chart" | "vault" | "learn";
+/** BRAND-ICONS-1: the nav shows THE brand icon of each meaning (components/icons/brand-icon.tsx) */
+export type StudentIcon = Extract<BrandIconName, "home" | "practice" | "mocks" | "current-affairs" | "results" | "mistake-vault" | "learn">;
 
 export interface StudentItem {
   key: StudentKey;
@@ -36,11 +38,11 @@ export const STUDENT_HOME = "/dashboard";
 
 export function studentItems(t: NavLabels, f: StudentFlags, learnReady: boolean = LEARN_INDEX_READY): StudentItem[] {
   const items: StudentItem[] = [{ key: "home", href: STUDENT_HOME, label: t.home, icon: "home" }];
-  if (f.practice) items.push({ key: "practice", href: "/practice", label: t.practice, icon: "book" });
-  items.push({ key: "mocks", href: "/mock-tests", label: t.mocks, icon: "clock" });
-  items.push({ key: "currentAffairs", href: "/current-affairs", label: t.currentAffairs, icon: "news" });
-  if (RESULTS_ROUTE) items.push({ key: "results", href: RESULTS_ROUTE, label: t.results, icon: "chart" });
-  items.push({ key: "mistakeVault", href: "/mistakes", label: t.mistakeVault, icon: "vault", pro: f.paywall });
+  if (f.practice) items.push({ key: "practice", href: "/practice", label: t.practice, icon: "practice" });
+  items.push({ key: "mocks", href: "/mock-tests", label: t.mocks, icon: "mocks" });
+  items.push({ key: "currentAffairs", href: "/current-affairs", label: t.currentAffairs, icon: "current-affairs" });
+  if (RESULTS_ROUTE) items.push({ key: "results", href: RESULTS_ROUTE, label: t.results, icon: "results" });
+  items.push({ key: "mistakeVault", href: "/mistakes", label: t.mistakeVault, icon: "mistake-vault", pro: f.paywall });
   if (learnReady) items.push({ key: "learn", href: "/learn", label: t.learn, icon: "learn" });
   return items;
 }
@@ -48,10 +50,10 @@ export function studentItems(t: NavLabels, f: StudentFlags, learnReady: boolean 
 /** The phone bottom bar: Home · Practice · [centre] · Mocks · CA. */
 export function bottomItems(t: NavLabels, f: StudentFlags): { left: StudentItem[]; right: StudentItem[]; centre: { href: string; label: string; aria: string } } {
   const left: StudentItem[] = [{ key: "home", href: STUDENT_HOME, label: t.home, icon: "home" }];
-  if (f.practice) left.push({ key: "practice", href: "/practice", label: t.practice, icon: "book" });
+  if (f.practice) left.push({ key: "practice", href: "/practice", label: t.practice, icon: "practice" });
   const right: StudentItem[] = [
-    { key: "mocks", href: "/mock-tests", label: t.mocks, icon: "clock" },
-    { key: "currentAffairs", href: "/current-affairs", label: t.ca, icon: "news" },
+    { key: "mocks", href: "/mock-tests", label: t.mocks, icon: "mocks" },
+    { key: "currentAffairs", href: "/current-affairs", label: t.ca, icon: "current-affairs" },
   ];
   return { left, right, centre: { href: TODAYS_MOCK_HREF, label: t.todaysMock, aria: t.todaysMockAria } };
 }

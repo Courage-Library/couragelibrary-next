@@ -168,7 +168,7 @@ test('X-09 the /practice nav label is "Mistake drills" (F2: "Practice" once topi
   const fl = read('lib/site/footer-links.ts') + read('components/footer/public-footer.tsx') + read('components/footer/student-footer.tsx');
   assert(!/\/practice|\/mistakes\/drill/.test(fl), 'a footer links /practice or the drills (not in the FOOTER-1 columns)');
   const sn = read('lib/nav/student-nav.ts');
-  assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "book" \}\);/g) || []).length === 2 && (sn.match(/href: "\/practice"/g) || []).length === 2, 'student nav: Practice only with the flag (sidebar + bottom bar)');
+  assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "practice" \}\);/g) || []).length === 2 && (sn.match(/href: "\/practice"/g) || []).length === 2, 'student nav: Practice only with the flag (sidebar + bottom bar)');
   return 'no footer /practice link · student nav gated';
 });
 
