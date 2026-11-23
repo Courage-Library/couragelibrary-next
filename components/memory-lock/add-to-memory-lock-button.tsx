@@ -49,7 +49,7 @@ export function AddToMemoryLockButton({ questionId, className, iconOnly = false 
           })
         }
       >
-        <BrandIcon name="memory-lock" size={18} />
+        <BrandIcon name="memory-lock" size={18} className="-mx-px" />
         {done ? MEMORY_LOCK.added : MEMORY_LOCK.add}
       </Button>
       <span role="status" className="text-body-sm text-fg-secondary">

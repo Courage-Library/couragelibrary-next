@@ -289,7 +289,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                       )}
                       {analysis.practiceEnabled && practiceIds.has(t.topicId) && (
                         <Link href={practiceTopicHref(t.topicId, analysis.examSlug)} className={cn(btnSoft, "px-3")} aria-label={`Practice ${t.topicName}`}>
-                          <BrandIcon name="practice" size={18} /> Practice
+                          <BrandIcon name="practice" size={18} className="-mx-px" /> Practice
                         </Link>
                       )}
                     </div>

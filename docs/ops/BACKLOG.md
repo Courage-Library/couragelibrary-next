@@ -2,6 +2,27 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## BRAND-ICONS-LANDING: brand-compatible icons for the landing "How it works" steps 04–06
+
+**Status:** logged in BRAND-ICONS-1, 2026-11-23 (owner decision 1). The landing "How it works" list and the loop
+diagram stay on the landing's own 30-grid icons: only steps 01–03 (Learn, Practice, Mock) are brand meanings, and
+mixing sets in one row breaks spec §4. **Next:** design brand-compatible icons for 04 Find weak topics, 05 Fix,
+06 Improve first; then switch all six steps (list + loop diagram) together.
+
+## BRAND-ICONS-2: sweep the remaining icons of the 9 meanings
+
+**Status:** logged in BRAND-ICONS-1, 2026-11-23 (owner decision 2). Left unchanged in BRAND-ICONS-1: the memory-lock
+page heading (Lucide `Lock`), the practice page (`Bookmark`, `BookOpen`, `Repeat`, `Zap`), the dashboard empty states
+(`BookOpen`, `Layers`) and the other ~200 files that import Lucide directly. **Next:** move the meanings to
+`<BrandIcon>` and the utilities to `<Icon>` (components/icons/).
+
+## BRAND-ICONS-16PX: simplified 16 px drawings for six brand icons
+
+**Status:** logged in BRAND-ICONS-1, 2026-11-23 (owner decision 3). At 16 px the signature triangle of practice, mocks
+and memory-lock nearly vanishes, the results arrow and the current-affairs marker are 1–2 px, the mistake-vault dial
+is busy. Until simplified drawings exist they never render below 18 px (BrandIcon clamps them — `BRAND_ICON_MIN_18`,
+gate BRAND-ICONS-1 B-5); home, learn and todays-mock are fine at 16. **Next:** draw 16 px variants (masters + data).
+
 ## DEPLOY-GATE-1 (TOP PRIORITY): production must not update until CI passes
 
 **Status:** CLOSED (2026-11-23). Vercel Deployment Checks hold every production promotion on the commit status deploy-smoke (.github/workflows/deploy-smoke.yml on vercel.deployment.ready: payload validated, sha on main, scope/offline/server-checks of that sha green, anonymous bypass smoke incl. /api/health == sha); post-promotion-smoke.yml after promotion. Proofs: green 7cc9e50 (run 45145649905), f20d72e (45172463095); red 4f03c5e (ci-gates 45177694506 offline red → deploy-smoke 45178045777 failure → not promoted, production stayed f20d72e, 11 samples); green 6ab82a0 revert (45179269980, post-promotion 45180852313).

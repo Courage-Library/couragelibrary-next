@@ -215,8 +215,9 @@ function checkWhere(src = SRC, overrides = {}) {
   assert(!/const ICONS\b|<path d=\{ICONS/.test(sh) && !/<BrandIcon\b[^>]*\bactive(?!="current")(\s|\/|=)/.test(sh), 'the shell keeps a private icon map or a fixed active icon');
   // the result actions
   assert(/<BrandIcon name="learn" size=\{16\} onBlue \/> Learn: \{topicName/.test(src.card) && /<BrandIcon name="mistake-vault" size=\{18\} \/>/.test(src.card), 'review card: Learn (on blue) / Mistake Vault are not brand icons');
-  assert(/<BrandIcon name="learn" size=\{16\} \/> Learn/.test(src.view) && /<BrandIcon name="practice" size=\{18\} \/> Practice/.test(src.view), 'topic table: Learn / Practice are not brand icons');
-  assert((src.ml.match(/<BrandIcon name="memory-lock" size=\{18\} \/>/g) || []).length === 2, 'Memory Lock buttons are not the brand icon at 18 px');
+  assert(/<BrandIcon name="learn" size=\{16\} \/> Learn/.test(src.view) && /<BrandIcon name="practice" size=\{18\} className="-mx-px" \/> Practice/.test(src.view), 'topic table: Learn / Practice are not brand icons');
+  // owner: bumped 16 → 18 px with the button size unchanged (the labelled button's icon takes -1 px each side)
+  assert(/<BrandIcon name="memory-lock" size=\{18\} \/>/.test(src.ml) && /<BrandIcon name="memory-lock" size=\{18\} className="-mx-px" \/>/.test(src.ml), 'Memory Lock buttons are not the brand icon at 18 px (labelled: -mx-px keeps the button width)');
   // dashboard cards: four active brand icons in the cl-blue-tint tile; the "Coming soon" card idle
   for (const n of ['mocks', 'practice', 'mistake-vault', 'memory-lock']) assert(new RegExp(`bg-cl-blue-tint text-cl-blue-text[^"]*">\\s*<BrandIcon name="${n}" size=\\{26\\} active />`).test(src.cards), `dashboard card ${n}: not an active 26 px brand icon in a cl-blue-tint tile`);
   assert(/text-primary-700 flex items-center justify-center">\s*<BrandIcon name="memory-lock" size=\{26\} \/>/.test(src.cards), 'the "Coming soon" Memory Lock card is not idle');
@@ -345,11 +346,11 @@ test('B-8 negative controls: each broken variant is caught', () => {
     ['shell: centre button not on blue', () => checkWhere({ ...S, shell: mut(S.shell, '<BrandIcon name="todays-mock" size={22} onBlue />', '<BrandIcon name="todays-mock" size={22} />') })],
     ['shell: a Lucide utility rendered directly', () => checkWhere({ ...S, shell: mut(S.shell, '<Icon icon={CircleHelp} className="cl-ss__ic" />', '<CircleHelp className="cl-ss__ic" />') })],
     ['result: Mistake Vault back to Lucide Archive', () => checkWhere({ ...S, card: mut(S.card, '<BrandIcon name="mistake-vault" size={18} />', '<Archive aria-hidden="true" className="size-[18px]" />') })],
-    ['result: an emoji', () => checkWhere({ ...S, view: mut(S.view, '<BrandIcon name="practice" size={18} /> Practice', '<BrandIcon name="practice" size={18} /> \u{1F3AF} Practice') })],
+    ['result: an emoji', () => checkWhere({ ...S, view: mut(S.view, '<BrandIcon name="practice" size={18} className="-mx-px" /> Practice', '<BrandIcon name="practice" size={18} className="-mx-px" /> \u{1F3AF} Practice') })],
     ['dashboard: a card without the active style', () => checkWhere({ ...S, cards: mut(S.cards, '<BrandIcon name="mocks" size={26} active />', '<BrandIcon name="mocks" size={26} />') })],
     ['dashboard: the "Coming soon" card active', () => checkWhere({ ...S, cards: mut(S.cards, '<BrandIcon name="memory-lock" size={26} />', '<BrandIcon name="memory-lock" size={26} active />') })],
-    ['size: Practice at 16 px', () => checkSizes({ ...S, view: mut(S.view, '<BrandIcon name="practice" size={18} />', '<BrandIcon name="practice" size={16} />') })],
-    ['size: Memory Lock at 16 px', () => checkSizes({ ...S, ml: S.ml.replace('<BrandIcon name="memory-lock" size={18} />', '<BrandIcon name="memory-lock" size={16} />') })],
+    ['size: Practice at 16 px', () => checkSizes({ ...S, view: mut(S.view, '<BrandIcon name="practice" size={18} className="-mx-px" />', '<BrandIcon name="practice" size={16} className="-mx-px" />') })],
+    ['size: Memory Lock at 16 px', () => checkSizes({ ...S, ml: S.ml.replace('<BrandIcon name="memory-lock" size={18} className="-mx-px" />', '<BrandIcon name="memory-lock" size={16} className="-mx-px" />') })],
     ['aria: Mistake Vault button without aria-label', () => checkAria({ ...S, card: mut(S.card, 'aria-label="Saved in Mistake Vault" ', '') })],
     ['exam: a changed Lucide import', () => checkExam({ [EXAM_FILES[0]]: mut(read(EXAM_FILES[0]), '} from "lucide-react";', '  Sparkles,\n} from "lucide-react";') })],
     ['exam: the brand icon in the exam screen', () => checkExam({ [EXAM_FILES[1]]: read(EXAM_FILES[1]) + '\nimport { BrandIcon } from "@/components/icons/brand-icon";\n' })],
