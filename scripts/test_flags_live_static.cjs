@@ -5,7 +5,7 @@
  *   FS-1 the QA PostgREST client only reads (no insert / update / upsert / delete / rpc through it)
  *   FS-2 every SQL write sits in the rolledBack() helper, whose finally is an unconditional ROLLBACK (no COMMIT anywhere)
  *   FS-3 QA identity asserted before connecting; page checks are GETs and SKIP while the flag is off
- *   FS-4 registered in the CI live job (not offline / not prod-smoke)
+ *   FS-4 registered in the CI live job (not offline / not deploy-smoke)
  * Run: node scripts/test_flags_live_static.cjs
  */
 const fs = require('fs');
@@ -31,7 +31,7 @@ check('FS-3', 'QA identity asserted first; page checks are GETs that SKIP when t
   code.indexOf('assertQaEmail(EMAIL)') > 0 && code.indexOf('assertQaEmail(EMAIL)') < code.indexOf('pg.connect()') && /if \(process\.env\[flag\] !== 'true'\) return 'SKIP';/.test(code) && !/method:\s*'(POST|PUT|PATCH|DELETE)'/.test(code));
 const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8').replace(/\r\n/g, '\n');
 // CI-LIVE-SPLIT-1: the flags gate belongs to the live-gates job
-const live = wf.slice(wf.indexOf('\n  live-gates:'), wf.indexOf('\n  prod-smoke:'));
+const live = wf.slice(wf.indexOf('\n  live-gates:'), wf.indexOf('\n  deploy-smoke:'));
 check('FS-4', 'registered in the live-gates job only', /"\$Q FLAGS-LIVE -- node scripts\/live\/test_flags_live\.cjs \$B"/.test(live) && (wf.match(/test_flags_live\.cjs/g) || []).length === 1);
 
 console.log(`\nFLAGS-LIVE static: ${passed}/${passed + failed} passed`);

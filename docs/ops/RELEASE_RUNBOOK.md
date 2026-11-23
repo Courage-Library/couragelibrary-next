@@ -42,12 +42,12 @@ skipped it because its name contains "LIVE".
 
 ## Ship
 
-- `git checkout main && git merge --ff-only <branch> && git push origin main`. Then wait for the push run to be green.
+- `git checkout main && git merge --ff-only <branch> && git push origin main`. Then wait for the push run to be green: Vercel promotes only then (DEPLOY-GATE-1, below).
 - **When a live dispatch is needed (SPEED-RULES-1, owner rule 2026-11-14):**
   - The release touches the database or migrations, auth, payments, security or RLS → run **one** `workflow_dispatch`
     with `live: true` on `main`, after the push run. Retry it once only for a network drop.
-  - A UI-, text- or CSS-only release → no dispatch. The offline list, a green push run and a green prod-smoke (part of
-    the push run) are enough.
+  - A UI-, text- or CSS-only release → no dispatch. The offline list, a green push run (its deploy-smoke included) and
+    a green post-promotion smoke are enough.
   - If in doubt (a change reaches a server action, an API route, a database read or a guard), treat it as touching
     the database or security and run the dispatch.
 - **Flaky gates (SPEED-RULES-1, owner rule 2026-11-14):**
@@ -67,6 +67,45 @@ skipped it because its name contains "LIVE".
   changes the other's files. Only one of them ships at a time; the other rebases onto the new main and re-runs the
   offline list before its own push.
 
+## The production gate — DEPLOY-GATE-1 (owner, 2026-11-23)
+
+Production changes only after CI is green for that exact commit. Vercel Deployment Checks hold the promotion.
+
+1. **Push to main.** Vercel builds a production deployment for the commit. It is NOT on couragelibrary.in, www or
+   couragelibrary-next.vercel.app yet. Vercel waits for the required GitHub checks.
+2. **CI (`ci-gates`, every push, no paths filter).** Required checks: `offline`, `server-checks`, `deploy-smoke`.
+   - `scope` decides docs-only vs code (`scripts/ci/change-scope.cjs`, fails safe to code). On a docs-only push,
+     `offline` and `server-checks` skip their heavy steps and still report green within about a minute.
+   - `deploy-smoke` finds the Vercel deployment of exactly `github.sha` (environment Production, state success —
+     `scripts/ci/resolve-deployment.cjs`; anything else fails). It smokes that deployment's own URL, read-only and
+     anonymously, through the protection bypass (`VERCEL_AUTOMATION_BYPASS_SECRET`, GitHub secret only; missing or blank
+     → fail, never a fallback) and checks `/api/health` serves this commit. The URL is logged as host only.
+3. **All three green → Vercel promotes** the deployment to the production domains. Any red → no promotion; production
+   keeps serving the previous deployment.
+4. **Post-promotion smoke** (`.github/workflows/post-promotion-smoke.yml`, on Vercel's
+   `vercel.deployment.promoted` event, or by hand with a sha): the anonymous smoke of https://couragelibrary.in for the
+   promoted commit. It is **not** a required check (it runs after the promotion). Red → Instant Rollback (below), then
+   report.
+
+### Instant Rollback
+
+Vercel dashboard → project → **Deployments** → the last good production deployment → **⋯** → **Instant Rollback** →
+confirm. The domains point back within seconds; no rebuild. Then fix forward on a branch.
+
+### After a rollback: re-enable automatic promotion
+
+After an Instant Rollback, Vercel **turns off automatic assignment of production domains**: new pushes build but are
+not promoted, even with green checks. To turn it back on, once a fixed commit is on main and its checks are green:
+Deployments → that deployment → **⋯** → **Promote** → confirm. Promoting re-enables automatic assignment for the
+pushes after it. Check: the next push's deployment is promoted after its checks are green.
+
+### Force Promote = emergency only
+
+The Deployment Checks page offers **Force Promote** (promote despite red or pending checks). Use it only in an emergency
+the owner declares (e.g. production down and CI itself broken), name it in the release report with the reason, and run
+the post-promotion smoke by hand right after (`workflow_dispatch` with the sha). Never to get a red release out.
+
 ## After deploy
 
 Check production **anonymously only**: never sign in to prod. The owner checks the signed-in and staff views.
+The post-promotion smoke must be green for the commit (Actions → post-promotion-smoke).

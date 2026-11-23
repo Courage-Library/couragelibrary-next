@@ -9,6 +9,7 @@
  *   pg-url      postgres:// URL with credentials
  *   auth-header Authorization: Bearer …
  *   sb-key      sb_secret_… / sb_publishable_… keys
+ *   bypass-header  x-vercel-protection-bypass with a value (header or query); the secret value itself is a "secret"
  * Minimum coverage (GATE-HYGIENE-1): scanning 0 files or 0 lines is a FAIL.
  */
 const fs = require('fs');
@@ -18,7 +19,9 @@ const os = require('os');
 const SECRET_ENV = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
   'POSTGRES_URL_NON_POOLING', 'QA_STUDENT_PASSWORD', 'QA_STAFF_PASSWORD', 'QA_ADMIN_PASSWORD',
   // AUTH-HARDEN-1: the QA admin / staff TOTP secrets
-  'QA_ADMIN_TOTP_SECRET', 'QA_STAFF_TOTP_SECRET'];
+  'QA_ADMIN_TOTP_SECRET', 'QA_STAFF_TOTP_SECRET',
+  // DEPLOY-GATE-1: Vercel's Protection Bypass for Automation secret (pre-promotion smoke)
+  'VERCEL_AUTOMATION_BYPASS_SECRET'];
 
 /** secret values + values derived from them (≥ 6 chars, to avoid matching trivial strings) */
 function secretValues(env = process.env) {
@@ -43,6 +46,8 @@ const PATTERNS = [
   ['google-secret', new RegExp(['GOC', 'SPX-'].join(''))],
   // AUTH-1 2b-2: Cloudflare Turnstile secret-key shape (site keys are shorter and pass)
   ['turnstile-secret', /(?<![A-Za-z0-9_-])[0-3]x(?=[A-Za-z0-9_-]{30,}(?![A-Za-z0-9_-]))(?:4AAAA|0{10})/],
+  // DEPLOY-GATE-1: the Vercel protection-bypass header / query parameter WITH a value (the bare name is fine)
+  ['bypass-header', /x-vercel-protection-bypass["']?\s*[:=]\s*["']?[A-Za-z0-9_-]{8,}/i],
 ];
 const IPV4 = /(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.])/g;
 const IPV6 = /(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){4,7}[0-9a-f]{1,4}(?![0-9a-f:])/gi;
@@ -98,7 +103,7 @@ function report(r, label = 'log-scan') {
 
 function selfTest() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'log-scan-'));
-  const env = { SUPABASE_SERVICE_ROLE_KEY: 'fake-service-role-value-0123456789', NEXT_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co', POSTGRES_URL_NON_POOLING: 'postgresql://fakeuser.abcdefghij:fakepass987@fake-pooler.example.net:6543/postgres' };
+  const env = { SUPABASE_SERVICE_ROLE_KEY: 'fake-service-role-value-0123456789', NEXT_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co', POSTGRES_URL_NON_POOLING: 'postgresql://fakeuser.abcdefghij:fakepass987@fake-pooler.example.net:6543/postgres', VERCEL_AUTOMATION_BYPASS_SECRET: 'fake-bypass-secret-value-012345' };
   const planted = {
     secret: 'error: key fake-service-role-value-0123456789 rejected',
     ref: 'connecting to project abcdefghijklmnopqrst now',
@@ -110,6 +115,10 @@ function selfTest() {
     'auth-header': 'Authorization: Bearer abcdefghijklmnop',
     dbhost: 'host fake-pooler.example.net refused',
     'turnstile-secret': `captcha secret ${['0x4AAAA', 'AAAfakeFakeFakeFakeFake012345'].join('')} set`,
+    // DEPLOY-GATE-1: the bypass header / query parameter with a value, and the secret's value on its own
+    'bypass-header': 'GET / with x-vercel-protection-bypass: AbCdEfGh12345678',
+    'bypass-query': 'url https://proj.vercel.app/?x-vercel-protection-bypass=AbCdEfGh12345678',
+    'bypass-secret': 'value fake-bypass-secret-value-012345 seen',
   };
   const results = [];
   for (const [name, line] of Object.entries(planted)) {
@@ -117,9 +126,9 @@ function selfTest() {
     const r = scan([path.join(dir, 'planted.log')], env);
     results.push([`planted ${name} is caught`, r.findings.length === 1 && r.findings[0].line === 2]);
   }
-  fs.writeFileSync(path.join(dir, 'planted.log'), 'PASS  K-1 ok\nserver on http://127.0.0.1:3100 and http://localhost:3100\n[with-server] healthy\nNext.js 15.5.23 Node v20.19.4 at 12:30:45\n');
+  fs.writeFileSync(path.join(dir, 'planted.log'), 'PASS  K-1 ok\nserver on http://127.0.0.1:3100 and http://localhost:3100\n[with-server] healthy\nNext.js 15.5.23 Node v20.19.4 at 12:30:45\nPASS  DEPLOY-GATE-1 smoke with the x-vercel-protection-bypass header (value never printed)\n');
   const clean = scan([path.join(dir, 'planted.log')], env);
-  results.push(['clean log (loopback, versions, times) passes', clean.findings.length === 0 && clean.lines === 5]);
+  results.push(['clean log (loopback, versions, times, the bare bypass header NAME) passes', clean.findings.length === 0 && clean.lines === 6]);
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'log-scan-empty-'));
   results.push(['empty directory is a FAIL (nothing scanned)', report(scan([empty], env), 'log-scan(self-test, expected FAIL)') === false]);
   fs.rmSync(dir, { recursive: true, force: true });

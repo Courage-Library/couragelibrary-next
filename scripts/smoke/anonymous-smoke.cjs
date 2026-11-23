@@ -23,14 +23,46 @@ const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 const { refFromPublicUrl, assertProjectRef } = require(path.join(ROOT, 'scripts/db/gen-types.cjs'));
 const BASE = (process.argv[2] || 'http://localhost:3100').replace(/\/$/, '');
 const EXPECT_REDIRECTS = process.argv.includes('--expect-redirects');
+// DEPLOY-GATE-1: --bypass = smoke a PROTECTED Vercel deployment URL before it is promoted, with Vercel's automation
+// bypass header (value from the VERCEL_AUTOMATION_BYPASS_SECRET env / GitHub secret). FAILS CLOSED: a missing or empty
+// secret ends the smoke at once (no skip, no unprotected fallback). The header and its value are never printed; the
+// header goes ONLY to BASE (never to Supabase). --expect-sha <sha> = the deployment must serve exactly that commit.
+const BYPASS = process.argv.includes('--bypass');
+const BYPASS_SECRET = BYPASS ? String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '').trim() : '';
+if (BYPASS && !BYPASS_SECRET) {
+  console.log('FAIL  BYPASS-SECRET VERCEL_AUTOMATION_BYPASS_SECRET is missing or empty — refusing to smoke the protected deployment without it');
+  process.exit(1);
+}
+const EXPECT_SHA = (() => {
+  const i = process.argv.indexOf('--expect-sha');
+  return i > 0 ? String(process.argv[i + 1] || '').slice(0, 7).toLowerCase() : null;
+})();
+if (EXPECT_SHA !== null && !/^[0-9a-f]{7}$/.test(EXPECT_SHA)) {
+  console.log('FAIL  EXPECT-SHA --expect-sha needs a commit sha');
+  process.exit(1);
+}
+const BYPASS_HEADERS = BYPASS ? { ['x-vercel-protection-bypass']: BYPASS_SECRET } : {};
 const env = readEnv();
 const refHash = crypto.createHash('sha256').update(assertProjectRef(refFromPublicUrl(env))).digest('hex');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 let fails = 0;
 const check = (name, ok, info) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? ' — ' + info : ''}`); };
-const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fetch(BASE + p, { redirect: 'manual' }); } catch (e) { if (i === 3) throw e; } } };
+const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fetch(BASE + p, { redirect: 'manual', headers: BYPASS_HEADERS }); } catch (e) { if (i === 3) throw e; } } };
 
 (async () => {
+  // DEPLOY-GATE-1: with --bypass the protection must actually let the smoke in (never a redirect to the Vercel login),
+  // and with --expect-sha the deployment must serve exactly this commit — checked BEFORE anything else
+  if (BYPASS || EXPECT_SHA) {
+    const h = await get('/api/health');
+    const loc = h.headers.get('location') || '';
+    const body = h.status === 200 ? await h.json().catch(() => ({})) : {};
+    if (BYPASS) check('DEPLOY-GATE-1 the protected deployment admits the smoke (bypass accepted, no login redirect)', h.status === 200 && !/vercel\.com\/sso/.test(loc), `${h.status}${loc ? ' → login redirect' : ''}`);
+    if (EXPECT_SHA) check('DEPLOY-GATE-1 the deployment serves exactly this commit (/api/health version)', String(body.version || '').toLowerCase() === EXPECT_SHA, `${body.version || '(none)'} vs ${EXPECT_SHA}`);
+    if (fails) {
+      console.log(`\nSMOKE: ${fails} failed (stopped before the page checks)`);
+      process.exit(1);
+    }
+  }
   const home = await get('/');
   const html = await home.text();
   check('GET / → 200', home.status === 200, String(home.status));

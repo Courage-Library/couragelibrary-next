@@ -6,7 +6,7 @@
 #     with the runner), log-scanned BEFORE anything is printed, and only "<ID> PASS|FAIL exit n — counts · failing [IDs]"
 #     reaches the log; security gates therefore print check IDs only
 #   - CI_QUIET=1: with-server.cjs never prints the server log tail
-# Trigger: push to main (code changes; docs-only skipped) + manual dispatch + nightly schedule (live gates: schedule / dispatch
+# Trigger: every push to main (DEPLOY-GATE-1: docs-only pushes finish fast) + manual dispatch + nightly schedule (live gates: schedule / dispatch
 # only, decision #73). No pull_request trigger, ever.
 # All actions pinned by commit SHA.
 
@@ -20,30 +20,20 @@ on:
         type: boolean
         default: true
       prod_smoke:
-        description: 'Run the anonymous production smoke'
+        description: 'Run deploy-smoke (DEPLOY-GATE-1: the anonymous smoke of this commit''s Vercel deployment)'
         type: boolean
         default: true
       admin_mfa:
         description: 'AUTH-HARDEN-1: run the live jobs'' server with ADMIN_MFA_REQUIRED=true (QA admin / staff sign in at AAL2)'
         type: boolean
         default: false
-  # CI-1 finalised (architect, 2026-10-21; first runs green): every push to main runs the gates, except docs-only changes.
-  # `paths` with ordered negations (later patterns win): docs/** and *.md are skipped, but scripts/**, app/**, lib/**,
-  # services/**, components/**, supabase/**, package*.json and .github/** are ALWAYS included (even .md files there).
+  # CI-1 finalised (architect, 2026-10-21; first runs green): every push to main runs the gates.
+  # DEPLOY-GATE-1 (owner, 2026-11-23): NO `paths` filter any more — Vercel holds each production deployment until the
+  # checks offline, server-checks and deploy-smoke pass, so they must report for EVERY commit. Docs-only pushes (the old
+  # rule: docs/** and *.md, except under scripts/**, app/**, lib/**, services/**, components/**, supabase/**,
+  # package*.json, .github/**) are detected by the `scope` job and finish fast.
   push:
     branches: [main]
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!**/*.md'
-      - 'scripts/**'
-      - 'app/**'
-      - 'lib/**'
-      - 'services/**'
-      - 'components/**'
-      - 'supabase/**'
-      - 'package*.json'
-      - '.github/**'
   # CI-LEAN-1 (decision #73): the live (DB) suite is NIGHTLY + manual only — ~02:30 IST (21:00 UTC). Push runs are
   # offline + server-checks + prod-smoke.
   schedule:
@@ -65,8 +55,25 @@ env:
   NEXT_TELEMETRY_DISABLED: '1'
 
 jobs:
+  # ------------------------------------------------------------------ (0) DEPLOY-GATE-1: docs-only or code?
+  # The workflow runs on EVERY push so the checks Vercel waits for (offline, server-checks, deploy-smoke) always report.
+  # A docs-only push (scripts/ci/change-scope.cjs — the old `paths` rule) skips the heavy steps and still reports success.
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false
+      - name: Docs-only or code (event file lists; fails safe to "code")
+        id: scope
+        run: node scripts/ci/change-scope.cjs
+
   # ------------------------------------------------------------------ (a) offline gates — no secrets
   offline:
+    needs: scope
     runs-on: ubuntu-24.04
     # CI-FIX-1: every job has a hard limit so a run can never hang for hours (green: offline ~1 min)
     timeout-minutes: 15
@@ -74,15 +81,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
+      - name: Docs-only push — the offline gates are not needed (the check still reports)
+        if: needs.scope.outputs.code != 'true'
+        run: echo "docs-only push — offline gates skipped"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
+        if: needs.scope.outputs.code == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install (lockfile only)
+        if: needs.scope.outputs.code == 'true'
         run: npm ci --no-audit --no-fund --loglevel=error
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
       - name: Offline gates (summary lines only)
+        if: needs.scope.outputs.code == 'true'
         run: |
           q() { node scripts/ci/run-quiet.cjs --id "$1" -- "${@:2}"; }
           fail=0
@@ -137,6 +150,7 @@ jobs:
           q AUTH1-OFFLINE node scripts/test_auth1.cjs || fail=1
           q AUTH1-R6-DIAG-SELFTEST node scripts/test_auth1.cjs --r6-self-test || fail=1
           q RUN-QUIET-SELFTEST node scripts/ci/run-quiet.cjs --self-test || fail=1
+          q DEPLOY-GATE-1 node scripts/test_deploy_gate1.cjs || fail=1
           q AUTH1-2B1-OFFLINE node scripts/test_auth1_2b1.cjs || fail=1
           q AUTH1-2B2-OFFLINE node scripts/test_auth1_2b2.cjs || fail=1
           q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1
@@ -212,7 +226,7 @@ jobs:
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
       - name: Log scan of the captured outputs
-        if: always()
+        if: always() && needs.scope.outputs.code == 'true'
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
 
   # ------------------------------------------------------------------ (a2) server checks — no secrets, no DB (decision #69)
@@ -221,7 +235,7 @@ jobs:
   # (every *.supabase.co / *.supabase.in / *.invalid connection refused or hung inside the server; nothing leaves the runner).
   # The Supabase URL / key below are FAKE placeholders, not secrets. No environment, no secrets, no artifacts.
   server-checks:
-    needs: offline
+    needs: [scope, offline]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -236,15 +250,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
+      - name: Docs-only push — the server checks are not needed (the check still reports)
+        if: needs.scope.outputs.code != 'true'
+        run: echo "docs-only push — server checks skipped"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
+        if: needs.scope.outputs.code == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install (lockfile only)
+        if: needs.scope.outputs.code == 'true'
         run: npm ci --no-audit --no-fund --loglevel=error
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
       - name: Production build (summary only)
+        if: needs.scope.outputs.code == 'true'
         # CI-FLAKE-1: full stacks; on a failure the crashed route, node / next / cpus / memory (min free while building)
         # and a sanitized copy of the log for the failure-only artifact below
         env:
@@ -259,8 +279,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: LOGO-P0 sharp from the traced files only (what a Vercel function ships; summary only)
+        if: needs.scope.outputs.code == 'true'
         run: node scripts/ci/run-quiet.cjs --id SHARP-TRACE --timeout 300 -- node scripts/ci/sharp-trace-check.cjs
       - name: Server checks (4 bounded server runs; summary lines only)
+        if: needs.scope.outputs.code == 'true'
         env:
           # step-level only (the preload file exists after checkout); inert unless AUTH1_BLACKHOLE is set in `next start`
           NODE_OPTIONS: --require ./scripts/live/supabase-blackhole.cjs
@@ -288,7 +310,7 @@ jobs:
             "$Q AUTH1-RESILIENCE-HANG -- node scripts/test_auth1.cjs --resilience=hang" || fail=1
           exit $fail
       - name: Log scan of the captured outputs (always)
-        if: always()
+        if: always() && needs.scope.outputs.code == 'true'
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
 
   # ------------------------------------------------------------------ (b) live gates — environment ci-live (main only)
@@ -608,15 +630,24 @@ jobs:
         if: always()
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
 
-  # ------------------------------------------------------------------ (c) anonymous production smoke — environment ci-public
-  prod-smoke:
-    needs: offline
-    # CI-LEAN-1: after a push (a new deployment) or on a manual dispatch with prod_smoke=true; not on the nightly schedule
+  # ------------------------------------------------------------------ (c) DEPLOY-GATE-1: smoke the NEW deployment before promotion
+  # Vercel holds every production deployment (Deployment Checks) until offline, server-checks and THIS job pass for its
+  # commit, then assigns couragelibrary.in to it. So this job must test the new deployment itself — never the live site
+  # (that would wait for a promotion that waits for this job). Steps: find the Vercel deployment of EXACTLY github.sha
+  # (environment "Production", state success; anything else fails), then the same read-only anonymous smoke as before
+  # against its own URL, through Vercel's Deployment Protection with the automation bypass header (fails closed without the
+  # secret), plus a commit check (/api/health serves this sha). After promotion: .github/workflows/post-promotion-smoke.yml.
+  deploy-smoke:
+    needs: [scope, offline, server-checks]
+    # after a push (a new deployment) or on a manual dispatch with prod_smoke=true; not on the nightly schedule
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke)
     runs-on: ubuntu-24.04
-    # CI-FIX-1: hard limit; the Vercel deploy wait inside is ≤ 16 min (WAIT-FOR-DEPLOY --timeout 960)
-    timeout-minutes: 20
+    # CI-FIX-1: hard limit; the Vercel deployment wait inside is ≤ 16 min (RESOLVE --timeout 960)
+    timeout-minutes: 25
     environment: ci-public
+    permissions:
+      contents: read
+      deployments: read
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
@@ -633,16 +664,16 @@ jobs:
         run: npm ci --no-audit --no-fund --loglevel=error
       - name: Mask values derived from secrets
         run: node scripts/ci/mask-derived.cjs
-      # DOMAIN-CUTOVER-1: the production base is the repository variable PROD_SMOKE_URL (set to https://couragelibrary.in at
-      # cutover step 6); until then the vercel.app alias. No secret: a public URL.
-      - name: Wait for the Vercel deployment of this commit
+      - name: Find the Vercel deployment of exactly this commit (Production, success; host only in the log)
+        id: resolve
         env:
-          PROD_BASE_URL: ${{ vars.PROD_SMOKE_URL || 'https://couragelibrary-next.vercel.app' }}
-        run: node scripts/ci/run-quiet.cjs --id WAIT-FOR-DEPLOY --timeout 960 -- node scripts/smoke/wait-for-deploy.cjs "$PROD_BASE_URL" "${GITHUB_SHA::7}"
-      - name: Anonymous production smoke (summary only)
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci/run-quiet.cjs --id RESOLVE-DEPLOYMENT --timeout 960 -- node scripts/ci/resolve-deployment.cjs --sha "$GITHUB_SHA" --environment Production --timeout 940
+      - name: Anonymous smoke of the NEW deployment, before promotion (summary only)
         env:
-          PROD_BASE_URL: ${{ vars.PROD_SMOKE_URL || 'https://couragelibrary-next.vercel.app' }}
-        run: node scripts/ci/run-quiet.cjs --id ANON-SMOKE-PROD -- node scripts/smoke/anonymous-smoke.cjs "$PROD_BASE_URL"
+          DEPLOY_URL: ${{ steps.resolve.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/ci/run-quiet.cjs --id DEPLOY-SMOKE -- node scripts/smoke/anonymous-smoke.cjs "$DEPLOY_URL" --bypass --expect-sha "$GITHUB_SHA"
       - name: Log scan of the captured outputs
         if: always()
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"

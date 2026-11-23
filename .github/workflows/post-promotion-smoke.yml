@@ -1,0 +1,77 @@
+# DEPLOY-GATE-1 (owner, 2026-11-23) — the anonymous smoke of couragelibrary.in AFTER Vercel promoted a deployment.
+# The repository is PUBLIC: same rules as ci-gates.yml — every gate through scripts/ci/run-quiet.cjs (summary lines only),
+# log-scanned, no artifacts. Read-only anonymous GETs; no sign-in, no writes.
+# NOT a required check: Vercel promotes only after ci-gates (offline, server-checks, deploy-smoke) is green for the commit;
+# this run happens AFTER the promotion (requiring it would deadlock). A red run here means: roll back in the Vercel
+# dashboard (Instant Rollback) — docs/ops/RELEASE_RUNBOOK.md.
+# Trigger: Vercel's repository_dispatch event `vercel.deployment.promoted` (Vercel for GitHub; this file must be on the
+# default branch) + manual dispatch with a commit sha.
+
+name: post-promotion-smoke
+
+on:
+  repository_dispatch:
+    types: [vercel.deployment.promoted]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'The commit the production site should serve (full or 7-char sha)'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-promotion-smoke
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20.19.4'
+  CI: 'true'
+  CI_QUIET: '1'
+
+jobs:
+  post-promotion-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ci-public
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # the payload is read through env only (never interpolated into a script), then validated below
+      PAYLOAD_SHA: ${{ github.event.client_payload.git.sha || inputs.sha }}
+      PAYLOAD_ENV: ${{ github.event.client_payload.environment || 'production' }}
+      PROD_BASE_URL: ${{ vars.PROD_SMOKE_URL || 'https://couragelibrary.in' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false
+      - name: Validate the promoted commit (a sha, production only)
+        id: sha
+        run: |
+          case "$PAYLOAD_ENV" in production|Production) ;; *) echo "not a production promotion — nothing to smoke"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;; esac
+          if ! printf '%s' "$PAYLOAD_SHA" | grep -Eq '^[0-9a-f]{7,40}$'; then echo "FAIL  the promoted commit is not a sha"; exit 1; fi
+          if [ "$PROD_BASE_URL" != "https://couragelibrary.in" ]; then echo "FAIL  PROD_SMOKE_URL must be https://couragelibrary.in"; exit 1; fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
+        if: steps.sha.outputs.skip != 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install (lockfile only)
+        if: steps.sha.outputs.skip != 'true'
+        run: npm ci --no-audit --no-fund --loglevel=error
+      - name: Mask values derived from secrets
+        if: steps.sha.outputs.skip != 'true'
+        run: node scripts/ci/mask-derived.cjs
+      - name: Wait until couragelibrary.in serves the promoted commit
+        if: steps.sha.outputs.skip != 'true'
+        run: node scripts/ci/run-quiet.cjs --id POST-PROMOTION-WAIT --timeout 660 -- node scripts/smoke/wait-for-deploy.cjs "$PROD_BASE_URL" "${PAYLOAD_SHA::7}" 600
+      - name: Anonymous smoke of couragelibrary.in (summary only)
+        if: steps.sha.outputs.skip != 'true'
+        run: node scripts/ci/run-quiet.cjs --id POST-PROMOTION-SMOKE -- node scripts/smoke/anonymous-smoke.cjs "$PROD_BASE_URL" --expect-sha "$PAYLOAD_SHA"
+      - name: Log scan of the captured outputs
+        if: always() && steps.sha.outputs.skip != 'true'
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
