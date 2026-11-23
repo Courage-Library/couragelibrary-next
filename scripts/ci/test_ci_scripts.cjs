@@ -284,7 +284,10 @@ test('C-16 no QA password sign-in in any script (decision #74: CAPTCHA-safe QA s
   const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
   const SELF = new Set(['scripts/ci/test_ci_scripts.cjs', 'scripts/live/qa-session.cjs', 'scripts/test_qa_session.cjs']);
   // negative login-page tests (CAPTCHA on): they may type a FIXED dummy password into the form — never a real one
-  const DUMMY_FILL_ALLOWED = new Set(['scripts/test_auth1.cjs', 'scripts/test_sec1d_redirects.cjs']);
+  // AUTH-UX-1: the auth page checks type a FIXED dummy into the password field of the LOCAL fixture (dev/auth-fixture,
+  // EXAM_UX_FIXTURE builds only) to test the eye toggle / the consent and security gates — they never submit to Supabase
+  // (each such step asserts 0 POST requests); the literal-only rule below still applies
+  const DUMMY_FILL_ALLOWED = new Set(['scripts/test_auth1.cjs', 'scripts/test_sec1d_redirects.cjs', 'scripts/live/test_auth_ux1_pages.cjs']);
   const bad = [];
   let fills = 0;
   for (const f of files) {
