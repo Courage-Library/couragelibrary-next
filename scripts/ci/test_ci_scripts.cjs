@@ -150,9 +150,11 @@ test('C-10 workflow is public-safe: no artifact upload except the failure-only s
   // report; the docs-only fast path is the `scope` job (scripts/ci/change-scope.cjs, same docs rule as the old filter)
   assert(/branches: \[main\]/.test(push) && !/paths(-ignore)?:/.test(push), 'push must be main-only with no paths filter (DEPLOY-GATE-1)');
   assert(/\n {2}scope:\n[\s\S]*?run: node scripts\/ci\/change-scope\.cjs/.test(code), 'the scope job (docs-only fast path) is missing');
-  // CI-LEAN-1 (decision #73): live = nightly schedule + manual dispatch only (never on push); deploy-smoke after a push / dispatch
+  // CI-LEAN-1 (decision #73): live = nightly schedule + manual dispatch only (never on push); the pre-promotion smoke is .github/workflows/deploy-smoke.yml
   assert(/if: github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.live\)/.test(code), 'live must run on schedule / dispatch only');
-  assert(/\n {2}deploy-smoke:\n {4}needs: \[scope, offline, server-checks\]\n(?: *\n)* {4}if: always\(\) && \(github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.prod_smoke\)\)/.test(code), 'deploy-smoke must run on push / dispatch');
+  // DEPLOY-GATE-1 (design (i)): no push-run deploy-smoke job any more — the pre-promotion smoke is deploy-smoke.yml
+  assert(!/\n {2}(deploy|prod)-smoke:\n/.test(code) && !/prod_smoke/.test(code), 'ci-gates must not have a deploy-smoke / prod-smoke job (DEPLOY-GATE-1: .github/workflows/deploy-smoke.yml)');
+  assert(fs.existsSync(path.join(ROOT, '.github/workflows/deploy-smoke.yml')), 'deploy-smoke.yml (the required pre-promotion check) is missing');
   assert(/^ {2}schedule:\n {4}- cron: '0 21 \* \* \*'/m.test(code), 'nightly schedule (~02:30 IST) missing');
   assert(/cancel-in-progress: false/.test(code), 'concurrency must not cancel in progress');
   return `${gateLines.length} gate lines wrapped; ${uses.length} actions pinned`;
@@ -212,7 +214,7 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
-test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · deploy-smoke 25; CI-SPEED-1 + CI-DB-SHARD-BUDGET: live-gates per shard db 52 · dbfree 10 · security 27 · pages 20)', () => {
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · scope 5; CI-SPEED-1 + CI-DB-SHARD-BUDGET: live-gates per shard db 52 · dbfree 10 · security 27 · pages 20)', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   const jobsAt = w.indexOf('\njobs:\n');
   assert(jobsAt > 0, 'no jobs block');
@@ -220,7 +222,7 @@ test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 
   // CI-SPEED-1 (architect 2026-10-29): the interim 60 is gone — live-gates runs as 3 shards, each with a limit of ~1.5 x
   // its measured job time (dispatch 40919071379: the db shard's gates sum to ~25 min, security ~12, pages ~7, + ~2 build)
   // CI-DB-SHARD-BUDGET (owner 2026-11-15): db ≈ 35.4 min of 52, dbfree ≈ 6.5 min of 10 (run 43703568734; each ≤ 70%)
-  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 52 · dbfree 10 · security 27 · pages 20', 'deploy-smoke': 25, scope: 5 };
+  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 52 · dbfree 10 · security 27 · pages 20', scope: 5 };
   const got = {};
   for (const b of blocks) {
     const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
@@ -310,7 +312,7 @@ const SHARD_EXCEPTIONS = {
 };
 const shardsOf = (w) => {
   const i = w.indexOf('\n  live-gates:\n');
-  const blk = w.slice(i, w.indexOf('\n  deploy-smoke:', i));
+  const blk = w.slice(i); // live-gates is the last job (DEPLOY-GATE-1 removed the smoke job after it)
   const out = {};
   for (const m of blk.matchAll(/- name: [^\n]*\n {8}if: matrix\.shard == '([a-z]+)'\n([\s\S]*?)(?=\n {6}- name:|$)/g))
     out[m[1]] = [...m[2].matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- node ([^\s"]+)/g)].map((x) => ({ id: x[1], file: x[2] }));
@@ -350,7 +352,7 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   assert(movedQa !== w && w.includes(EC) && w.includes(LAST) && isolationProblems(movedQa).bad.some((x) => /EXAM-CATEGORIES-LIVE \(dbfree\)/.test(x)), 'negative control: a QA-exam-row gate moved into dbfree was NOT caught');
   // (b) per-suite caps: both live jobs run every gate through --caps, and every gate id has a cap (120..900 s)
   const caps = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/ci/live-gate-caps.json'), 'utf8')).gates;
-  const live = w.slice(w.indexOf('\n  live-journeys:\n'), w.indexOf('\n  deploy-smoke:'));
+  const live = w.slice(w.indexOf('\n  live-journeys:\n')); // live-journeys + live-gates run to the end of the file
   const qDefs = live.match(/Q='[^']*'/g) || [];
   assert(qDefs.length === 5 && qDefs.every((q) => q === "Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'"), `Q definitions: ${qDefs.join(' | ')}`);
   const ids = [...new Set([...live.matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- /g)].map((m) => m[1]))];

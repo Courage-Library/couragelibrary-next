@@ -19,23 +19,20 @@ on:
         description: 'Run the live (DB) gates'
         type: boolean
         default: true
-      prod_smoke:
-        description: 'Run deploy-smoke (DEPLOY-GATE-1: the anonymous smoke of this commit''s Vercel deployment)'
-        type: boolean
-        default: true
       admin_mfa:
         description: 'AUTH-HARDEN-1: run the live jobs'' server with ADMIN_MFA_REQUIRED=true (QA admin / staff sign in at AAL2)'
         type: boolean
         default: false
   # CI-1 finalised (architect, 2026-10-21; first runs green): every push to main runs the gates.
   # DEPLOY-GATE-1 (owner, 2026-11-23): NO `paths` filter any more — Vercel holds each production deployment until the
-  # checks offline, server-checks and deploy-smoke pass, so they must report for EVERY commit. Docs-only pushes (the old
+  # commit status deploy-smoke passes (.github/workflows/deploy-smoke.yml), which waits for scope, offline and
+  # server-checks of that commit, so they must report for EVERY commit. Docs-only pushes (the old
   # rule: docs/** and *.md, except under scripts/**, app/**, lib/**, services/**, components/**, supabase/**,
   # package*.json, .github/**) are detected by the `scope` job and finish fast.
   push:
     branches: [main]
   # CI-LEAN-1 (decision #73): the live (DB) suite is NIGHTLY + manual only — ~02:30 IST (21:00 UTC). Push runs are
-  # offline + server-checks + prod-smoke.
+  # scope + offline + server-checks; the pre-promotion smoke is .github/workflows/deploy-smoke.yml (DEPLOY-GATE-1).
   schedule:
     - cron: '0 21 * * *'
 
@@ -56,7 +53,7 @@ env:
 
 jobs:
   # ------------------------------------------------------------------ (0) DEPLOY-GATE-1: docs-only or code?
-  # The workflow runs on EVERY push so the checks Vercel waits for (offline, server-checks, deploy-smoke) always report.
+  # The workflow runs on EVERY push so the checks deploy-smoke.yml waits for (scope, offline, server-checks) always report.
   # A docs-only push (scripts/ci/change-scope.cjs — the old `paths` rule) skips the heavy steps and still reports success.
   scope:
     runs-on: ubuntu-24.04
@@ -628,67 +625,4 @@ jobs:
         run: node scripts/ci/run-quiet.cjs --id DB-SESSIONS-POST -- node scripts/ci/db-sessions.cjs --fail-on-own-open
       - name: Log scan of the captured outputs (always)
         if: always()
-        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
-
-  # ------------------------------------------------------------------ (c) DEPLOY-GATE-1: smoke the NEW deployment before promotion
-  # Vercel holds every production deployment (Deployment Checks) until offline, server-checks and THIS job pass for its
-  # commit, then assigns couragelibrary.in to it. So this job must test the new deployment itself — never the live site
-  # (that would wait for a promotion that waits for this job). Steps: find the Vercel deployment of EXACTLY github.sha
-  # (environment "Production", state success; anything else fails), then the same read-only anonymous smoke as before
-  # against its own URL, through Vercel's Deployment Protection with the automation bypass header (fails closed without the
-  # secret), plus a commit check (/api/health serves this sha). After promotion: .github/workflows/post-promotion-smoke.yml.
-  deploy-smoke:
-    needs: [scope, offline, server-checks]
-    # after a push (a new deployment) or on a manual dispatch with prod_smoke=true; not on the nightly schedule.
-    # DEPLOY-GATE-1 (owner 2026-11-23): deploy-smoke is the ONE required Vercel Deployment Check, so it must never be
-    # "skipped": always() runs it whatever offline / server-checks did, and its first step FAILS unless both succeeded.
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke))
-    runs-on: ubuntu-24.04
-    # CI-FIX-1: hard limit; the Vercel deployment wait inside is ≤ 16 min (RESOLVE --timeout 960)
-    timeout-minutes: 25
-    environment: ci-public
-    permissions:
-      contents: read
-      deployments: read
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-    steps:
-      - name: Require scope, offline and server-checks to have succeeded
-        id: needs
-        env:
-          SCOPE_RESULT: ${{ needs.scope.result }}
-          OFFLINE_RESULT: ${{ needs.offline.result }}
-          SERVER_CHECKS_RESULT: ${{ needs.server-checks.result }}
-        run: |
-          bad=0
-          for pair in "scope=$SCOPE_RESULT" "offline=$OFFLINE_RESULT" "server-checks=$SERVER_CHECKS_RESULT"; do
-            if [ "${pair#*=}" != "success" ]; then echo "FAIL  DEPLOY-GATE-1 ${pair%%=*} is '${pair#*=}', not success — this commit must not be promoted"; bad=1; fi
-          done
-          if [ "$bad" != 0 ]; then exit 1; fi
-          echo "PASS  DEPLOY-GATE-1 scope, offline and server-checks succeeded"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - name: Install (lockfile only)
-        run: npm ci --no-audit --no-fund --loglevel=error
-      - name: Mask values derived from secrets
-        run: node scripts/ci/mask-derived.cjs
-      - name: Find the Vercel deployment of exactly this commit (Production, success; host only in the log)
-        id: resolve
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/ci/run-quiet.cjs --id RESOLVE-DEPLOYMENT --timeout 960 -- node scripts/ci/resolve-deployment.cjs --sha "$GITHUB_SHA" --environment Production --timeout 940
-      - name: Anonymous smoke of the NEW deployment, before promotion (summary only)
-        env:
-          DEPLOY_URL: ${{ steps.resolve.outputs.url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: node scripts/ci/run-quiet.cjs --id DEPLOY-SMOKE -- node scripts/smoke/anonymous-smoke.cjs "$DEPLOY_URL" --bypass --expect-sha "$GITHUB_SHA"
-      - name: Log scan of the captured outputs
-        if: always() && steps.needs.outcome == 'success'
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"

@@ -72,21 +72,29 @@ skipped it because its name contains "LIVE".
 Production changes only after CI is green for that exact commit. Vercel Deployment Checks hold the promotion.
 
 1. **Push to main.** Vercel builds a production deployment for the commit. It is NOT on couragelibrary.in, www or
-   couragelibrary-next.vercel.app yet. Vercel waits for the required GitHub checks.
-2. **CI (`ci-gates`, every push, no paths filter).** The ONE required Vercel Deployment Check is `deploy-smoke`.
-   Vercel's check import offered only `deploy-smoke` (it lists check runs that start after the Vercel deployment is
-   created; `offline` and `server-checks` start earlier). So `deploy-smoke` carries the others: it runs with
-   `if: always()` and its first step FAILS unless `scope`, `offline` and `server-checks` all succeeded (failure,
-   cancelled or skipped → red). It is never "skipped" on a push.
-   - `scope` decides docs-only vs code (`scripts/ci/change-scope.cjs`, fails safe to code). On a docs-only push,
-     `offline` and `server-checks` skip their heavy steps and still report green within about a minute.
-   - `deploy-smoke` finds the Vercel deployment of exactly `github.sha` (environment Production, state success —
-     `scripts/ci/resolve-deployment.cjs`; anything else fails). It smokes that deployment's own URL, read-only and
-     anonymously, through the protection bypass (`VERCEL_AUTOMATION_BYPASS_SECRET`, GitHub secret only; missing or blank
-     → fail, never a fallback) and checks `/api/health` serves this commit. The URL is logged as host only.
-3. **`deploy-smoke` green → Vercel promotes** the deployment to the production domains. Any red → no promotion; production
-   keeps serving the previous deployment.
-4. **Post-promotion smoke** (`.github/workflows/post-promotion-smoke.yml`, on Vercel's
+   couragelibrary-next.vercel.app yet. Vercel waits for the ONE required Deployment Check: the commit status
+   **`deploy-smoke`**.
+2. **CI on the push (`ci-gates`, every push, no paths filter):** `scope`, `offline`, `server-checks`. `scope` decides
+   docs-only vs code (`scripts/ci/change-scope.cjs`, fails safe to code); on a docs-only push `offline` and
+   `server-checks` skip their heavy steps and still report green within about a minute.
+3. **Pre-promotion smoke (`.github/workflows/deploy-smoke.yml`).** Vercel starts it with repository_dispatch
+   `vercel.deployment.ready` (after the build, before promotion — https://vercel.com/docs/deployment-checks). Vercel's
+   status action (pinned) reports `deploy-smoke` = pending, then failure / success, as a commit status on the
+   deployment's own commit (`client_payload.git.sha`), not on main's HEAD. In order, any failure → red:
+   - the payload: environment production, sha 40-hex, URL https on `couragelibrary-next-*.vercel.app`
+     (`scripts/ci/pre-promotion.cjs --validate`); a bad payload never gets the bypass header;
+   - the sha is on main (ancestor-or-equal);
+   - `scope`, `offline` and `server-checks` of exactly that sha all succeeded (waits ≤ 25 min; GitHub Actions check runs
+     only; newest attempt wins);
+   - the anonymous read-only smoke of the deployment URL through the protection bypass
+     (`VERCEL_AUTOMATION_BYPASS_SECRET`, GitHub secret only; missing or blank → fail, never a fallback), including
+     `/api/health` = that sha. The URL is logged as host only.
+   **Why not a job in the push run:** with Deployment Checks on, Vercel does not publish the deployment to GitHub until
+   the checks finish, so a push-run job cannot find its URL (deadlock seen on ab3fd08, run 45138608215).
+4. **`deploy-smoke` green → Vercel promotes** the deployment to the production domains. Red (or never reported) → no
+   promotion; production keeps serving the previous deployment. To re-check after fixing a flaky smoke: re-run the
+   failed deploy-smoke (pre-promotion) workflow run in Actions — never Force Promote for that.
+5. **Post-promotion smoke** (`.github/workflows/post-promotion-smoke.yml`, on Vercel's
    `vercel.deployment.promoted` event, or by hand with a sha): the anonymous smoke of https://couragelibrary.in for the
    promoted commit. It is **not** a required check (it runs after the promotion). Red → Instant Rollback (below), then
    report.
