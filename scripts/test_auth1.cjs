@@ -782,6 +782,8 @@ const RES_MAX_MS = 20000; // middleware + page + shell auth reads, each ≤ AUTH
  * Returns null when R-6 passes.
  */
 const BANNER_RX = /couldn(&#x27;|')t check your sign-in/;
+/** R6-DIAG-2: does a comment follow <!DOCTYPE html> directly (where the CI diff began, at=16)? yes / no */
+const r6Marker = (t) => (/^\s*<!DOCTYPE html><!--/i.test(t || '') ? 'yes' : 'no');
 function r6Check(results, fmt) {
   const d = (o) => `DIAG R-6 ${Object.entries(o).map(([k, v]) => `${k}=${String(v).replace(/[^A-Za-z0-9/_.-]/g, '_').slice(0, 40)}`).join(' ')}`;
   const row = (check, r, extra = {}) => d({ check, route: r.p, status: r.status, ms: r.ms, banner: BANNER_RX.test(r.text || '') ? 'yes' : 'no', round: r.round, ...extra });
@@ -798,7 +800,8 @@ function r6Check(results, fmt) {
   const strip = (t) => t.replace(/<!-- -->/g, '');
   const same = (r) => { const a = anon.find((x) => x.p === '/' && x.round === r.round); return r.status === 200 && a && strip(r.text) === strip(a.text); };
   if (!(cached.length >= 1 && cached.every(same))) {
-    const diag = (cached.length ? cached : [{ p: '/', status: 0, ms: 0, text: '', round: -1 }]).filter((r) => !same(r)).slice(0, 8).map((r) => {
+    // ≤ 4 failing rounds × 2 lines = the run-quiet maximum of 8 DIAG lines
+    const diag = (cached.length ? cached : [{ p: '/', status: 0, ms: 0, text: '', round: -1 }]).filter((r) => !same(r)).slice(0, 4).flatMap((r) => {
       const a = anon.find((x) => x.p === '/' && x.round === r.round);
       const x = strip(r.text || '');
       const y = strip((a && a.text) || '');
@@ -806,7 +809,12 @@ function r6Check(results, fmt) {
       while (i < x.length && i < y.length && x[i] === y[i]) i++;
       const attr = (x.slice(Math.max(0, i - 400), i).match(/data-[a-z][a-z-]*/g) || ['none']).pop();
       // ≤ 8 pairs (the run-quiet DIAG format): the signed-in "/" vs the anonymous "/" of the same round
-      return d({ check: 'same', route: r.p, status: r.status, ms: r.ms, same: 'no', anonms: a ? a.ms : 'missing', at: i, attr });
+      // R6-DIAG-2 (FOOTER-1 retry, owner): for BOTH "/" responses — x-nextjs-cache, age, body length, and whether the
+      // build-marker comment follows <!DOCTYPE html> directly (s = signed-in, a = anonymous; none = header absent)
+      return [
+        d({ check: 'same', route: r.p, status: r.status, ms: r.ms, same: 'no', anonms: a ? a.ms : 'missing', at: i, attr }),
+        d({ sxcache: r.xcache || 'none', sage: r.age || 'none', slen: (r.text || '').length, smark: r6Marker(r.text), axcache: (a && a.xcache) || 'none', aage: (a && a.age) || 'none', alen: ((a && a.text) || '').length, amark: a ? r6Marker(a.text) : 'missing' }),
+      ];
     });
     return { msg: `cached "/" with a session cookie: ${cached.map((r) => r.status)} (must be 200 and identical to the anonymous page of the same round)`, diag };
   }
@@ -826,7 +834,7 @@ function r6SelfTest() {
     ['status', ok.map((r) => (r.p === '/auth/signup' ? { ...r, status: 500 } : r)), 'check=status', 1],
     ['banner missing', ok.map((r) => (r.p === '/about' ? { ...r, text: '<p>about</p>' } : r)), 'check=banner route=/about status=200 ms=5100 banner=no', 1],
     ['anon banner', ok.map((r) => (r.kind === 'public page' ? { ...r, text: HOME + ABOUT } : r)), 'check=anonbanner', 1],
-    ['"/" differs', ok.map((r) => (r.kind === 'cached page + session cookie' ? { ...r, text: HOME.replace('>f<', '>g<') } : r)), 'check=same route=/ status=200 ms=120 same=no', 1],
+    ['"/" differs', ok.map((r) => (r.kind === 'cached page + session cookie' ? { ...r, text: HOME.replace('>f<', '>g<') } : r)), 'check=same route=/ status=200 ms=120 same=no', 2],
   ];
   let fails = 0;
   for (const [name, rs, want, n] of cases) {
@@ -843,7 +851,24 @@ function r6SelfTest() {
     fails++;
     console.log(`  FAIL  R6-DIAG "/" diff location: ${same.diag[0]}`);
   }
-  console.log(`R6-DIAG self-test: ${cases.length + 1 - fails}/${cases.length + 1} passed`);
+  // R6-DIAG-2: the second line — both "/" responses' cache header, age, length, marker (headers absent → none)
+  if (!/^DIAG R-6 sxcache=none sage=none slen=\d+ smark=no axcache=none aage=none alen=\d+ amark=no$/.test(same.diag[1] || '')) {
+    fails++;
+    console.log(`  FAIL  R6-DIAG-2 headers line (absent headers): ${same.diag[1]}`);
+  }
+  const MARKED = `<!DOCTYPE html><!--b1d-->${HOME}`;
+  const hdr = r6Check(ok.map((r) => (r.kind === 'cached page + session cookie' ? { ...r, text: MARKED, xcache: 'STALE', age: '17' } : r.kind === 'public page' ? { ...r, text: `<!DOCTYPE html>${HOME}`, xcache: 'HIT', age: '3' } : r)), fmt);
+  if (!hdr || !/^DIAG R-6 sxcache=STALE sage=17 slen=\d+ smark=yes axcache=HIT aage=3 alen=\d+ amark=no$/.test(hdr.diag[1] || '') || !hdr.diag.every((l) => DIAG_RX.test(l))) {
+    fails++;
+    console.log(`  FAIL  R6-DIAG-2 headers line (present headers): ${hdr && hdr.diag[1]}`);
+  } else console.log(`  headers: ${hdr.diag[1]}`);
+  // never more than 8 lines: 6 failing rounds → 4 rounds × 2 lines
+  const many = r6Check([0, 1, 2, 3, 4, 5].flatMap((rd) => [page('/', 'public page', rd, HOME), page('/', 'cached page + session cookie', rd, HOME.replace('>f<', '>g<'))]).concat([page('/about', 'public page + session cookie', 0, ABOUT)]), fmt);
+  if (!many || many.diag.length !== 8) {
+    fails++;
+    console.log(`  FAIL  R6-DIAG-2 line cap: ${many ? many.diag.length : 'null'} lines`);
+  }
+  console.log(`R6-DIAG self-test: ${cases.length + 3 - fails}/${cases.length + 3} passed`);
   return fails === 0;
 }
 
@@ -870,7 +895,8 @@ async function resilience(mode) {
     try {
       const res = await fetch(BASE + p, { method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(RES_MAX_MS + 10000) });
       const text = await res.text();
-      return { p, status: res.status, location: res.headers.get('location') || '', text, ms: Date.now() - started };
+      // FOOTER-1 retry R6-DIAG-2: only these two cache headers are kept (for the failure-only DIAG lines) — never others
+      return { p, status: res.status, location: res.headers.get('location') || '', text, ms: Date.now() - started, xcache: res.headers.get('x-nextjs-cache'), age: res.headers.get('age') };
     } catch (e) {
       return { p, status: 0, location: '', text: '', ms: Date.now() - started, err: e.name };
     }
