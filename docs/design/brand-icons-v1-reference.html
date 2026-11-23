@@ -1,0 +1,166 @@
+<title>Brand Icons Draft</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap">
+<style>
+:root{--bg:#F5F6FA;--fg:#18191B;--mu:#5B6070;--ln:#E3E5EC;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:1320px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:30px}
+h1{font:600 clamp(22px,3vw,30px) Poppins,sans-serif;margin:0}
+h2{font:600 20px Poppins,sans-serif;margin:0 0 4px}
+h3{font:600 14px Inter,sans-serif;margin:18px 0 10px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;font-size:12px}
+.lead{color:var(--mu);margin:6px 0 0;max-width:82ch}
+.cap{font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:0 0 8px}
+.opt{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:22px}
+.logoref{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:14px 16px;font-size:13.5px;color:var(--mu)}
+.logoref svg{width:48px;height:48px;flex:none}
+/* fixed light surfaces */
+.board{background:#fff;border:1px solid #E6E8EF;border-radius:14px;padding:18px;color:#18191B;overflow-x:auto}
+.grid{display:grid;grid-template-columns:110px repeat(9,minmax(64px,1fr));gap:4px 6px;align-items:center;min-width:760px;font:12px Inter,sans-serif}
+.grid .rl{color:#5B6070;font-weight:500}
+.grid .nm{text-align:center;color:#5B6070;font-size:11.5px;line-height:1.25;padding-top:4px}
+.cell{display:flex;align-items:center;justify-content:center;height:56px;border-radius:12px}
+.cell.act{background:#EEF0FF}
+.ctx{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;margin-top:16px;align-items:start}
+@media (max-width:760px){.ctx{grid-template-columns:minmax(0,1fr)}}
+.side{background:#fff;border:1px solid #E6E8EF;border-radius:14px;padding:16px 12px;color:#18191B;font:14px/1.4 Inter,sans-serif;display:flex;flex-direction:column;gap:4px}
+.lockup{display:flex;align-items:center;gap:8px;font:600 14.5px Poppins,sans-serif;padding:0 8px 12px}
+.ni{display:flex;align-items:center;gap:12px;height:44px;padding:0 10px;border-radius:11px;color:#5B6070;font-weight:500;position:relative}
+.ni.on{background:#EEF0FF;color:#3A4BEB;font-weight:600}
+.ni.on:before{content:"";position:absolute;left:-12px;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:#475BFF}
+.right{display:flex;flex-direction:column;gap:14px;min-width:0}
+.phonebar{width:100%;max-width:390px;height:78px;background:#fff;border:1px solid #E6E8EF;border-radius:16px;display:flex;align-items:flex-end;justify-content:space-around;padding:0 6px 10px;color:#5B6070;font:11px Inter,sans-serif}
+.tabi{display:flex;flex-direction:column;align-items:center;gap:4px;width:62px}
+.tabi.on{color:#3A4BEB;font-weight:600}
+.ctr{display:flex;flex-direction:column;align-items:center;gap:4px;width:72px;color:#18191B;font-weight:600}
+.ctr span{width:56px;height:56px;border-radius:50%;background:#475BFF;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px #fff,0 6px 16px rgba(71,91,255,.35);margin-top:-32px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.cards{grid-template-columns:minmax(0,1fr)}}
+.fc{background:#fff;border:1px solid #E6E8EF;border-radius:14px;padding:14px;color:#18191B;font:13px/1.4 Inter,sans-serif;display:flex;flex-direction:column;gap:8px}
+.fc b{font-weight:600;font-size:14px}.fc small{color:#5B6070}
+.fi{width:44px;height:44px;border-radius:12px;background:#EEF0FF;display:flex;align-items:center;justify-content:center}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 16px;border-radius:999px;font:600 13.5px Inter,sans-serif;background:#475BFF;color:#fff}
+.btn.o{background:#fff;color:#18191B;border:1.5px solid #E6E8EF}
+.pros{font-size:13.5px;color:var(--mu);margin:12px 0 0;padding-left:18px}
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.rules li{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;font-size:13.5px}
+.rules li strong{display:block;margin-bottom:2px}.rules li span{color:var(--mu)}
+.big{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+.big div{width:120px;height:120px;border-radius:18px;background:#F7F8FB;border:1px solid #EEF0F4;display:flex;align-items:center;justify-content:center;position:relative;background-image:linear-gradient(#E9EBF3 1px,transparent 1px),linear-gradient(90deg,#E9EBF3 1px,transparent 1px);background-size:5px 5px;background-position:-0.5px -0.5px}
+</style>
+
+<div class="w">
+<header>
+<p class="cap">Brand icons · draft v2 · Direction 1 chosen</p>
+<h1>Our own icons</h1>
+<p class="lead">v2: the triangle is now traced from the real logo — <b>fully circular corners</b>, same proportions. The <b>violet depth layer stays only in the logo itself</b> and the Today's mock icon/button. Grey outline when idle; the logo colours (cyan → violet) appear only on the active item. Utility icons (close, arrows, help, user…) stay standard and are styled to match.</p>
+</header>
+
+<div class="logoref"><svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="lg0" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22E3F2"/><stop offset="1" stop-color="#1FC9E8"/></linearGradient></defs><rect width="48" height="48" rx="12" fill="#18191B"/><path id="lr" fill="#4B00E6"/><path id="lf" fill="url(#lg0)"/></svg><span>Left: our logo drawn with the same triangle used in every icon (circular corners, violet depth). Inside icons the triangle is the signature; the depth belongs to the logo and Today's mock.</span></div>
+
+
+
+<section class="opt">
+<h2>Signature triangle <span style="font:600 11px Inter;background:#475BFF;color:#fff;border-radius:999px;padding:2px 9px;vertical-align:middle">Chosen · v2</span></h2>
+<p class="lead" style="margin:0">Every icon carries the logo's rounded play triangle: the door of Home, the bookmark of Learn, the centre of the target, the stopwatch face, the vault dial, the keyhole, the Results arrow. When active, that triangle fills with the logo gradient.</p>
+<h3>All 9 · idle and active · 24 px</h3>
+<div class="board"><div class="grid" id="g1"></div></div>
+<h3>In use</h3>
+<div class="ctx"><div class="side" id="s1"></div><div class="right"><div class="phonebar" id="p1"></div><div class="cards" id="c1"></div><div class="btnrow" id="b1"></div></div></div>
+</section>
+
+<section>
+<h2>Built on a grid</h2>
+<p class="lead" style="margin-bottom:10px">All 9, active. 24 × 24 grid, 2 px safe area, 1.75 stroke, rounded ends and corners (radius matches the logo's softness). Shown at 120 px.</p>
+<div class="big" id="bigs"></div>
+</section>
+
+<section>
+<h2>Rules for the final set</h2>
+<ul class="rules">
+<li><strong>Brand icons = core loop only</strong><span>Home, Learn, Practice, Mocks, Today's mock, Current Affairs, Results, Mistake Vault, Memory Lock. Everything else uses standard icons styled to match.</span></li>
+<li><strong>Logo colours only when active</strong><span>Idle icons are slate. Cyan → violet appears only on the active item (and the Today's mock button), never as decoration.</span></li>
+<li><strong>Three sizes drawn</strong><span>16 (simplified), 20/24 (standard), 32+ (cards, empty states). Each checked by eye at its size.</span></li>
+<li><strong>Delivered as code</strong><span>SVG masters + one React icon component with a name map; no icon font, no images, works in dark mode later.</span></li>
+<li><strong>Accessible</strong><span>Icons are decorative next to labels (aria-hidden); icon-only buttons carry aria-label + tooltip.</span></li>
+<li><strong>No emoji, no stock icons for core features</strong><span>One family, one meaning per icon, everywhere.</span></li>
+</ul>
+</section>
+</div>
+
+<script>
+const SL='#5B6070', AC='#3A4BEB';
+let uid=0;
+function rt(cx,cy,s,rot=0){ // logo-fitted rounded triangle (circular fillets), s = height of shape
+  const W=0.925,R=0.21,BX=0.3467,BY=0.5,BH=0.7155,sc=s/BH;
+  const P=[[0,0],[W,.5],[0,1]];
+  const T=q=>[(cx+(q[0]-BX)*sc).toFixed(3),(cy+(q[1]-BY)*sc).toFixed(3)];
+  let d='';
+  P.forEach((p1,i)=>{const p0=P[(i+2)%3],p2=P[(i+1)%3];
+    const u=[p0[0]-p1[0],p0[1]-p1[1]],v=[p2[0]-p1[0],p2[1]-p1[1]],lu=Math.hypot(...u),lv=Math.hypot(...v);
+    const un=[u[0]/lu,u[1]/lu],vn=[v[0]/lv,v[1]/lv],th=Math.acos(un[0]*vn[0]+un[1]*vn[1]),tt=R/Math.tan(th/2);
+    const A=T([p1[0]+un[0]*tt,p1[1]+un[1]*tt]),B=T([p1[0]+vn[0]*tt,p1[1]+vn[1]*tt]),r=(R*sc).toFixed(3);
+    d+=(i?'L':'M')+A.join(' ')+` A${r} ${r} 0 0 1 `+B.join(' ')+' ';});
+  d+='Z';return rot?`<path d="${d}" transform="rotate(${rot} ${cx} ${cy})" SIG/>`:`<path d="${d}" SIG/>`;
+}
+// icon definitions: sil = main silhouette (closed), det = details, sig = signature triangle (dir1), det2 = details for dir2
+const IC={
+ home:{n:'Home',sil:'M4 10.2 11 4.4a1.6 1.6 0 0 1 2 0l7 5.8V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',det:'',sig:rt(12.2,15.4,5.4),det2:'M10 21v-4.5a2 2 0 0 1 4 0V21'},
+ learn:{n:'Learn',sil:'M12 6.6C10 5.1 7 4.6 3.5 5v13.6c3.5-.4 6.5.1 8.5 1.6 2-1.5 5-2 8.5-1.6V5C17 4.6 14 5.1 12 6.6z',det:'M12 6.6v13.6',sig:rt(16.4,7.4,4.6,90),det2:'M12 6.6v13.6M15 9.5h3M15 12.5h3'},
+ practice:{n:'Practice',sil:'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z',det:'M12 7.2a4.8 4.8 0 1 1 0 9.6 4.8 4.8 0 0 1 0-9.6z',sig:rt(12.3,12,4.6),det2:'M12 7.2a4.8 4.8 0 1 1 0 9.6 4.8 4.8 0 0 1 0-9.6zM12 10.8a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z'},
+ mocks:{n:'Mocks',sil:'M12 5.6a8 8 0 1 1 0 16 8 8 0 0 1 0-16z',det:'M10 2.6h4M12 2.6v3M18.4 6.6l1.3-1.3',sig:rt(12.4,13.6,6),det2:'M10 2.6h4M12 2.6v3M18.4 6.6l1.3-1.3M12 13.6V9.8M12 13.6l2.8 1.8'},
+ today:{n:"Today's mock",sil:null,det:'',sig:rt(11.2,11.4,17),det2:''},
+ ca:{n:'Current Affairs',sil:'M6 3.8h10a2 2 0 0 1 2 2V18a2.2 2.2 0 0 0 2.2 2.2H6A2.2 2.2 0 0 1 3.8 18V6a2.2 2.2 0 0 1 2.2-2.2z',det:'M18 8.5h1.4A1.6 1.6 0 0 1 21 10.1V18a2.2 2.2 0 0 1-2.2 2.2M11.5 8.2h3M11.5 11h3M7 14.5h7.5M7 17.2h5',sig:rt(8.4,9.6,4.6),det2:'M18 8.5h1.4A1.6 1.6 0 0 1 21 10.1V18a2.2 2.2 0 0 1-2.2 2.2M7 7.5h7.5M7 11h7.5M7 14.5h7.5M7 17.2h5'},
+ results:{n:'Results',sil:'M4 14.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5V20H4zM10 11a1.5 1.5 0 0 1 1.5-1.5h1A1.5 1.5 0 0 1 14 11v9h-4zM16 12a1.5 1.5 0 0 1 1.5-1.5h1A1.5 1.5 0 0 1 20 12v8h-4z',det:'M3 20.5h18',sig:rt(18,5.2,4.6,-90),det2:'M3 20.5h18M16.5 6.5 18 4l1.5 2.5'},
+ vault:{n:'Mistake Vault',sil:'M6 4h12a2.5 2.5 0 0 1 2.5 2.5v10A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5v-10A2.5 2.5 0 0 1 6 4z',det:'M7 19v1.6M17 19v1.6M17.3 9.8v3.4M10.8 8a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7z',sig:rt(11,11.5,3.6),det2:'M7 19v1.6M17 19v1.6M17.3 9.8v3.4M10.8 8a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM10.8 11.5l1.7-1.1'},
+ lock:{n:'Memory Lock',sil:'M7.5 10.5h9a2.5 2.5 0 0 1 2.5 2.5v5.5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 18.5V13a2.5 2.5 0 0 1 2.5-2.5z',det:'M8 10.5V8a4 4 0 0 1 8 0v2.5',sig:rt(12.2,15.7,4.4),det2:'M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.5v2.5'}
+};
+const ORDER=['home','learn','practice','mocks','today','ca','results','vault','lock'];
+const grad=(id)=>`<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22E3F2"/><stop offset=".55" stop-color="#475BFF"/><stop offset="1" stop-color="#4B00E6"/></linearGradient><linearGradient id="${id}c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FF0F7"/><stop offset="1" stop-color="#1FC9E8"/></linearGradient></defs>`;
+function d1(k,size=24,active=false,onBlue=false){
+  const c=IC[k];const id='gradA'+(uid++);const col=onBlue?'#fff':(active?AC:SL);
+  let sigAttr= active||onBlue ? `fill="${onBlue?'#fff':`url(#${id})`}" stroke="none"` : `fill="none" stroke="${col}"`;
+  if(k==='today'){ // the logo shape
+    const back=c.sig.replace('SIG',`fill="${onBlue?'rgba(255,255,255,.35)':(active?'#4B00E6':'none')}" stroke="${active||onBlue?'none':'#C9CDF2'}" transform="translate(2 0.95)"`);
+    const front=c.sig.replace('SIG',active&&!onBlue?`fill="url(#${id}c)" stroke="none"`:sigAttr);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${grad(id)}${back}${front}</svg>`;
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${grad(id)}<path d="${c.sil}"/>${c.det?`<path d="${c.det}"/>`:''}${c.sig.replace('SIG',sigAttr)}</svg>`;
+}
+function d2(k,size=24,active=false,onBlue=false){
+  const c=IC[k];const id='gradB'+(uid++);
+  const silD = k==='today' ? null : c.sil;
+  const shape = silD ? `<path d="${silD}" XX/>` : c.sig.replace('SIG','XX');
+  let back,front,det;
+  if(onBlue){back=shape.replace('XX','fill="rgba(255,255,255,.35)" stroke="none" transform="translate(1.6 1.6)"');front=shape.replace('XX','fill="#fff" stroke="none"');det=`stroke="#475BFF"`;}
+  else if(active){back=shape.replace('XX','fill="#4B00E6" stroke="none" transform="translate(1.6 1.6)"');front=shape.replace('XX',`fill="url(#${id})" stroke="none"`);det='stroke="#fff"';}
+  else{back=shape.replace('XX','fill="none" stroke="#C9CDF2" transform="translate(1.6 1.6)"');front=shape.replace('XX',`fill="#fff" stroke="${SL}"`);det=`stroke="${SL}"`;}
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${grad(id)}${back}${front}${c.det2?`<path d="${c.det2}" ${det}/>`:''}</svg>`;
+}
+function grid(el,f){
+  let h='<span></span>'+ORDER.map(k=>`<span class="nm">${IC[k].n}</span>`).join('');
+  h+='<span class="rl">Idle</span>'+ORDER.map(k=>`<span class="cell">${f(k,24,false)}</span>`).join('');
+  h+='<span class="rl">Active</span>'+ORDER.map(k=>`<span class="cell act">${f(k,24,true)}</span>`).join('');
+  h+='<span class="rl">16 px</span>'+ORDER.map(k=>`<span class="cell">${f(k,16,false)}</span>`).join('');
+  h+='<span class="rl">32 px active</span>'+ORDER.map(k=>`<span class="cell">${f(k,32,true)}</span>`).join('');
+  el.innerHTML=h;
+}
+function ctx(n,f){
+  const NAV=[['home','Home'],['practice','Practice'],['mocks','Mocks'],['ca','Current Affairs'],['results','Results'],['vault','Mistake Vault'],['learn','Learn']];
+  document.getElementById('s'+n).innerHTML='<div class="lockup">'+f('today',24,true)+'Courage Library</div>'+NAV.map(([k,l])=>`<div class="ni${l==='Practice'?' on':''}">${f(k,20,l==='Practice')}${l}</div>`).join('');
+  const tabs=[['home','Home'],['practice','Practice'],null,['mocks','Mocks'],['ca','CA']];
+  document.getElementById('p'+n).innerHTML=tabs.map(t=>t?`<div class="tabi${t[1]==='Practice'?' on':''}">${f(t[0],22,t[1]==='Practice')}${t[1]}</div>`:`<div class="ctr"><span>${f('today',26,false,true)}</span>Today's mock</div>`).join('');
+  const CARDS=[['learn','Learn','Lessons by topic'],['practice','Practice','10 questions on weak topics'],['vault','Mistake Vault','27 mistakes to revise']];
+  document.getElementById('c'+n).innerHTML=CARDS.map(([k,b,s])=>`<div class="fc"><span class="fi">${f(k,26,true)}</span><b>${b}</b><small>${s}</small></div>`).join('');
+  document.getElementById('b'+n).innerHTML=`<span class="btn">${f('learn',18,false,true)}Learn: Number System</span><span class="btn">${f('today',18,false,true)}Start today's mock</span><span class="btn o">${f('vault',18,false)}Mistake Vault</span>`;
+}
+grid(document.getElementById('g1'),d1);ctx(1,d1);
+document.getElementById('bigs').innerHTML=['home','learn','practice','mocks','today','ca','results','vault','lock'].map(k=>`<div>${d1(k,110,true)}</div>`).join('');
+// logo ref
+const tri=rt(22,23,30).match(/d="([^"]+)"/)[1];
+document.getElementById('lf').setAttribute('d',tri);document.getElementById('lr').setAttribute('d',tri);document.getElementById('lr').setAttribute('transform','translate(3.6 1.65)');
+</script>
