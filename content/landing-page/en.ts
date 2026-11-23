@@ -128,5 +128,25 @@ export const LANDING_EN: LandingCopy = {
     ],
   },
   final: { h2: "Your next attempt starts today", text: "Pick your exam, take a free mock and see exactly what to fix." },
-
+  footer: {
+    purpose: "We give every aspirant the courage to attempt again and the clarity to do better each time.",
+    made: "Made for aspirants, in Hindi and English",
+    madePending: "Made for government-exam aspirants",
+    platform: "Platform",
+    company: "Company",
+    legal: "Legal",
+    links: {
+      exams: "Exams",
+      mockTests: "Mock tests",
+      currentAffairs: "Current affairs",
+      about: "About",
+      library: "Library in Kanpur",
+      contact: "Contact",
+      help: "Help",
+      terms: "Terms",
+      privacy: "Privacy",
+      refund: "Refund policy",
+      grievance: "Grievance officer",
+    },
+  },
 };

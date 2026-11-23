@@ -112,10 +112,8 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   });
 
   await test('SP-03 footer + sitemap; 48 px links; English UI', () => {
-    // FOOTER-1 (re-pointed, rule kept): THE public footer links Help centre (/help) and Contact (/contact — the
-    // Contact & Grievance page) on every visitor page; THE student line links both too (gated in full: FOOTER-1 F-7 / F-9)
-    const fl = read('lib/site/footer-links.ts');
-    assert(/help: "\/help",/.test(fl) && /contact: "\/contact",/.test(fl) && /\{ label: t\.help, href: FOOTER_ROUTES\.help \}/.test(fl) && /\{ label: t\.contact, href: FOOTER_ROUTES\.contact \}/.test(fl) && /\{ label: "Help", href: FOOTER_ROUTES\.help \}/.test(fl), 'footer links');
+    const pp = read('content/public-pages.ts');
+    assert(/\{ href: "\/help", label: "Help" \}/.test(pp) && /\{ href: "\/contact", label: "Contact & Grievance" \}/.test(pp), 'footer links');
     assert(/"\/help",[^\]]*"\/contact"/.test(read('app/sitemap.ts')), 'sitemap');
     for (const f of ['app/(site)/help/page.tsx', 'components/legal/legal-document.tsx']) {
       const s = read(f);

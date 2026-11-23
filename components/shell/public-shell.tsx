@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
+import { isFeatureEnabled } from "@/config/features";
+import { isPracticeEnabled } from "@/lib/practice/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
+import { loadBrandAssets } from "@/lib/brand/brand-assets";
+import { loadPublicCategoriesCached } from "@/lib/exams/category-data";
 import { loadNavLive } from "@/lib/nav/live-categories";
 import { VisitorHeader } from "@/components/nav/visitor-header";
 import { NAV_EN } from "@/content/nav/labels";
 import { navCategories, startAction } from "@/lib/nav/visitor-nav";
-import { PublicFooter } from "@/components/footer/public-footer";
-import { FOOTER_EN } from "@/content/footer";
-import { isPaymentsEnabled } from "@/config/payments";
+import type { ShellFlags } from "./nav-config";
+import { SiteFooter } from "./site-footer";
 
 /**
  * PERF-HOME-1: the shell of the CACHED public pages. It reads no cookie and no request header (the page stays static /
@@ -23,10 +26,9 @@ function signupOpen(): Promise<boolean> {
 // bounded and never reject (closed sign-up view / no category links on failure).
 
 export async function PublicShell({ children }: { children: ReactNode }) {
-  // NAV-1: the live categories for the Exams menu — the landing's cached public read, bounded (never rejects, ≤ 800 ms);
-  // FOOTER-1: the footer's Exams column reuses the SAME read (no extra query)
-  const [signup, live] = await Promise.all([signupOpen(), loadNavLive()]);
-  const categories = navCategories(NAV_EN, live);
+  const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
+  // NAV-1: the live categories for the Exams menu — the landing's cached public read, bounded (never rejects, ≤ 800 ms)
+  const [brand, signup, categories, live] = await Promise.all([loadBrandAssets(), signupOpen(), loadPublicCategoriesCached(), loadNavLive()]);
   return (
     <>
       <a
@@ -36,12 +38,11 @@ export async function PublicShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       {/* NAV-1 Stage A: THE visitor header (both link sets; the pre-paint data-auth hint shows one) */}
-      <VisitorHeader t={NAV_EN} homeHref="/" langSwitch={false} categories={categories} start={startAction(NAV_EN, signup)} auth="hint" />
+      <VisitorHeader t={NAV_EN} homeHref="/" langSwitch={false} categories={navCategories(NAV_EN, live)} start={startAction(NAV_EN, signup)} auth="hint" />
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}
       </main>
-      {/* FOOTER-1: THE public footer; the band hides for a signed-in visitor by the pre-paint data-auth hint (cached page) */}
-      <PublicFooter t={FOOTER_EN} categories={categories} band={{ open: signup, authHint: true }} langSwitch={null} paymentsEnabled={isPaymentsEnabled()} />
+      <SiteFooter flags={flags} categories={categories} logo={brand.footerLogo} />
       {/* NAV-1 Stage B (owner: navigation by session): the cached pages are visitor pages — a signed-in visitor sees
           "Go to dashboard" in THE visitor header (pre-paint hint); no student bar is built here */}
     </>

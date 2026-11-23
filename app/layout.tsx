@@ -8,7 +8,6 @@ import { NAV_PREFS_SCRIPT } from "@/lib/ui/nav-prefs";
 import "./globals.css";
 import "./nav.css";
 import "./nav-student.css";
-import "./footer.css";
 
 // BRAND-2 (bilingual typography) + BUILD-FONT-1: the three families are committed woff2 files in app/fonts (SIL OFL 1.1,
 // see app/fonts/NOTICE.md) loaded by next/font/local — the build never fetches from Google. Each subset is its own

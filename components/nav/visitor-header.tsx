@@ -64,8 +64,7 @@ async function ResolvedCategories({ categories, render }: { categories: Promise<
   return <>{render(await categories)}</>;
 }
 
-/** FOOTER-1 reuses THE switch (same component + behaviour) in the public footer on / and /hi only. */
-export function LangSwitch({ t, className }: { t: NavLabels; className: string }) {
+function LangSwitch({ t, className }: { t: NavLabels; className: string }) {
   return (
     <nav className={className} aria-label={t.languageSwitch} data-lang-switch="">
       <Link href="/" hrefLang="en" lang="en" aria-current={t.lang === "en" ? "page" : undefined}>

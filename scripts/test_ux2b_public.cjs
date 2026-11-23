@@ -82,9 +82,7 @@ const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/
 
 async function offline() {
   await test('P-1 copy: no numbers except the documented facts (founding year 2024; CNTS Classes 5–8)', () => {
-    // FOOTER-1 (re-pointed, rule kept): the footer's public copy moved from content/public-pages.ts to content/footer.ts —
-    // both are scanned
-    const src = code(read(COPY)) + '\n' + code(read('content/footer.ts'));
+    const src = code(read(COPY));
     const strings = [...src.matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`]*)`/g)].map((m) => m[1] ?? m[2]);
     assert(strings.length >= 60, `only ${strings.length} strings scanned (min 60)`); // GATE-HYGIENE-1
     const bad = [];
@@ -138,14 +136,9 @@ async function offline() {
 
   await test('P-4 every internal href in the new pages, components and copy resolves to a route', () => {
     const hrefs = new Set();
-    for (const f of [...NEW_PAGES, ...NEW_COMPONENTS, COPY]) {
+    for (const f of [...NEW_PAGES, ...NEW_COMPONENTS, COPY, 'components/shell/nav-config.ts']) {
       for (const m of read(f).matchAll(/href(?:=|: )"(\/[^"]*)"/g)) hrefs.add(m[1]);
     }
-    // FOOTER-1 (re-pointed, rule kept): the footer links (formerly nav-config FOOTER_NAV / FOOTER_LEGAL) are FOOTER_ROUTES;
-    // Learn is linked only once the Learn index exists
-    const fr = read('lib/site/footer-links.ts');
-    const table = fr.slice(fr.indexOf('export const FOOTER_ROUTES = {'), fr.indexOf('} as const;', fr.indexOf('export const FOOTER_ROUTES = {')));
-    for (const m of table.matchAll(/:\s*"(\/[^"]*)"/g)) if (m[1] !== '/learn') hrefs.add(m[1]);
     assert(hrefs.size >= 10, `only ${hrefs.size} hrefs (min 10)`);
     const dead = [...hrefs].filter((h) => !routeExists(h));
     assert(dead.length === 0, `no route for: ${dead.join(', ')}`);

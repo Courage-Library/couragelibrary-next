@@ -81,7 +81,7 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   const pub = code(read('components/shell/public-shell.tsx'));
   // PERF-HOME-1b: the cached shell reads it before rendering (background ISR) through the never-rejecting, bounded
   // signupOpen() (a failure → closed); the session AppShell keeps streaming it (checked above)
-  assert(/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[signupOpen\(\), loadNavLive\(\)\]\)/.test(pub) /* FOOTER-1: the brand + category reads only fed the old footer */ && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
+  assert(/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[loadBrandAssets\(\), signupOpen\(\), loadPublicCategoriesCached\(\), loadNavLive\(\)\]\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
   assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');
@@ -98,9 +98,8 @@ test('X-02 the closing "Create a free account" line is not rendered', () => {
 
 const HIDDEN = ['/flashcards', '/descriptive', '/community', '/institutes', '/articles'];
 test('X-03 no nav / footer link to unready routes; they are noindex; /flashcards not in the sitemap', () => {
-  // FOOTER-1 (re-pointed, rule kept): the footer links live in lib/site/footer-links.ts + the two footer components
-  const nav = code(read('lib/site/footer-links.ts') + read('components/footer/public-footer.tsx') + read('components/footer/student-footer.tsx') + read('lib/nav/visitor-nav.ts') + read('lib/nav/student-nav.ts'));
-  const linked = HIDDEN.filter((r) => new RegExp(`(?:href: |: )"${r}"`).test(nav));
+  const nav = code(read('components/shell/nav-config.ts'));
+  const linked = HIDDEN.filter((r) => new RegExp(`href: "${r}"`).test(nav));
   assert(linked.length === 0, `still linked: ${linked.join(', ')}`);
   for (const r of HIDDEN) {
     const seg = r.slice(1);
@@ -163,13 +162,17 @@ test('X-08 exam cards: one stretched link per card, the cue is decorative', () =
 });
 
 test('X-09 the /practice nav label is "Mistake drills" (F2: "Practice" once topic practice is on; drills stay a separate entry)', () => {
-  // FOOTER-1 (re-pointed, rule kept): the owner's footer columns have no /practice or drills link at all, so the footer
-  // can never mislabel /practice; THE student nav shows "Practice" → /practice ONLY with PRACTICE on
-  const fl = read('lib/site/footer-links.ts') + read('components/footer/public-footer.tsx') + read('components/footer/student-footer.tsx');
-  assert(!/\/practice|\/mistakes\/drill/.test(fl), 'a footer links /practice or the drills (not in the FOOTER-1 columns)');
+  const nav = read('components/shell/nav-config.ts');
+  const items = [...nav.matchAll(/\{ href: "(\/practice|\/mistakes\/drill)", label: "([^"]+)"(?:, (flag|unlessFlag): "([A-Z]+)")? \}/g)].map((m) => ({ href: m[1], label: m[2], kind: m[3] || null, flag: m[4] || null }));
+  const off = items.filter((i) => i.href === '/practice' && i.kind !== 'flag');
+  const on = items.filter((i) => i.kind === 'flag' && i.flag === 'PRACTICE');
+  // NAV-1 Stage B: the header "Learn" menu is gone; the footer keeps the flag-off / flag-on entries, and THE student nav
+  // shows "Practice" → /practice ONLY with PRACTICE on (never a mislabelled /practice link)
+  assert(off.length >= 1 && off.every((i) => i.label === 'Mistake drills' && i.kind === 'unlessFlag' && i.flag === 'PRACTICE'), `flag off: ${JSON.stringify(off)}`);
+  assert(on.length >= 2 && on.filter((i) => i.href === '/practice').every((i) => i.label === 'Practice') && on.filter((i) => i.href === '/mistakes/drill').every((i) => i.label === 'Mistake drills'), `flag on: ${JSON.stringify(on)}`);
   const sn = read('lib/nav/student-nav.ts');
   assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "book" \}\);/g) || []).length === 2 && (sn.match(/href: "\/practice"/g) || []).length === 2, 'student nav: Practice only with the flag (sidebar + bottom bar)');
-  return 'no footer /practice link · student nav gated';
+  return `${off.length} flag-off + ${on.length} flag-on entries`;
 });
 
 test('X-10 one spelling: no "practise" forms in public copy', () => {

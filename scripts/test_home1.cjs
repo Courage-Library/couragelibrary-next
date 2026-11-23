@@ -124,12 +124,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
   });
 
   await test('H-5 R10 targets + readability: footer 48×48 + <details> on phones, menu actions lg, dialog close 48, home chips ≥ 14 px', () => {
-    // FOOTER-1 (re-pointed, rule kept): THE public footer keeps 48 px targets on phones and the not-affiliated line; the
-    // owner's FOOTER-1 spec shows every link on phones (2 × 2 grid) instead of <details> accordions
-    const f = read('components/footer/public-footer.tsx');
-    const fcss = read('app/footer.css');
-    const phone = (fcss.match(/@media \(max-width: 899\.98px\) \{([\s\S]*?)\n\}/) || [])[1] || '';
-    assert(/\.cl-ft__a,\s*\.cl-ft__lib,\s*\.cl-ft__mail \{\s*min-height: 48px;/.test(phone) && /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/.test(phone) && !/<details/.test(f) && /data-not-affiliated/.test(f), 'footer');
+    const f = read('components/shell/site-footer.tsx');
+    assert(/min-h-12 min-w-12/.test(f) && /<details key=\{g\.heading\}/.test(f) && /md:hidden/.test(f) && /data-not-affiliated/.test(f), 'footer');
     // NAV-1 Stage A (re-pointed, rule kept): the signed-out phone menu is the shared visitor header's drawer — its Sign in
     // and start actions are full-width 48 px buttons
     const vh = read('components/nav/visitor-header.tsx');
@@ -219,9 +215,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const faq = s.slice(s.indexOf('export function LandingFaq'), s.indexOf('export function faqJsonLd'));
     assert(/<ChevronDown aria-hidden="true" data-faq-chevron="" className="[^"]*group-open:rotate-180/.test(faq) && !/ArrowRight/.test(faq) && /<details key=\{f\.q\}/.test(faq), 'FAQ chevron');
     const pp = require(path.join(ROOT, 'content/public-pages.ts'));
-    // FOOTER-1 (re-pointed, rule kept): the legal labels live in THE footer's copy (content/footer.ts)
-    const fc = read('content/footer.ts');
-    assert(/privacy: "Privacy Policy"/.test(fc) && /terms: "Terms of Use"/.test(fc) && !/draft/i.test(fc) && !('FOOTER_ABOUT' in pp), 'footer legal labels');
+    const legal = JSON.stringify(pp.FOOTER_ABOUT.legal);
+    assert(/"label":"Privacy"/.test(legal) && /"label":"Terms"/.test(legal) && !/draft/i.test(legal), 'footer legal labels');
     // LEGAL-PAGES-1: the drafts are replaced by the owner-approved text (content/legal), so no draft title remains
     assert(!/\(draft\)/i.test(read('content/public-pages.ts')) && /title: "Privacy Policy"/.test(read('content/legal/index.ts')) && /title: "Terms of Service"/.test(read('content/legal/index.ts')), 'legal pages carry their approved titles');
     const C = require(path.join(ROOT, CONTENT));
@@ -257,27 +252,24 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/GlassNav|glass-light/.test(h.replace('<header className="cl-vh"', '<header className="glass-light"')), 'negative control');
   });
 
-  // FOOTER-1 (owner spec 23 Nov 2026, re-pointed; the rule — every footer text ≥ 4.5:1 computed from the tokens, a visible
-  // focus ring — is kept): THE public footer is the light cl-cloud footer with a cl-line top border (replaces the navy
-  // design); every link is visible on phones (no accordions: FOOTER-1 §2.8)
-  await test('H-11 footer (FOOTER-1): cl-cloud surface, cl-line top border, every text ≥ 4.5:1 (computed from tokens), visible focus ring, no accordions', () => {
-    const f = read('components/footer/public-footer.tsx');
-    const fcss = read('app/footer.css');
+  await test('H-11 footer: deep navy, white headings, light-slate links (≥ 4.5:1, computed from tokens), cyan top line, on-dark focus ring; accordions keep native <details>', () => {
+    const f = read('components/shell/site-footer.tsx');
     const css = read('app/globals.css');
     const hex = (name) => { const m = css.match(new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, 'i')); return m && m[1]; };
     const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
     const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-    const cloud = hex('cl-cloud');
-    assert(/\.cl-ft \{\s*background: var\(--color-cl-cloud\);\s*border-top: 1px solid var\(--color-cl-line\);\s*color: var\(--color-cl-slate\);/.test(fcss), 'cl-cloud surface, cl-line top border, cl-slate text');
-    const pairsNow = [['cl-slate', 'text / links / muted'], ['cl-charcoal', 'headings'], ['cl-blue-text', 'more / library links']].map(([t, what]) => [what, ratio(hex(t), cloud)]);
-    const band = (css.match(/--cl-band: linear-gradient\(135deg, (#[0-9a-f]{6}) 0%, (#[0-9a-f]{6}) 45%, (#[0-9a-f]{6}) 100%\);/i) || []).slice(1);
-    const bandR = band.map((stop) => ratio('#ffffff', stop));
-    const ctaR = ratio(hex('cl-blue-deep'), '#ffffff');
-    assert(pairsNow.every(([, r]) => r >= 4.5) && band.length === 3 && bandR.every((r) => r >= 4.5) && ctaR >= 4.5, `contrast ${pairsNow.map(([w, r]) => `${w} ${r.toFixed(2)}`).join(', ')} · band ${bandR.map((r) => r.toFixed(2)).join(' / ')} · CTA ${ctaR.toFixed(2)}`);
-    assert(ratio(hex('cl-silver'), cloud) < 4.5, 'negative control: cl-silver (the reference\'s muted grey) on cl-cloud would fail — muted items use cl-slate');
-    assert(/\.cl-ft a:focus-visible,[\s\S]*?outline: 2px solid var\(--color-cl-blue\);/.test(fcss), 'visible focus ring');
-    assert(!/<details/.test(f) && /<footer className="cl-ft"/.test(f), 'no accordions; THE footer landmark');
-    return `${pairsNow.map(([w, r]) => `${w} ${r.toFixed(1)}:1`).join(' · ')} · band min ${Math.min(...bandR).toFixed(1)}:1`;
+    const navy = hex('ink-900');
+    assert(navy && navy.toLowerCase() === '#0b1b4d', `ink-900 ${navy}`);
+    const linkR = ratio(hex('ink-300'), navy);
+    const headR = ratio('#ffffff', navy);
+    assert(linkR >= 4.5 && headR >= 4.5, `contrast links ${linkR.toFixed(2)} / headings ${headR.toFixed(2)}`);
+    assert(ratio(hex('ink-500'), navy) < 4.5, 'negative control: ink-500 on navy would fail');
+    assert(/<footer className="border-t-2 border-accent-400 bg-ink-900 text-ink-300" data-footer-navy="">/.test(f) && /focus-ring-on-dark inline-flex min-h-12 min-w-12[^"]*text-ink-300/.test(f), 'navy footer, cyan line, light links, on-dark focus');
+    assert(!/text-fg-secondary|text-fg"|bg-surface|divide-line|border-line/.test(f), 'no light-theme text / surface classes left on navy');
+    assert(/<details key=\{g\.heading\} className="group">/.test(f) && /<summary className="focus-ring-on-dark[^"]*text-fg-inverse/.test(f) && /ChevronDown aria-hidden="true" className="size-5 text-ink-300/.test(f), 'accordions on navy: chevron + focus ring visible');
+    const pairs = JSON.parse(read('components/ui/contrast-pairs.json')).pairs;
+    assert(pairs.some((p) => p.fg === 'ink-300' && p.bg === 'ink-900' && p.kind === 'text') && pairs.some((p) => p.fg === 'fg-inverse' && p.bg === 'ink-900'), 'pairs registered (R-5)');
+    return `links ${linkR.toFixed(2)}:1, headings ${headR.toFixed(2)}:1`;
   });
 
   await test('H-12 How it works = the connected loop: 5 steps, 4 arrows + 4 timeline lines, a return to step 1 (desktop line + phone row), each step a real screenshot; depth only in hero + final CTA', () => {
@@ -370,13 +362,10 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     // (backlog: the upload no longer affects the headers)
     const vhs = read('components/nav/visitor-header.tsx') + read('components/nav/student-shell.tsx');
     assert(/"\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg"/.test(vhs) && /\/brand\/courage-library-logo-suite\/svg\/mark\.svg/.test(vhs) && !/data-brand-monogram/.test(vhs) && /width=\{Math\.round\(LOGO_RATIO \* 30\)\} height=\{30\}/.test(vhs), 'headers use the final logo suite, sized');
-    // FOOTER-1 (owner spec: "logo lockup (public/brand)"): THE public footer also shows the static logo-suite lockup, sized
-    // (never the monogram, no shift) — so the shells no longer read the uploaded brand assets (the read only fed the old
-    // footer): the official logo is the default everywhere and nothing waits on a brand read (backlog: the admin upload)
-    const pf = read('components/footer/public-footer.tsx');
-    assert(/const LOGO = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg";/.test(pf) && /width=\{Math\.round\(LOGO_RATIO \* 28\)\} height=\{28\}/.test(pf) && !/data-brand-monogram|BrandWordmark/.test(pf), 'footer: the final logo suite, sized');
+    assert(/<BrandWordmark size="sm" tone="white" logo=\{logo\} \/>/.test(read('components/shell/site-footer.tsx')), 'footer');
     const shell = read('components/shell/app-shell.tsx');
-    assert(!/loadBrandAssets/.test(shell + read('components/shell/public-shell.tsx')) && /const \[session, pathname\] = await Promise\.all\(\[/.test(shell), 'shell: no brand read left (it only fed the old footer); the session read stays parallel to the path');
+    // NAV-1: the same Promise.all also reads the forwarded path (after the brand read) — the rule is unchanged
+    assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),[\s\S]*?\]\)/.test(shell) && /const \[session, brand, pathname\] = await Promise\.all\(\[/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone (NAV-1: it drives the footer; the headers show the final logo suite)');
     const meta = read('lib/seo/metadata.ts');
     // SEO-1 (owner, 2026-11-22): the site icons moved to the final logo suite (static files, lib/seo/brand-icons.ts; sizes and
     // files gated in scripts/test_seo1.cjs S1-3). The /brand/icon/[size] route stays for old links; the header / footer

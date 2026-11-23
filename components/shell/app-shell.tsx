@@ -16,22 +16,21 @@ import { paywallOnForNav } from "@/lib/access/policy";
 import { ONBOARDING_COPY } from "@/content/onboarding";
 import type { ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
-import { PublicFooter } from "@/components/footer/public-footer";
-import { StudentFooter } from "@/components/footer/student-footer";
-import { FOOTER_EN } from "@/content/footer";
-import { bandAllowed } from "@/lib/site/footer-links";
+import { SiteFooter } from "./site-footer";
+import { loadPublicCategories } from "@/lib/exams/category-data";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 import { isProfilesEnabled } from "@/lib/profile/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 import { isCoinsEnabled, isLessonCoinsEarnEnabled } from "@/lib/coins/flag";
 import { CoinsFlagProvider } from "@/lib/coins/flag-context";
+import { loadBrandAssets } from "@/lib/brand/brand-assets";
 
 /**
  * UX-1b app shell around every route: skip link, <main id="main-content">, footer. NAV-1: signed out → THE visitor
  * header (Stage A); signed in → THE student shell (Stage B: sidebar / top bar / bottom bar); a live exam attempt → exam
  * focus (only <main>: the exam console). Admin routes render only <main> (admin has its own layout).
- * Reads the session once (FOOTER-1: the brand-assets read only fed the old footer logo — the footers use the brand lockup). <main> is at least one viewport tall so the footer starts
+ * Reads the session once; the only other read is the cached, bounded brand-assets read (HOME-1, 131). <main> is at least one viewport tall so the footer starts
  * below the fold and never jumps while page content streams in (CLS).
  */
 /** Never rejects; streamed to the header so no page waits on the Supabase setting (UX-FIX-1, AUTH1-RESILIENCE-HANG). */
@@ -62,11 +61,13 @@ function SignedOutHeader({ pathname }: { pathname: string }) {
 export async function AppShell({ children }: { children: ReactNode }) {
   // AUTH-1 2a: tri-state session. "error" (Supabase unreachable) shows a retry banner instead of a signed-out shell.
   const supabase = await createServerSupabaseClient();
-  const [session, pathname] = await Promise.all([
+  // HOME-1 brand (131): the cached, bounded (≤ 800 ms, never rejects) brand read runs alongside the session read
+  const [session, brand, pathname] = await Promise.all([
     supabase.auth.getUser().then(
       ({ data, error }) => classifyAuthResult(data?.user ?? null, error),
       () => ({ state: "error" as const }),
     ),
+    loadBrandAssets(),
     // NAV-1: the path (forwarded by the middleware, SEC-1C) picks the header language and the active link
     headers().then((h) => h.get(PATHNAME_HEADER) ?? "/", () => "/"),
   ]);
@@ -104,18 +105,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  // FOOTER-1: a signed-in student gets THE student slim line; a visitor gets THE public footer (its Exams column and the
-  // band's start action stream in — the shell never waits); admin has no footer (its own layout)
-  const footer = <StudentFooter />;
-  const visitorFooter = pathname.startsWith("/admin") ? null : (
-    <PublicFooter
-      t={FOOTER_EN}
-      categories={loadNavLive().then((live) => navCategories(navLabels("en"), live))}
-      band={bandAllowed(pathname) ? { open: signupOpen(), authHint: false } : null}
-      langSwitch={null}
-      paymentsEnabled={isPaymentsEnabled()}
-    />
-  );
+  // HOME-1: the footer's category links stream in (never awaited here: the shell never waits for them)
+  const footer = <SiteFooter flags={flags} categories={loadPublicCategories()} logo={brand.footerLogo} />;
 
   // NAV-1 Stage B (owner: navigation BY SESSION): a signed-in user gets THE student shell on every per-request page;
   // admin keeps its own layout (unchanged)
@@ -149,7 +140,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {content}
       </main>
-      {visitorFooter}
+      {footer}
     </>
   );
 }

@@ -369,16 +369,6 @@ html[data-sidebar="collapsed"] .cl-ss__toggle .cl-ss__ic {
   .cl-ss__col {
     padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }
-  /* FOOTER-1 (owner decision 7, CSS only — no JS, no layout shift): a page bar fixed above the bottom nav (RESULT-UX-1
-     "Review N mistakes": 93 px incl. its 36 px zone for the raised centre button) or replacing it (the review bar,
-     65 px; the nav is hidden then) adds its height to the column padding, so the student slim line at the end of the
-     column is never under a bar */
-  .cl-ss__col:has([data-result-bar="summary"]) {
-    padding-bottom: calc(68px + 96px + env(safe-area-inset-bottom, 0px));
-  }
-  .cl-ss__col:has([data-result-bar="review"]) {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  }
   .cl-ss__acct[open] .cl-ss__backdrop {
     display: block;
     position: fixed;

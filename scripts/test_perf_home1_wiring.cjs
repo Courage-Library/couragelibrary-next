@@ -139,9 +139,7 @@ function check(files) {
     const pub = get('components/shell/public-shell.tsx');
     // NAV-1 Stage A (re-pointed, rule kept): the shared visitor header gets VALUES (the start action from the setting already
     // read, the categories from the live data already read) — never a promise on a cached page
-    // FOOTER-1 (re-pointed, rule kept + extended): the header AND THE public footer get the SAME resolved values — the
-    // categories built once from the live data already read, the band's sign-up state as the boolean already read
-    if (!/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) || !/const categories = navCategories\(NAV_EN, live\);/.test(pub) || (pub.match(/categories=\{categories\}/g) || []).length !== 2 || !/band=\{\{ open: signup, authHint: true \}\}/.test(pub) || /signup=\{signupOpen\(\)\}|start=\{signupOpen\(\)|open: signupOpen\(\)|categories=\{loadPublicCategoriesCached\(\)\}|loadLandingLiveData\(\)/.test(pub)) fails.push('W-7 public shell passes promises to the header / footer');
+    if (!/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) || !/categories=\{navCategories\(NAV_EN, live\)\}/.test(pub) || !/categories=\{categories\}/.test(pub) || /signup=\{signupOpen\(\)\}|start=\{signupOpen\(\)|categories=\{loadPublicCategoriesCached\(\)\}|loadLandingLiveData\(\)\}/.test(pub)) fails.push('W-7 public shell passes promises to the header / footer');
     const page = get('components/landing-v1/landing-page.tsx');
     if (!/start=\{\{ href: start\.href, label: start\.label \}\}/.test(page)) fails.push('W-7 the landing passes a promise (not the resolved start) to the visitor header');
   }
@@ -168,8 +166,7 @@ if (process.argv.includes('--self-test')) {
     ['a cached page with a streamed section', mutate('app/(landing)/page.tsx', '<LandingPageV1 ', '<Suspense fallback={null}><LandingPageV1 '), /W-7 app\/\(landing\)\/page\.tsx/],
     // NAV-1 Stage A: the visitor header takes the start action; streaming it would be a promise again
     ['a public shell streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'start={startAction(NAV_EN, signup)}', 'start={signupOpen().then((o) => startAction(NAV_EN, o))}'), /W-7 public shell/],
-    ['a public shell streaming the live categories', mutate('components/shell/public-shell.tsx', 'const categories = navCategories(NAV_EN, live);', 'const categories = loadLandingLiveData();'), /W-7 public shell/],
-    ['the footer band streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'band={{ open: signup, authHint: true }}', 'band={{ open: signupOpen(), authHint: true }}'), /W-7 public shell/],
+    ['a public shell streaming the live categories', mutate('components/shell/public-shell.tsx', 'categories={navCategories(NAV_EN, live)}', 'categories={loadLandingLiveData()}'), /W-7 public shell/],
     ['the landing streaming its start action', mutate('components/landing-v1/landing-page.tsx', 'start={{ href: start.href, label: start.label }}', 'start={Promise.resolve(start)}'), /W-7 the landing/],
     ['a cached exam hub (moved to the public group)', { [HUB]: null, [HUB_PUBLIC]: read(HUB) }, /W-3 the exam hub/],
   ];

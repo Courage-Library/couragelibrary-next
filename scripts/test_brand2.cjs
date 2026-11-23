@@ -369,7 +369,7 @@ async function offline() {
       // LEGAL-PAGES-1: the owner-approved legal text is held verbatim by LEGAL-PAGES-1; its "no guarantee" lines are
       // disclaimers, not advertising claims
       .filter((f) => rel(f) !== 'content/legal/legal-pages.ts')
-      .concat(['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-copy.ts', 'app/(public)/exams/page.tsx', 'components/footer/public-footer.tsx', 'components/footer/student-footer.tsx', 'lib/site/footer-links.ts', 'components/nav/visitor-header.tsx', 'components/nav/student-shell.tsx', 'content/nav/labels.ts'].map((f) => path.join(ROOT, f)));
+      .concat(['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-copy.ts', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/nav/visitor-header.tsx', 'components/nav/student-shell.tsx', 'content/nav/labels.ts'].map((f) => path.join(ROOT, f)));
     assert(files.length >= 20, `files ${files.length}`);
     const BANNED = [
       /guarantee/i, /\btoppers?\b/i, /\bAIR\s*-?\s*\d/i, /\brank\s*(?:#|no\.?\s*)?1\b/i, /server[- ]?(?:secure|authoritative)/i,

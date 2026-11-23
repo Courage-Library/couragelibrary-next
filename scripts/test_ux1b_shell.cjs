@@ -181,8 +181,7 @@ test('U-3 shell structure: skip link, one main, landmarks, dialog-based menus, s
   const css = read('app/nav-student.css');
   assert(/height: calc\(68px \+ env\(safe-area-inset-bottom, 0px\)\);/.test(css) && /\.cl-ss__col \{\s+padding-bottom: calc\(68px \+ env\(safe-area-inset-bottom, 0px\)\);/.test(css), 'safe-area padding and content cleared above the bar');
   assert(/export const EXAM_FOCUS_ROUTES/.test(read('lib/nav/student-nav.ts')), 'the bar must hide in the console (exam focus)');
-  // FOOTER-1 (re-pointed, rule kept): THE public footer and THE student line each render a <footer> landmark
-  assert(/<footer className="cl-ft"/.test(read('components/footer/public-footer.tsx')) && /<footer className="cl-sf"/.test(read('components/footer/student-footer.tsx')), 'footer landmark');
+  assert(/<footer /.test(read('components/shell/site-footer.tsx')), 'footer landmark');
   assert(/viewportFit: "cover"/.test(read('app/layout.tsx')), 'viewport-fit=cover needed for safe-area insets');
 });
 
