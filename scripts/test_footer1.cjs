@@ -21,6 +21,7 @@
  *       not-affiliated line in EN and HI
  *   F-9 student slim line: Help · Privacy · Terms · Refunds (+ Contact on desktop); 48 px rows on phones (R10); tokens only
  *   F-10 negative controls: each broken variant is caught
+ *   F-11 the band never waits on a DB / auth / settings read (R-6 follow-up): a value, no Suspense, no reads
  * Run: node scripts/test_footer1.cjs
  */
 const fs = require('fs');
@@ -237,8 +238,31 @@ function checkBand(overrides = {}) {
   const hint = renderPublic({ band: { open: true, authHint: true } }, overrides);
   assert(/<aside class="cl-ft-band auth-out"/.test(hint) && /html\[data-auth="in"\] \.auth-out/.test(read('app/globals.css')), 'signed-in hint does not hide the band on cached pages');
   assert(!/data-footer-band/.test(renderPublic({ band: null }, overrides)), 'band: null still renders');
-  assert(/band=\{bandAllowed\(pathname\) \? \{ open: signupOpen\(\), authHint: false \} : null\}/.test(code(SRC.app)) && /band=\{null\}/.test(code(SRC.landing)) && /band=\{\{ open: signup, authHint: true \}\}/.test(code(SRC.pub)), 'band wiring');
+  // R-6 follow-up (owner): per-request pages pass the safe default (no read); cached pages pass the value they resolved
+  assert(/band=\{bandAllowed\(pathname\) \? \{ open: false, authHint: false \} : null\}/.test(code(SRC.app)) && /band=\{null\}/.test(code(SRC.landing)) && /band=\{\{ open: signup, authHint: true \}\}/.test(code(SRC.pub)), 'band wiring');
   return 'open / closed / hint / landing + auth none';
+}
+
+/**
+ * F-11 (owner, R-6 follow-up): the band NEVER waits on a DB / auth / settings read on a request — `open` is a value (no
+ * promise, no Suspense, no async band component); the per-request shell passes a literal; the footer components call
+ * no auth / settings / data read themselves; the cached shell's value is read BEFORE rendering (ISR, not per request).
+ */
+const READ_CALLS = /getSignupAvailability|signupOpen\(|getUser\(|getSession\(|getServerSession|createServerSupabaseClient|createAdminServerSupabaseClient|\.rpc\(|\.from\(/;
+function checkNoBlockingBand(src = SRC) {
+  const pf = code(src.pf);
+  assert(/band: \{ open: boolean; authHint: boolean \} \| null;/.test(pf), 'the band takes a promise (it could wait on a read)');
+  assert(!/BandSlot|ResolvedBand/.test(pf) && !/open instanceof Promise/.test(pf), 'a streamed / awaited band slot is back');
+  for (const [n, s] of [['public-footer', pf], ['student-footer', code(src.sf)], ['footer-links', code(src.links)], ['footer-config', code(src.cfg)]]) {
+    const m = s.match(READ_CALLS);
+    assert(!m, `${n} reads auth / settings / data itself (${m && m[0]})`);
+  }
+  const app = code(src.app);
+  const bandArg = (app.match(/<PublicFooter[\s\S]*?band=\{([^\n]*)\}\n/) || [])[1] || '';
+  assert(/^bandAllowed\(pathname\) \? \{ open: false, authHint: false \} : null$/.test(bandArg.trim()), `the per-request band reads something: ${bandArg}`);
+  const pub = code(src.pub);
+  assert(/const \[signup, live\] = await Promise\.all\(\[signupOpen\(\), loadNavLive\(\)\]\);/.test(pub) && /band=\{\{ open: signup, authHint: true \}\}/.test(pub), 'the cached shell does not pass its already-resolved value');
+  return 'value only · no Suspense · no reads in the footer · per-request default "Explore exams"';
 }
 
 function checkLang(overrides = {}) {
@@ -317,6 +341,7 @@ function checkStudent(overrides = {}, css = SRC.css) {
     checkEmoji([['public', renderPublic()], ['hi', renderPublic({ lang: 'hi', langSwitch: true, band: null })], ['student', renderStudent()], ['payments', renderPublic({ payments: true })]]));
   await test('F-7 payment-gateway compliance links always present', () => checkCompliance());
   await test('F-8 trust line + not-affiliated line', () => checkTrust());
+  await test('F-11 the band never waits on a DB / auth / settings read (value only; per-request default "Explore exams")', () => checkNoBlockingBand());
   await test('F-9 student slim line; 48 px phone rows; tokens only', () => checkStudent());
 
   await test('F-10 negative controls: each broken variant is caught', () => {
@@ -336,7 +361,10 @@ function checkStudent(overrides = {}, css = SRC.css) {
       ['Daily free mock linked to a guess', () => checkRoutes({ [LINKS]: mut(SRC.links, '        { label: t.currentAffairs, href: FOOTER_ROUTES.currentAffairs },\n', '        { label: t.currentAffairs, href: FOOTER_ROUTES.currentAffairs },\n        { label: "Daily free mock", href: "/mock-tests" },\n') })],
       ['band on the landing', () => checkBand({ [LINKS]: mut(SRC.links, 'if (p === "/" || p === "/hi") return false;', '') })],
       ['band on auth pages', () => checkBand({ [LINKS]: mut(SRC.links, 'return !(p === "/auth" || p.startsWith("/auth/"));', 'return true;') })],
-      ['closed sign-up still links sign-up', () => checkBand({ [PF]: mut(SRC.pf, 'href={open ? FOOTER_ROUTES.signUp : FOOTER_ROUTES.exams}', 'href={FOOTER_ROUTES.signUp}') })],
+      ['closed sign-up still links sign-up', () => checkBand({ [PF]: mut(SRC.pf, 'href={band.open ? FOOTER_ROUTES.signUp : FOOTER_ROUTES.exams}', 'href={FOOTER_ROUTES.signUp}') })],
+      ['the per-request band waits on the sign-up read', () => checkNoBlockingBand({ ...SRC, app: mut(SRC.app, 'band={bandAllowed(pathname) ? { open: false, authHint: false } : null}', 'band={bandAllowed(pathname) ? { open: await signupOpen(), authHint: false } : null}') })],
+      ['the band takes a promise again', () => checkNoBlockingBand({ ...SRC, pf: mut(SRC.pf, 'band: { open: boolean; authHint: boolean } | null;', 'band: { open: boolean | Promise<boolean>; authHint: boolean } | null;') })],
+      ['the footer reads the setting itself', () => checkNoBlockingBand({ ...SRC, pf: mut(SRC.pf, 'const email = footerEmail();', 'const email = footerEmail();\n  void getSignupAvailability();') })],
       ['Hindi footer on /hi/learn', () => checkLang({ [LINKS]: mut(SRC.links, 'return (pathname.split(/[?#]/)[0] || "/") === "/hi" ? "hi" : "en";', 'return pathname.startsWith("/hi") ? "hi" : "en";') })],
       ['a missing Hindi string', () => checkLang({ [COPY]: mut(SRC.copy, 'helpLegal: "मदद और नियम",', 'helpLegal: "",') })],
       ['emoji in the footer', () => checkEmoji([['x', renderPublic({}, { [COPY]: mut(SRC.copy, 'bandTitle: "Start preparing today",', 'bandTitle: "Start preparing today \u{1F680}",') })]])],
