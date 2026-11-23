@@ -80,7 +80,9 @@ Production changes only after CI is green for that exact commit. Vercel Deployme
 3. **Pre-promotion smoke (`.github/workflows/deploy-smoke.yml`).** Vercel starts it with repository_dispatch
    `vercel.deployment.ready` (after the build, before promotion — https://vercel.com/docs/deployment-checks). Vercel's
    status action (pinned) reports `deploy-smoke` = pending, then failure / success, as a commit status on the
-   deployment's own commit (`client_payload.git.sha`), not on main's HEAD. In order, any failure → red:
+   deployment's own commit (`client_payload.git.sha`), not on main's HEAD. DEPLOY-GATE-1b: the payload environment is
+   checked FIRST — a non-production payload (a branch preview) is ignored: no `deploy-smoke` status at all, the job ends
+   green, the log says "non-production payload ignored" (host only). For a production payload, in order, any failure → red:
    - the payload: environment production, sha 40-hex, URL https on `couragelibrary-next-*.vercel.app`
      (`scripts/ci/pre-promotion.cjs --validate`); a bad payload never gets the bypass header;
    - the sha is on main (ancestor-or-equal);

@@ -20,6 +20,10 @@
  *   G-8 negative controls: each broken variant is caught
  *   G-9 no workflow job id / job name is "deploy-smoke"; the ONLY producer of the "deploy-smoke" status is the pinned
  *       Vercel status action in deploy-smoke.yml (no other status action, statuses: write, or direct status / check-run POST)
+ *   G-10 DEPLOY-GATE-1b (owner, 2026-11-23): the environment is checked FIRST; a payload whose environment is not exactly
+ *       "production" posts NO status and the job ends successfully (host-only log) — the check's own bash script is run
+ *       with GitHub's shell flags; for production the status step precedes all work (G-3) and a bad payload still fails
+ *       (G-4: e.g. a foreign host)
  * Run: node scripts/test_deploy_gate1.cjs
  */
 const fs = require('fs');
@@ -89,7 +93,7 @@ SRC.ds = read(DS);
 const STATUS_ACTION = /^vercel\/repository-dispatch\/actions\/status@[0-9a-f]{40}(?: #.*)?$/;
 const stepList = (wfText) => {
   const body = wfText.slice(wfText.indexOf('\n    steps:\n') + '\n    steps:\n'.length);
-  return body.split(/\n(?= {6}- (?:name|uses):)/);
+  return body.split(/\n(?= {6}- (?:name|uses):)/).map((s) => s.replace(/^ *#[^\n]*(\n|$)/gm, '')).filter((s) => s.trim());
 };
 const idx = (steps, re) => steps.findIndex((s) => re.test(s));
 
@@ -113,23 +117,69 @@ function checkDeploySmoke(ds, wf) {
   assert(!/(run|DEPLOY_URL):[^\n]*\$\{\{ *github\.event/.test(noEnvDefs) && !/\n {10}[^\n]*\$\{\{ *github\.event/.test(noEnvDefs), 'the payload is interpolated into a script / step (read it through env)');
   assert(/\n {6}PAYLOAD_ENV: \$\{\{ github\.event\.client_payload\.environment \}\}\n {6}PAYLOAD_SHA: \$\{\{ github\.event\.client_payload\.git\.sha \}\}\n {6}PAYLOAD_URL: \$\{\{ github\.event\.client_payload\.url \}\}\n/.test(ds), 'payload env missing');
   const steps = stepList(jobsBlock);
-  // the status action: FIRST step, pinned to a full sha, fixed name deploy-smoke
-  const first = steps[0] || '';
-  const uses = (first.match(/uses: ([^\n]*)/) || [])[1] || '';
-  assert(STATUS_ACTION.test(uses) && /\n {8}with:\n {10}name: deploy-smoke$/.test(first.replace(/\n+$/, '')), `the first step is not Vercel's pinned status action named deploy-smoke: ${uses}`);
-  const iValidate = idx(steps, /id: payload\n\s+run: node scripts\/ci\/pre-promotion\.cjs --validate$/);
+  // DEPLOY-GATE-1b: the environment check is the FIRST step — no `uses`, no if, no status / network call; it only
+  // writes prod=true|false. Then the status action (SECOND step, only for production), pinned, fixed name deploy-smoke.
+  const envStep = steps[0] || '';
+  assert(/^ {6}- name: Ignore non-production payloads[^\n]*\n {8}id: env\n {8}run: \|/.test(envStep) && !/uses:|\n {8}if:|gh api|curl|statuses|exit 1/.test(envStep), 'the environment check is not the first step (or it can be skipped / posts something / fails)');
+  const PROD = "if: steps.env.outputs.prod == 'true'";
+  const status = steps[1] || '';
+  const uses = (status.match(/uses: ([^\n]*)/) || [])[1] || '';
+  assert(STATUS_ACTION.test(uses) && new RegExp(`\\n {8}${PROD.replace(/[.()$]/g, (c) => `\\${c}`)}\\n`).test(status) && /\n {8}with:\n {10}name: deploy-smoke$/.test(status.replace(/\n+$/, '')), `the second step is not Vercel's pinned status action named deploy-smoke, run for production only: ${uses}`);
+  // every step after the environment check runs ONLY for a production payload (the log scan: also always() + validated)
+  const ifs = steps.slice(1).map((s) => (s.match(/\n {8}if: ([^\n]*)/) || [])[1] || '(none)');
+  const lastIf = "always() && steps.env.outputs.prod == 'true' && steps.payload.outcome == 'success'";
+  assert(ifs.slice(0, -1).every((c) => c === PROD.slice(4)) && ifs[ifs.length - 1] === lastIf, `a step after the environment check is not limited to production payloads: ${ifs.join(' | ')}`);
+  const iValidate = idx(steps, /id: payload\n\s+if: steps\.env\.outputs\.prod == 'true'\n\s+run: node scripts\/ci\/pre-promotion\.cjs --validate$/);
   const iMain = idx(steps, /git merge-base --is-ancestor "\$PAYLOAD_SHA" origin\/main; then echo "PASS[^\n]*; else echo "FAIL[^\n]*; exit 1; fi/);
   const iChecks = idx(steps, /GITHUB_TOKEN: \$\{\{ github\.token \}\}\n\s+run: node scripts\/ci\/run-quiet\.cjs --id CI-CHECKS --timeout \d+ -- node scripts\/ci\/pre-promotion\.cjs --wait-checks --sha "\$PAYLOAD_SHA" --timeout 1500/);
   const iCheckout = idx(steps, /run: git -c advice\.detachedHead=false checkout --detach "\$PAYLOAD_SHA"/);
   const iSmoke = idx(steps, /VERCEL_AUTOMATION_BYPASS_SECRET:/);
-  assert(/uses: actions\/checkout@/.test(steps[1] || '') && /persist-credentials: false/.test(steps[1]) && /fetch-depth: 0/.test(steps[1]), 'checkout (main, full history, no credentials) is not the second step');
-  assert(iValidate === 2, 'payload validation is not right after the checkout (before anything else uses the payload)');
+  assert(/uses: actions\/checkout@/.test(steps[2] || '') && /persist-credentials: false/.test(steps[2]) && /fetch-depth: 0/.test(steps[2]), 'checkout (main, full history, no credentials) is not right after the status step');
+  assert(iValidate === 3, 'payload validation is not right after the checkout (before anything else uses the payload)');
   assert(iMain > iValidate && iChecks > iMain && iCheckout > iChecks && iSmoke > iCheckout, `order validate → on-main → CI checks → checkout sha → smoke broken (${[iValidate, iMain, iChecks, iCheckout, iSmoke].join(',')})`);
   const sm = steps[iSmoke];
   assert(/DEPLOY_URL: \$\{\{ steps\.payload\.outputs\.url \}\}/.test(sm) && /anonymous-smoke\.cjs "\$DEPLOY_URL" --bypass --expect-sha "\$PAYLOAD_SHA"/.test(sm) && !/PAYLOAD_URL/.test(sm), 'the smoke does not use the VALIDATED URL with --bypass and --expect-sha');
-  assert(!/\n {8}if:/.test(steps.slice(0, iSmoke + 1).join('\n')), 'a step up to the smoke has its own if: (it could be skipped)');
-  assert((ds.match(/PAYLOAD_URL/g) || []).length === 1, 'the raw payload URL is used somewhere other than its env definition');
-  return 'ready event · one job · pinned status action first · validate → on main → CI → sha → smoke';
+  // the raw payload URL: only its env definition and the environment check's host-only log line
+  const urlUses = steps.map((s, i) => [i, (s.match(/PAYLOAD_URL/g) || []).length]).filter(([, n]) => n);
+  assert((ds.match(/PAYLOAD_URL/g) || []).length === 2 && urlUses.length === 1 && urlUses[0][0] === 0, 'the raw payload URL is used somewhere other than its env definition / the host-only log');
+  return 'ready event · one job · env check first → pinned status action (production only) → validate → on main → CI → sha → smoke';
+}
+
+/** DEPLOY-GATE-1b: run the environment check's own script (bash) — preview / missing / odd case → ignored, no status */
+function checkEnvStep(ds) {
+  const steps = stepList(ds.slice(ds.indexOf('\njobs:\n')));
+  const script = (steps[0] || '').split('run: |\n')[1];
+  assert(script, 'environment check script not found');
+  const body = script.split('\n').map((l) => l.replace(/^ {10}/, '')).join('\n');
+  const os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg1b-'));
+  const out = [];
+  try {
+    const cases = [
+      ['production', 'https://couragelibrary-next-abc123-team.vercel.app', 'true'],
+      ['preview', 'https://couragelibrary-next-git-x-team.vercel.app/some/path?q=1', 'false'],
+      ['', 'https://couragelibrary-next-abc.vercel.app', 'false'],
+      ['Production', 'https://couragelibrary-next-abc.vercel.app', 'false'],
+      ['production ', 'https://couragelibrary-next-abc.vercel.app', 'false'],
+      ['development', 'not a url', 'false'],
+    ];
+    for (const [env, url, want] of cases) {
+      const outFile = path.join(dir, 'out.txt');
+      fs.writeFileSync(outFile, '');
+      // the same shell GitHub uses for `run:` steps
+      const r = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', body], { env: { ...process.env, PAYLOAD_ENV: env, PAYLOAD_URL: url, GITHUB_OUTPUT: outFile }, encoding: 'utf8', timeout: 20000 });
+      const got = (fs.readFileSync(outFile, 'utf8').match(/^prod=(true|false)$/m) || [])[1];
+      assert(r.status === 0, `environment "${env}": the job would fail (exit ${r.status}) — a non-production payload must end successfully`);
+      assert(got === want, `environment "${env}": prod=${got}, want ${want}`);
+      const log = r.stdout.trim();
+      if (want === 'false') assert(/^non-production payload ignored — host [a-z0-9.-]+$|^non-production payload ignored — host none$/.test(log), `environment "${env}": log "${log}"`);
+      assert(!/\/some\/path|\?q=|https?:\/\//.test(log), `environment "${env}": the log shows more than the host: "${log}"`);
+      out.push(`${env || '(missing)'}→${got}`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  return out.join(' · ');
 }
 
 function checkValidation() {
@@ -242,6 +292,7 @@ test('G-4 payload validation refuses foreign host / http / missing sha / preview
 test('G-5 bypass secret: one plain use, fails closed, never printed, log-scanned', () => checkSecret(SRC.ds, SRC.wf, SRC.pp, SRC.smoke));
 test('G-6 post-promotion smoke: repository_dispatch promoted, validated payload, not a required check', () => checkPostPromotion(SRC.pp, SRC.wf));
 test('G-7 pre-promotion / change-scope / log-scan self-tests', () => checkSelfTests());
+test('G-10 DEPLOY-GATE-1b: a non-production payload is ignored — no status, job succeeds, host-only log (bash)', () => checkEnvStep(SRC.ds));
 test('G-9 no other job / status can satisfy the "deploy-smoke" check', () => checkNoImpostor(allWorkflows()));
 
 test('G-8 negative controls: each broken variant is caught', () => {
@@ -262,18 +313,28 @@ test('G-8 negative controls: each broken variant is caught', () => {
     ['an extra push trigger', cd(mut(D, '    types: [vercel.deployment.ready]\n', '    types: [vercel.deployment.ready]\n  push:\n    branches: [main]\n'))],
     ['status action unpinned (@v1)', cd(mut(D, 'actions/status@30f760c6640485cd92f8c785ef361382555fb712 # v1', 'actions/status@v1'))],
     ['status action with another name', cd(mut(D, '          name: deploy-smoke\n', '          name: Vercel - deploy-smoke\n'))],
-    ['status action not first', cd(mut(D, '    steps:\n      - name: Report to Vercel', '    steps:\n      - name: Debug\n        run: echo x\n      - name: Report to Vercel'))],
+    ['status action not right after the env check', cd(mut(D, "      - name: Report to Vercel", "      - name: Debug\n        if: steps.env.outputs.prod == 'true'\n        run: echo x\n      - name: Report to Vercel"))],
+    // DEPLOY-GATE-1b negative controls
+    ['1b: status step without the production condition (a preview posts a status)', cd(mut(D, "        if: steps.env.outputs.prod == 'true'\n        uses: vercel/repository-dispatch/actions/status@", '        uses: vercel/repository-dispatch/actions/status@'))],
+    ['1b: environment check after the status step', cd(D.replace(/( {6}- name: Ignore non-production payloads[\s\S]*?)( {6}- name: Report to Vercel[\s\S]*?name: deploy-smoke\n)/, '$2$1'))],
+    ['1b: a work step not limited to production', cd(mut(D, "      - name: Install (lockfile only)\n        if: steps.env.outputs.prod == 'true'\n", '      - name: Install (lockfile only)\n'))],
+    ['1b: a work step with a looser condition', cd(mut(D, "      - name: Mask values derived from secrets\n        if: steps.env.outputs.prod == 'true'\n", "      - name: Mask values derived from secrets\n        if: steps.env.outputs.prod != 'false'\n"))],
+    ['1b: environment check posts a status', cd(mut(D, '            echo "non-production payload ignored — host ${host:-none}"\n', '            echo "non-production payload ignored — host ${host:-none}"\n            gh api repos/x/y/statuses/$PAYLOAD_SHA -f state=success\n'))],
+    ['1b: preview treated as production', () => checkEnvStep(mut(D, 'if [ "$PAYLOAD_ENV" = "production" ]; then', 'if [ "$PAYLOAD_ENV" != "development" ]; then'))],
+    ['1b: case-insensitive match ("Production" counts)', () => checkEnvStep(mut(D, 'if [ "$PAYLOAD_ENV" = "production" ]; then', 'if [ "${PAYLOAD_ENV,,}" = "production" ]; then'))],
+    ['1b: a preview fails the job', () => checkEnvStep(mut(D, '            echo "prod=false" >> "$GITHUB_OUTPUT"\n', '            echo "prod=false" >> "$GITHUB_OUTPUT"; false\n'))],
+    ['1b: the log shows the full URL', () => checkEnvStep(mut(D, '            echo "non-production payload ignored — host ${host:-none}"\n', '            echo "non-production payload ignored — host ${host:-none} $PAYLOAD_URL"\n'))],
     ['job id deploy-smoke', cd(mut(D, '  pre-promotion-smoke:\n', '  deploy-smoke:\n'))],
     ['a second job', cd(D + '  other:\n    runs-on: ubuntu-24.04\n')],
     ['continue-on-error', cd(mut(D, '        id: payload\n', '        id: payload\n        continue-on-error: true\n'))],
     ['step-level timeout', cd(mut(D, '        id: payload\n', '        id: payload\n        timeout-minutes: 5\n'))],
     ['permissions widened', cd(mut(D, '      contents: read\n      actions: read\n', '      contents: write\n      actions: read\n'))],
-    ['no payload validation', cd(mut(D, '        id: payload\n        run: node scripts/ci/pre-promotion.cjs --validate\n', '        id: payload\n        run: echo "url=$PAYLOAD_URL" >> "$GITHUB_OUTPUT"\n'))],
+    ['no payload validation', cd(mut(D, "        id: payload\n        if: steps.env.outputs.prod == 'true'\n        run: node scripts/ci/pre-promotion.cjs --validate\n", "        id: payload\n        if: steps.env.outputs.prod == 'true'\n        run: echo \"url=$PAYLOAD_URL\" >> \"$GITHUB_OUTPUT\"\n"))],
     ['smoke uses the raw payload URL', cd(mut(D, 'DEPLOY_URL: ${{ steps.payload.outputs.url }}', 'DEPLOY_URL: ${{ github.event.client_payload.url }}'))],
     ['no on-main check', cd(mut(D, 'git merge-base --is-ancestor "$PAYLOAD_SHA" origin/main', 'true'))],
     ['no CI-checks wait', cd(mut(D, '--wait-checks --sha "$PAYLOAD_SHA" --timeout 1500', '--self-test'))],
     ['smoke without --expect-sha', cd(mut(D, '--bypass --expect-sha "$PAYLOAD_SHA"', '--bypass'))],
-    ['smoke step can be skipped', cd(mut(D, '      - name: Anonymous smoke of the deployment, before promotion (summary only)\n', "      - name: Anonymous smoke of the deployment, before promotion (summary only)\n        if: env.PAYLOAD_ENV == 'x'\n"))],
+    ['smoke step can be skipped', cd(mut(D, "      - name: Anonymous smoke of the deployment, before promotion (summary only)\n        if: steps.env.outputs.prod == 'true'\n", "      - name: Anonymous smoke of the deployment, before promotion (summary only)\n        if: steps.env.outputs.prod == 'true' && env.PAYLOAD_ENV == 'x'\n"))],
     ['payload interpolated into a script', cd(mut(D, 'run: git -c advice.detachedHead=false checkout --detach "$PAYLOAD_SHA"', 'run: git -c advice.detachedHead=false checkout --detach "${{ github.event.client_payload.git.sha }}"'))],
     ['secret with a fallback', () => checkSecret(mut(D, '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}', "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET || 'none' }}"), W, SRC.pp, SRC.smoke)],
     ['secret on the whole job', () => checkSecret(mut(mut(D, '          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}\n', ''), '      PAYLOAD_URL: ${{ github.event.client_payload.url }}\n', '      PAYLOAD_URL: ${{ github.event.client_payload.url }}\n      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}\n'), W, SRC.pp, SRC.smoke)],

@@ -10,7 +10,9 @@
 # Rules for this file (the status action reads the steps' conclusions of the FIRST job of the run):
 #   one job only · no continue-on-error · no step-level timeout (a cancelled step would not count as a failure) ·
 #   every step bounded by its own script timeout, well inside the job limit.
-# Order: report pending → validate the payload (production, 40-hex sha, couragelibrary-next-*.vercel.app over https) →
+#   every step after the environment check runs only for a production payload (if: steps.env.outputs.prod == 'true').
+# Order: environment check (DEPLOY-GATE-1b: not "production" → ignored, NO status posted, job succeeds) → report
+# pending → validate the payload (production, 40-hex sha, couragelibrary-next-*.vercel.app over https) →
 # sha is an ancestor-or-equal of main → wait for CI (scope / offline / server-checks of that sha, all success) →
 # check out that sha → anonymous read-only smoke of the deployment URL through the protection bypass, incl. /api/health
 # == that sha. Any mismatch fails BEFORE the bypass header is ever sent. The URL is logged as host only.
@@ -55,39 +57,63 @@ jobs:
       PAYLOAD_SHA: ${{ github.event.client_payload.git.sha }}
       PAYLOAD_URL: ${{ github.event.client_payload.url }}
     steps:
+      # DEPLOY-GATE-1b (owner, 2026-11-23): the environment is checked FIRST, before the status step. A non-production
+      # payload (a branch preview) posts NO deploy-smoke status at all: every later step is skipped, so the status action
+      # never runs (a preview of a commit can no longer leave a red status on it before that commit reaches main).
+      - name: Ignore non-production payloads (no status is posted for them; host only in the log)
+        id: env
+        run: |
+          host=$(printf '%s' "$PAYLOAD_URL" | sed -E 's#^[A-Za-z]+://##; s#[/:?#].*$##' | tr -cd 'a-z0-9.-' | cut -c1-80)
+          if [ "$PAYLOAD_ENV" = "production" ]; then
+            echo "prod=true" >> "$GITHUB_OUTPUT"
+            echo "production payload — host ${host:-none}"
+          else
+            echo "prod=false" >> "$GITHUB_OUTPUT"
+            echo "non-production payload ignored — host ${host:-none}"
+          fi
       - name: Report to Vercel (commit status "deploy-smoke" on the deployment's commit)
+        if: steps.env.outputs.prod == 'true'
         uses: vercel/repository-dispatch/actions/status@30f760c6640485cd92f8c785ef361382555fb712 # v1
         with:
           name: deploy-smoke
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        if: steps.env.outputs.prod == 'true'
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Validate the payload (production, 40-hex sha, https couragelibrary-next-*.vercel.app; host only in the log)
         id: payload
+        if: steps.env.outputs.prod == 'true'
         run: node scripts/ci/pre-promotion.cjs --validate
       - name: The commit is on main (ancestor-or-equal of main)
+        if: steps.env.outputs.prod == 'true'
         run: |
           if git merge-base --is-ancestor "$PAYLOAD_SHA" origin/main; then echo "PASS  ON-MAIN ${PAYLOAD_SHA::7} is on main"; else echo "FAIL  ON-MAIN ${PAYLOAD_SHA::7} is not on main — not promoted"; exit 1; fi
       - name: Wait for CI of exactly this commit (scope, offline, server-checks — all success; ≤ 25 min)
+        if: steps.env.outputs.prod == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci/run-quiet.cjs --id CI-CHECKS --timeout 1560 -- node scripts/ci/pre-promotion.cjs --wait-checks --sha "$PAYLOAD_SHA" --timeout 1500
       - name: Check out the deployment's commit (its smoke script)
+        if: steps.env.outputs.prod == 'true'
         run: git -c advice.detachedHead=false checkout --detach "$PAYLOAD_SHA"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
+        if: steps.env.outputs.prod == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install (lockfile only)
+        if: steps.env.outputs.prod == 'true'
         run: timeout 600 npm ci --no-audit --no-fund --loglevel=error
       - name: Mask values derived from secrets
+        if: steps.env.outputs.prod == 'true'
         run: node scripts/ci/mask-derived.cjs
       - name: Anonymous smoke of the deployment, before promotion (summary only)
+        if: steps.env.outputs.prod == 'true'
         env:
           DEPLOY_URL: ${{ steps.payload.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node scripts/ci/run-quiet.cjs --id DEPLOY-SMOKE --timeout 600 -- node scripts/smoke/anonymous-smoke.cjs "$DEPLOY_URL" --bypass --expect-sha "$PAYLOAD_SHA"
       - name: Log scan of the captured outputs
-        if: always() && steps.payload.outcome == 'success'
+        if: always() && steps.env.outputs.prod == 'true' && steps.payload.outcome == 'success'
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
