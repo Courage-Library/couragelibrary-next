@@ -773,6 +773,80 @@ async function live() {
  * intercepts it), so every guard takes the "could not ask Supabase" path. No network is needed.
  */
 const RES_MAX_MS = 20000; // middleware + page + shell auth reads, each ≤ AUTH_FETCH_TIMEOUT_MS (5 s)
+
+/**
+ * R6-DIAG-1 (FOOTER-1, owner): R-6's assertions — UNCHANGED, same order and messages — as a pure check. On a failure it
+ * also returns fixed-format "DIAG R-6 …" lines (scripts/ci/run-quiet.cjs echoes them in CI, log-scanned): the
+ * sub-check, route, HTTP status, elapsed ms, banner yes/no, "/" anonymous-vs-signed-in equality (+ where the two pages
+ * first differ: char index and the nearest data-* attribute NAME). Never a server log, cookie, header, env value or body text.
+ * Returns null when R-6 passes.
+ */
+const BANNER_RX = /couldn(&#x27;|')t check your sign-in/;
+function r6Check(results, fmt) {
+  const d = (o) => `DIAG R-6 ${Object.entries(o).map(([k, v]) => `${k}=${String(v).replace(/[^A-Za-z0-9/_.-]/g, '_').slice(0, 40)}`).join(' ')}`;
+  const row = (check, r, extra = {}) => d({ check, route: r.p, status: r.status, ms: r.ms, banner: BANNER_RX.test(r.text || '') ? 'yes' : 'no', round: r.round, ...extra });
+  const anon = results.filter((r) => r.kind === 'public page' || r.kind === 'auth page');
+  const withCookie = results.filter((r) => r.kind === 'public page + session cookie');
+  const bad = anon.concat(withCookie).filter((r) => r.status !== 200);
+  if (bad.length > 0) return { msg: `${bad.length}: ${fmt(bad)}`, diag: bad.slice(0, 8).map((r) => row('status', r)) };
+  const noBanner = withCookie.filter((r) => !BANNER_RX.test(r.text));
+  if (noBanner.length > 0) return { msg: 'banner missing for the signed-in visitor', diag: noBanner.slice(0, 8).map((r) => row('banner', r)) };
+  const anonBanner = anon.filter((r) => r.p === '/' && BANNER_RX.test(r.text));
+  if (anonBanner.length > 0) return { msg: 'banner shown to an anonymous visitor', diag: anonBanner.slice(0, 8).map((r) => row('anonbanner', r)) };
+  // the cached "/" for a signed-in visitor: 200, no redirect, the same page as for an anonymous one (no banner, no session data)
+  const cached = results.filter((r) => r.kind === 'cached page + session cookie');
+  const strip = (t) => t.replace(/<!-- -->/g, '');
+  const same = (r) => { const a = anon.find((x) => x.p === '/' && x.round === r.round); return r.status === 200 && a && strip(r.text) === strip(a.text); };
+  if (!(cached.length >= 1 && cached.every(same))) {
+    const diag = (cached.length ? cached : [{ p: '/', status: 0, ms: 0, text: '', round: -1 }]).filter((r) => !same(r)).slice(0, 8).map((r) => {
+      const a = anon.find((x) => x.p === '/' && x.round === r.round);
+      const x = strip(r.text || '');
+      const y = strip((a && a.text) || '');
+      let i = 0;
+      while (i < x.length && i < y.length && x[i] === y[i]) i++;
+      const attr = (x.slice(Math.max(0, i - 400), i).match(/data-[a-z][a-z-]*/g) || ['none']).pop();
+      // ≤ 8 pairs (the run-quiet DIAG format): the signed-in "/" vs the anonymous "/" of the same round
+      return d({ check: 'same', route: r.p, status: r.status, ms: r.ms, same: 'no', anonms: a ? a.ms : 'missing', at: i, attr });
+    });
+    return { msg: `cached "/" with a session cookie: ${cached.map((r) => r.status)} (must be 200 and identical to the anonymous page of the same round)`, diag };
+  }
+  return null;
+}
+
+/** R6-DIAG-1 negative control: forced failures print well-formed DIAG lines; a passing set prints none. */
+function r6SelfTest() {
+  const { DIAG_RX } = require('./ci/run-quiet.cjs');
+  const fmt = (rs) => rs.map((r) => `${r.p} ${r.status}`).join('; ');
+  const page = (p, kind, round, text, status = 200, ms = 120) => ({ p, kind, round, text, status, ms });
+  const HOME = '<html><body><div data-landing="v1">x</div><footer data-footer="public">f</footer></body></html>';
+  const ABOUT = '<p>We couldn&#x27;t check your sign-in.</p>';
+  const ok = [page('/', 'public page', 0, HOME), page('/auth/signup', 'auth page', 0, '<form>'), page('/', 'cached page + session cookie', 0, HOME), page('/about', 'public page + session cookie', 0, ABOUT, 200, 5100)];
+  const cases = [
+    ['passing set → null, no DIAG', ok, null, 0],
+    ['status', ok.map((r) => (r.p === '/auth/signup' ? { ...r, status: 500 } : r)), 'check=status', 1],
+    ['banner missing', ok.map((r) => (r.p === '/about' ? { ...r, text: '<p>about</p>' } : r)), 'check=banner route=/about status=200 ms=5100 banner=no', 1],
+    ['anon banner', ok.map((r) => (r.kind === 'public page' ? { ...r, text: HOME + ABOUT } : r)), 'check=anonbanner', 1],
+    ['"/" differs', ok.map((r) => (r.kind === 'cached page + session cookie' ? { ...r, text: HOME.replace('>f<', '>g<') } : r)), 'check=same route=/ status=200 ms=120 same=no', 1],
+  ];
+  let fails = 0;
+  for (const [name, rs, want, n] of cases) {
+    const f = r6Check(rs, fmt);
+    const good = want === null ? f === null : !!f && f.diag.length === n && f.diag.every((l) => DIAG_RX.test(l)) && f.diag[0].includes(want);
+    if (want !== null && f) console.log(`  ${name}: ${f.diag[0]}`);
+    if (!good) {
+      fails++;
+      console.log(`  FAIL  R6-DIAG ${name}: ${f ? JSON.stringify(f.diag) : 'null'}`);
+    }
+  }
+  const same = r6Check(cases[4][1], fmt);
+  if (!/^DIAG R-6 check=same route=\/ status=200 ms=120 same=no anonms=120 at=\d+ attr=data-footer$/.test(same.diag[0])) {
+    fails++;
+    console.log(`  FAIL  R6-DIAG "/" diff location: ${same.diag[0]}`);
+  }
+  console.log(`R6-DIAG self-test: ${cases.length + 1 - fails}/${cases.length + 1} passed`);
+  return fails === 0;
+}
+
 async function resilience(mode) {
   const BASE = (process.env.BASE_URL || '').replace(/\/$/, '');
   if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(BASE)) throw new Error('--resilience needs BASE_URL on a local host (run via scripts/live/with-server.cjs)');
@@ -851,17 +925,12 @@ async function resilience(mode) {
     assert(rs.length >= 12 && bad.length === 0, `${bad.length}/${rs.length}: ${fmt(bad)}`);
   });
   await test(`R-6 [${mode}] public pages render (200); the signed-in visitor sees the "couldn't check your sign-in" banner on session-shell pages, not a login redirect; cached "/" is the same page for everyone`, () => {
-    const anon = results.filter((r) => r.kind === 'public page' || r.kind === 'auth page');
-    const withCookie = results.filter((r) => r.kind === 'public page + session cookie');
-    const bad = anon.concat(withCookie).filter((r) => r.status !== 200);
-    assert(bad.length === 0, `${bad.length}: ${fmt(bad)}`);
-    assert(withCookie.every((r) => /couldn(&#x27;|')t check your sign-in/.test(r.text)), 'banner missing for the signed-in visitor');
-    assert(anon.filter((r) => r.p === '/').every((r) => !/couldn(&#x27;|')t check your sign-in/.test(r.text)), 'banner shown to an anonymous visitor');
-    // the cached "/" for a signed-in visitor: 200, no redirect, the same page as for an anonymous one (no banner, no session data)
-    const cached = results.filter((r) => r.kind === 'cached page + session cookie');
-    const strip = (t) => t.replace(/<!-- -->/g, '');
-    const same = (r) => { const a = anon.find((x) => x.p === '/' && x.round === r.round); return r.status === 200 && a && strip(r.text) === strip(a.text); };
-    assert(cached.length >= 1 && cached.every(same), `cached "/" with a session cookie: ${cached.map((r) => r.status)} (must be 200 and identical to the anonymous page of the same round)`);
+    // R6-DIAG-1: the SAME assertions (unchanged), moved into r6Check so a failure also prints which sub-check failed
+    const failure = r6Check(results, fmt);
+    if (failure) {
+      for (const l of failure.diag) console.log(l);
+      throw new Error(failure.msg);
+    }
   });
 
   // server action: the real login form (useActionState → loginAction → signInWithPassword, blackholed)
@@ -896,6 +965,7 @@ async function resilience(mode) {
 }
 
 (async () => {
+  if (ARGS.has('--r6-self-test')) process.exit(r6SelfTest() ? 0 : 1);
   const resMode = [...ARGS].find((a) => a.startsWith('--resilience'));
   if (resMode) {
     await resilience(resMode.split('=')[1]);

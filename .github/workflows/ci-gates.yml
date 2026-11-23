@@ -136,6 +136,8 @@ jobs:
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1
           q UX2B-OFFLINE node scripts/test_ux2b_public.cjs || fail=1
           q AUTH1-OFFLINE node scripts/test_auth1.cjs || fail=1
+          q AUTH1-R6-DIAG-SELFTEST node scripts/test_auth1.cjs --r6-self-test || fail=1
+          q RUN-QUIET-SELFTEST node scripts/ci/run-quiet.cjs --self-test || fail=1
           q AUTH1-2B1-OFFLINE node scripts/test_auth1_2b1.cjs || fail=1
           q AUTH1-2B2-OFFLINE node scripts/test_auth1_2b2.cjs || fail=1
           q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1

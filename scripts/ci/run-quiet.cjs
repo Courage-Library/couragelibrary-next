@@ -18,6 +18,10 @@
  *   --keep-log <d> on a failure writes <d>/<ID>.sanitized.log: the full log with every line that the log scan flags
  *                  (secret values, hosts, IPs, JWTs, DB URLs, keys) or that looks like an env assignment replaced by a
  *                  "[redacted …]" marker — for the failure-only CI artifact (public repo: nothing secret, no env)
+ * - R6-DIAG-1 (FOOTER-1, owner): a FAILING gate may print fixed-format diagnostic lines
+ *   "DIAG <CHECK-ID> key=value [key=value …]" (≤ 8 pairs; keys [a-z]+, values [A-Za-z0-9/_.-]{1,40} — no ":" so no
+ *   URL / host:port, no spaces, no quotes). On a failure only, at most 8 such lines are echoed as "<ID> diag: …"; every
+ *   line is run through the log scan first and dropped on any finding. A passing gate never echoes anything.
  * - exit code = the gate's (1 if the scan fails, 124 on timeout)
  */
 const fs = require('fs');
@@ -54,6 +58,17 @@ function firstFrame(t, from, cwd = process.cwd()) {
   else if (/^(\/|[A-Za-z]:\/)/.test(f)) f = 'external';
   if (f.startsWith('node:')) f = f.replace(':', '-');
   return /^[A-Za-z0-9_./()[\]-]{1,120}$/.test(f) ? f : null;
+}
+
+const DIAG_RX = /^DIAG [A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)* [a-z]+=[A-Za-z0-9/_.-]{1,40}(?: [a-z]+=[A-Za-z0-9/_.-]{1,40}){0,7}$/;
+/** R6-DIAG-1: the safe diagnostic lines of a FAILED gate (strict format + log scan), at most 8 */
+function diagLines(text, exit, secrets = []) {
+  if (exit === 0) return [];
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => DIAG_RX.test(l) && scanLine(l, secrets).length === 0)
+    .slice(0, 8);
 }
 
 /**
@@ -186,7 +201,20 @@ function selfTest() {
   }
   const san = sanitizeLog(['ok line', 'NEXT_PUBLIC_SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co', 'value FAKE_SECRET_VALUE_0123456789 here', '  SOME_TOKEN: abc', 'TypeError: x', '    at f (/x/y.js:1:1)'].join('\n'), secrets);
   if (san.redacted !== 3 || /FAKE_SECRET|supabase\.co|abc$/m.test(san.text) || !/TypeError: x\n    at f/.test(san.text)) { ok = false; console.log(`run-quiet self-test FAIL (sanitize): ${JSON.stringify(san)}`); }
-  console.log(`run-quiet self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length + msgCases.length + routeCases.length + 1} cases`);
+  // R6-DIAG-1: only well-formed, scan-clean DIAG lines of a FAILED gate come out (negative controls included)
+  const diagCases = [
+    ['  FAIL  R-6 x\nDIAG R-6 check=banner route=/about status=200 ms=5123 banner=no round=2', 1, ['DIAG R-6 check=banner route=/about status=200 ms=5123 banner=no round=2']],
+    ['DIAG R-6 check=banner route=/about status=200', 0, []],
+    ['DIAG R-6 check=same route=https://abcdefghijklmnopqrst.supabase.co/x', 1, []],
+    ['DIAG R-6 check=x value=FAKE_SECRET_VALUE_0123456789', 1, []],
+    ['DIAG R-6 note="free text with spaces"', 1, []],
+    ['DIAG r6 check=x', 1, []],
+  ];
+  for (const [text, exit, want] of diagCases) {
+    const got = diagLines(text, exit, ['FAKE_SECRET_VALUE_0123456789']);
+    if (JSON.stringify(got) !== JSON.stringify(want)) { ok = false; console.log(`run-quiet self-test FAIL (diag): want ${JSON.stringify(want)} got ${JSON.stringify(got)}`); }
+  }
+  console.log(`run-quiet self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length + msgCases.length + routeCases.length + diagCases.length + 1} cases`);
   return ok;
 }
 
@@ -248,6 +276,7 @@ function main() {
     const status = exit === 0 ? 'PASS' : 'FAIL';
     const diag = timedOut ? null : crashToken(text, exit, s, secretValues(process.env));
     console.log(`${ID} ${status} exit ${exit}${timedOut ? ' (timeout)' : ''} — passed ${s.totals || `${s.passLines} line(s)`} · fail-lines ${s.failLines} · warns ${s.warns}${s.ids.length ? ` · failing [${s.ids.join(', ')}]` : ''}${diag ? ` · diag ${diag}` : ''}`);
+    for (const l of diagLines(text, exit, secretValues(process.env))) console.log(`${ID} diag: ${l.slice(5)}`);
     if (CRASH_MESSAGE && diag) {
       const msg = crashMessage(text, exit, s, secretValues(process.env));
       if (msg) console.log(`${ID} crash-message: ${msg}`);
@@ -271,4 +300,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { summarize, crashToken, crashMessage, crashRoute, sanitizeLog, selfTest, SAFE_TOKEN };
+module.exports = { summarize, crashToken, crashMessage, crashRoute, sanitizeLog, selfTest, SAFE_TOKEN, DIAG_RX, diagLines };
