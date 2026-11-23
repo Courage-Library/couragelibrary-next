@@ -605,7 +605,14 @@ async function probe() {
         const page = await ctx.newPage();
         await page.goto(`${base}/auth/login`, { waitUntil: 'load', timeout: 30000 });
         const r = await page.evaluate(() => {
-          const nav = document.querySelector('main .glass-light');
+          // AUTH-UX-1 (re-pointed, rule kept): no anonymous page renders a glass surface any more (the old glass sign-in
+          // card was the last one; glass remains on signed-in pages) — so one .glass-light element is added to the REAL
+          // built page and the shipped CSS + the real lite detection are measured on it
+          let nav = document.querySelector('.glass-light');
+          if (!nav) {
+            document.body.insertAdjacentHTML('beforeend', '<div class="glass-light" data-probe-glass="" style="width:10px;height:10px"></div>');
+            nav = document.querySelector('[data-probe-glass]');
+          }
           const cs = nav ? getComputedStyle(nav) : null;
           return { lite: document.documentElement.classList.contains('lite'), blur: cs ? cs.backdropFilter || cs.webkitBackdropFilter : 'missing' };
         });
@@ -624,10 +631,11 @@ async function probe() {
       const cdp = await ctx.newCDPSession(page);
       await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
       await page.goto(`${base}/auth/login`, { waitUntil: 'load', timeout: 30000 });
-      const r = await page.evaluate(() => ({
-        matches: matchMedia('(prefers-reduced-transparency: reduce)').matches,
-        blur: getComputedStyle(document.querySelector('main .glass-light')).backdropFilter,
-      }));
+      const r = await page.evaluate(() => {
+        // AUTH-UX-1 (re-pointed with P-04): a .glass-light element on the real built page (none is public any more)
+        if (!document.querySelector('.glass-light')) document.body.insertAdjacentHTML('beforeend', '<div class="glass-light" data-probe-glass="" style="width:10px;height:10px"></div>');
+        return { matches: matchMedia('(prefers-reduced-transparency: reduce)').matches, blur: getComputedStyle(document.querySelector('.glass-light')).backdropFilter };
+      });
       await ctx.close();
       assert(r.matches, 'emulation not applied');
       assert(r.blur === 'none', `backdrop-filter ${r.blur}`);

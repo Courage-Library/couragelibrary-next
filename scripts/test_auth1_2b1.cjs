@@ -616,7 +616,8 @@ async function probe() {
     const post = await get('/auth/login', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8', 'next-action': '0'.repeat(40) }, body: '[]' });
     assert(!nonceCookie(post), 'a POST to /auth/login minted a nonce');
     const retry = await get('/auth/login?m=google-nonce');
-    assert(retry.status === 200 && retry.html.includes('data-auth-notice') && /session expired/i.test(retry.html), '?m=google-nonce notice not rendered on the retry page');
+    // AUTH-UX-1 (re-pointed with T-16, rule kept): an error-tone notice renders as the form-level alert
+    assert(retry.status === 200 && (retry.html.includes('data-auth-notice') || retry.html.includes('data-auth-error="google-nonce"')) && /session expired/i.test(retry.html), '?m=google-nonce notice not rendered on the retry page');
     return 'reuse ok; POST 0 mints; retry notice rendered';
   });
 }
