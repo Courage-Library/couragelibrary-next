@@ -86,13 +86,24 @@ function checkDeploySmoke(wf) {
   assert(ds, 'no deploy-smoke job');
   assert(!job(wf, 'prod-smoke'), 'the old prod-smoke job is still there');
   assert(/\n {4}needs: \[scope, offline, server-checks\]\n/.test(ds), 'deploy-smoke does not need offline + server-checks');
+  // owner 2026-11-23: deploy-smoke is the ONE required Vercel check — never "skipped": always() + an explicit FAIL
+  // unless scope, offline and server-checks all succeeded (failure / cancelled / skipped → red)
+  const jobIf = (ds.match(/\n {4}if: ([^\n]*)\n/) || [])[1] || '';
+  assert(/^always\(\) && \(github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.prod_smoke\)\)$/.test(jobIf), `deploy-smoke is not if: always() && (push || dispatch): "${jobIf}"`);
+  const firstStep = ds.slice(ds.indexOf('\n    steps:\n') + '\n    steps:\n'.length).match(/^ {6}- (name|uses): ([^\n]*)/);
+  assert(firstStep && firstStep[2] === 'Require scope, offline and server-checks to have succeeded', 'the needs check is not the FIRST step of deploy-smoke');
+  const nd = step(ds, 'Require scope, offline and server-checks to have succeeded');
+  assert(/SCOPE_RESULT: \$\{\{ needs\.scope\.result \}\}/.test(nd) && /OFFLINE_RESULT: \$\{\{ needs\.offline\.result \}\}/.test(nd) && /SERVER_CHECKS_RESULT: \$\{\{ needs\.server-checks\.result \}\}/.test(nd), 'the needs check does not read needs.<job>.result for scope, offline and server-checks');
+  assert(/"scope=\$SCOPE_RESULT" "offline=\$OFFLINE_RESULT" "server-checks=\$SERVER_CHECKS_RESULT"/.test(nd) && /if \[ "\$\{pair#\*=\}" != "success" \]; then echo "FAIL {2}DEPLOY-GATE-1/.test(nd) && /if \[ "\$bad" != 0 \]; then exit 1; fi/.test(nd), 'the needs check does not fail on every result other than success');
+  assert(!/continue-on-error|\n {8}if:/.test(nd), 'the needs check can be skipped or ignored');
+  assert(!/continue-on-error/.test(ds), 'a deploy-smoke step may fail without failing the job');
   assert(/permissions:\n {6}contents: read\n {6}deployments: read\n/.test(ds), 'deploy-smoke lacks deployments: read (least privilege)');
   const res = step(ds, 'Find the Vercel deployment of exactly this commit');
   assert(/id: resolve/.test(res) && /GITHUB_TOKEN: \$\{\{ github\.token \}\}/.test(res) && /resolve-deployment\.cjs --sha "\$GITHUB_SHA" --environment Production/.test(res), 'the deployment is not resolved for exactly github.sha / Production');
   const sm = step(ds, 'Anonymous smoke of the NEW deployment');
   assert(/DEPLOY_URL: \$\{\{ steps\.resolve\.outputs\.url \}\}/.test(sm) && /anonymous-smoke\.cjs "\$DEPLOY_URL" --bypass --expect-sha "\$GITHUB_SHA"/.test(sm), 'the smoke does not target the resolved deployment with --bypass and --expect-sha');
   assert(!/wait-for-deploy\.cjs/.test(wf), 'ci-gates still waits for production (deadlock under Deployment Checks)');
-  return 'needs offline + server-checks · exact sha · bypass + sha check';
+  return 'always() · FAILS unless scope/offline/server-checks succeeded · exact sha · bypass + sha check';
 }
 
 function checkSecret(wf, pp, smoke) {
@@ -161,9 +172,15 @@ test('G-7 negative controls: each broken variant is caught', () => {
     ['resolve by a short / other sha', () => checkDeploySmoke(mut(W, '--sha "$GITHUB_SHA" --environment Production', '--sha "${GITHUB_SHA::7}" --environment Production'))],
     ['resolve any environment', () => checkDeploySmoke(mut(W, '--environment Production --timeout 940', '--environment Preview --timeout 940'))],
     ['smoke without the bypass', () => checkDeploySmoke(mut(W, '"$DEPLOY_URL" --bypass --expect-sha "$GITHUB_SHA"', '"$DEPLOY_URL" --expect-sha "$GITHUB_SHA"'))],
-    ['smoke the live site (deadlock)', () => checkDeploySmoke(mut(W, '      - name: Log scan of the captured outputs\n        if: always()\n        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"\n', '      - name: Wait\n        run: node scripts/smoke/wait-for-deploy.cjs https://couragelibrary.in "${GITHUB_SHA::7}"\n      - name: Log scan of the captured outputs\n        if: always()\n        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"\n'))],
+    ['smoke the live site (deadlock)', () => checkDeploySmoke(mut(W, "      - name: Log scan of the captured outputs\n        if: always() && steps.needs.outcome == 'success'\n", "      - name: Wait\n        run: node scripts/smoke/wait-for-deploy.cjs https://couragelibrary.in \"${GITHUB_SHA::7}\"\n      - name: Log scan of the captured outputs\n        if: always() && steps.needs.outcome == 'success'\n"))],
+    ['deploy-smoke without if: always() (skipped when offline fails)', () => checkDeploySmoke(mut(W, "    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke))\n", "    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke)\n"))],
+    ['deploy-smoke does not check needs.*.result', () => checkDeploySmoke(mut(W, '          OFFLINE_RESULT: ${{ needs.offline.result }}\n', '          OFFLINE_RESULT: success\n'))],
+    ['needs check accepts skipped', () => checkDeploySmoke(mut(W, 'if [ "${pair#*=}" != "success" ]; then', 'if [ "${pair#*=}" = "failure" ]; then'))],
+    ['needs check without exit 1', () => checkDeploySmoke(mut(W, 'if [ "$bad" != 0 ]; then exit 1; fi', 'if [ "$bad" != 0 ]; then echo warn; fi'))],
+    ['needs check may fail softly', () => checkDeploySmoke(mut(W, '        id: needs\n', '        id: needs\n        continue-on-error: true\n'))],
+    ['needs check not first (smoke runs before it)', () => checkDeploySmoke(mut(W, '    steps:\n      - name: Require scope, offline and server-checks to have succeeded\n', '    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)\n      - name: Require scope, offline and server-checks to have succeeded\n'))],
     ['secret with a fallback', () => checkSecret(mut(W, '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}', "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET || 'none' }}"), SRC.pp, SRC.smoke)],
-    ['secret on the whole job', () => checkSecret(mut(W, '      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)\n        with:\n          persist-credentials: false\n      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)\n        with:\n          node-version: ${{ env.NODE_VERSION }}\n          cache: npm\n      - name: Install (lockfile only)\n        run: npm ci --no-audit --no-fund --loglevel=error\n      - name: Mask values derived from secrets\n        run: node scripts/ci/mask-derived.cjs\n      - name: Find the Vercel', '      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\n      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)\n        with:\n          persist-credentials: false\n      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)\n        with:\n          node-version: ${{ env.NODE_VERSION }}\n          cache: npm\n      - name: Install (lockfile only)\n        run: npm ci --no-audit --no-fund --loglevel=error\n      - name: Mask values derived from secrets\n        run: node scripts/ci/mask-derived.cjs\n      - name: Find the Vercel'), SRC.pp, SRC.smoke)],
+    ['secret on the whole job', () => checkSecret(mut(W, '      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\n    steps:\n      - name: Require scope, offline and server-checks', '      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\n      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}\n    steps:\n      - name: Require scope, offline and server-checks'), SRC.pp, SRC.smoke)],
     ['smoke prints the header', () => checkSecret(W, SRC.pp, mut(SRC.smoke, "const BYPASS_HEADERS = BYPASS ? { ['x-vercel-protection-bypass']: BYPASS_SECRET } : {};", "const BYPASS_HEADERS = BYPASS ? { ['x-vercel-protection-bypass']: BYPASS_SECRET } : {};\nconsole.log(BYPASS_HEADERS);"))],
     ['post-promotion uses the bypass', () => checkSecret(W, SRC.pp + '\n      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}\n', SRC.smoke)],
     ['post-promotion on another event', () => checkPostPromotion(mut(SRC.pp, 'types: [vercel.deployment.promoted]', 'types: [vercel.deployment.success]'), W)],

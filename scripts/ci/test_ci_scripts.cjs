@@ -152,7 +152,7 @@ test('C-10 workflow is public-safe: no artifact upload except the failure-only s
   assert(/\n {2}scope:\n[\s\S]*?run: node scripts\/ci\/change-scope\.cjs/.test(code), 'the scope job (docs-only fast path) is missing');
   // CI-LEAN-1 (decision #73): live = nightly schedule + manual dispatch only (never on push); deploy-smoke after a push / dispatch
   assert(/if: github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.live\)/.test(code), 'live must run on schedule / dispatch only');
-  assert(/\n {2}deploy-smoke:\n {4}needs: \[scope, offline, server-checks\]\n(?: *\n)* {4}if: github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.prod_smoke\)/.test(code), 'deploy-smoke must run on push / dispatch');
+  assert(/\n {2}deploy-smoke:\n {4}needs: \[scope, offline, server-checks\]\n(?: *\n)* {4}if: always\(\) && \(github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.prod_smoke\)\)/.test(code), 'deploy-smoke must run on push / dispatch');
   assert(/^ {2}schedule:\n {4}- cron: '0 21 \* \* \*'/m.test(code), 'nightly schedule (~02:30 IST) missing');
   assert(/cancel-in-progress: false/.test(code), 'concurrency must not cancel in progress');
   return `${gateLines.length} gate lines wrapped; ${uses.length} actions pinned`;

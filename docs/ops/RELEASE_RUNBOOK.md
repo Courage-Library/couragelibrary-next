@@ -73,14 +73,18 @@ Production changes only after CI is green for that exact commit. Vercel Deployme
 
 1. **Push to main.** Vercel builds a production deployment for the commit. It is NOT on couragelibrary.in, www or
    couragelibrary-next.vercel.app yet. Vercel waits for the required GitHub checks.
-2. **CI (`ci-gates`, every push, no paths filter).** Required checks: `offline`, `server-checks`, `deploy-smoke`.
+2. **CI (`ci-gates`, every push, no paths filter).** The ONE required Vercel Deployment Check is `deploy-smoke`.
+   Vercel's check import offered only `deploy-smoke` (it lists check runs that start after the Vercel deployment is
+   created; `offline` and `server-checks` start earlier). So `deploy-smoke` carries the others: it runs with
+   `if: always()` and its first step FAILS unless `scope`, `offline` and `server-checks` all succeeded (failure,
+   cancelled or skipped → red). It is never "skipped" on a push.
    - `scope` decides docs-only vs code (`scripts/ci/change-scope.cjs`, fails safe to code). On a docs-only push,
      `offline` and `server-checks` skip their heavy steps and still report green within about a minute.
    - `deploy-smoke` finds the Vercel deployment of exactly `github.sha` (environment Production, state success —
      `scripts/ci/resolve-deployment.cjs`; anything else fails). It smokes that deployment's own URL, read-only and
      anonymously, through the protection bypass (`VERCEL_AUTOMATION_BYPASS_SECRET`, GitHub secret only; missing or blank
      → fail, never a fallback) and checks `/api/health` serves this commit. The URL is logged as host only.
-3. **All three green → Vercel promotes** the deployment to the production domains. Any red → no promotion; production
+3. **`deploy-smoke` green → Vercel promotes** the deployment to the production domains. Any red → no promotion; production
    keeps serving the previous deployment.
 4. **Post-promotion smoke** (`.github/workflows/post-promotion-smoke.yml`, on Vercel's
    `vercel.deployment.promoted` event, or by hand with a sha): the anonymous smoke of https://couragelibrary.in for the

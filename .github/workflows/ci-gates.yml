@@ -639,8 +639,10 @@ jobs:
   # secret), plus a commit check (/api/health serves this sha). After promotion: .github/workflows/post-promotion-smoke.yml.
   deploy-smoke:
     needs: [scope, offline, server-checks]
-    # after a push (a new deployment) or on a manual dispatch with prod_smoke=true; not on the nightly schedule
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke)
+    # after a push (a new deployment) or on a manual dispatch with prod_smoke=true; not on the nightly schedule.
+    # DEPLOY-GATE-1 (owner 2026-11-23): deploy-smoke is the ONE required Vercel Deployment Check, so it must never be
+    # "skipped": always() runs it whatever offline / server-checks did, and its first step FAILS unless both succeeded.
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke))
     runs-on: ubuntu-24.04
     # CI-FIX-1: hard limit; the Vercel deployment wait inside is ≤ 16 min (RESOLVE --timeout 960)
     timeout-minutes: 25
@@ -653,6 +655,19 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
+      - name: Require scope, offline and server-checks to have succeeded
+        id: needs
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          OFFLINE_RESULT: ${{ needs.offline.result }}
+          SERVER_CHECKS_RESULT: ${{ needs.server-checks.result }}
+        run: |
+          bad=0
+          for pair in "scope=$SCOPE_RESULT" "offline=$OFFLINE_RESULT" "server-checks=$SERVER_CHECKS_RESULT"; do
+            if [ "${pair#*=}" != "success" ]; then echo "FAIL  DEPLOY-GATE-1 ${pair%%=*} is '${pair#*=}', not success — this commit must not be promoted"; bad=1; fi
+          done
+          if [ "$bad" != 0 ]; then exit 1; fi
+          echo "PASS  DEPLOY-GATE-1 scope, offline and server-checks succeeded"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
@@ -675,5 +690,5 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node scripts/ci/run-quiet.cjs --id DEPLOY-SMOKE -- node scripts/smoke/anonymous-smoke.cjs "$DEPLOY_URL" --bypass --expect-sha "$GITHUB_SHA"
       - name: Log scan of the captured outputs
-        if: always()
+        if: always() && steps.needs.outcome == 'success'
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
