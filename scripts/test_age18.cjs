@@ -76,10 +76,17 @@ test('AG-04 email sign-up: rejected without the box before Supabase; box require
   const check = fn.indexOf('if (ageGate && !isAgeConfirmedInput(formData.get(AGE_CHECKBOX_FIELD))) return fail("age-required");');
   assert(check > 0 && check < fn.indexOf('supabase.auth.signUp('), 'server-side check before signUp');
   assert(/\.\.\.\(ageGate \? \{ \[AGE_SIGNUP_STAMP_KEY\]: new Date\(\)\.toISOString\(\) \} : \{\}\)/.test(fn), 'stamp (input) in the sign-up metadata');
-  assert(/"age-required": "Please confirm that you are 18 or older/.test(read('lib/auth/messages.ts')), 'fixed message');
+  // AUTH-UX-1 (re-pointed, rule kept — enforcement and recording above are unchanged): the fixed message carries no age
+  // number; the box is the one consent (ConsentCheckbox, field AGE_CHECKBOX_FIELD), never pre-ticked, shown ALWAYS (not
+  // only with the flag), and an unticked box blocks the submit in the form before anything is sent
+  const msg = (read('lib/auth/messages.ts').match(/  "age-required": "([^"]+)",/) || [])[1] || '';
+  assert(msg === 'Please accept the Terms and Privacy Policy to continue.' && !/\d/.test(msg), `fixed message: ${msg}`);
+  const cb = code(read('components/auth/consent-checkbox.tsx'));
+  assert(/name = AGE_CHECKBOX_FIELD/.test(cb) && /type="checkbox"/.test(cb) && !/defaultChecked|checked=\{/.test(cb), 'consent box: field / never pre-ticked');
   const f = code(read('app/(site)/auth/signup/signup-form.tsx'));
-  assert(/<input type="checkbox" name=\{AGE_CHECKBOX_FIELD\} required /.test(f) && !/defaultChecked|checked=\{/.test(f), 'required, not pre-ticked');
-  assert(/ageGate=\{isAgeGateEnabled\(\)\}/.test(read('app/(site)/auth/signup/page.tsx')), 'shown when the flag is on');
+  assert(/<ConsentCheckbox\s+ref=\{consentRef\}\s+id="signup-consent"/.test(f) && /form="signup-form"/.test(f) && /<form id="signup-form" action=\{formAction\} onSubmit=\{onSubmit\}/.test(f), 'the consent box is not part of the sign-up form');
+  assert(/if \(!isTicked\(\)\) \{\s*e\.preventDefault\(\);\s*blockConsent\(\);\s*return;\s*\}/.test(f) && !/defaultChecked|checked=\{/.test(f), 'an unticked consent does not block the submit');
+  assert(!/ageGate/.test(read('app/(site)/auth/signup/page.tsx')), 'the consent box depends on the flag (it must always show)');
 });
 
 test('AG-05 middleware reads app_metadata only (no DB query) + onboarding backstop', () => {

@@ -13,6 +13,9 @@ interface TurnstileRenderOptions {
   theme?: "auto" | "light" | "dark";
   size?: "normal" | "flexible" | "compact";
   appearance?: "always" | "execute" | "interaction-only";
+  /** AUTH-UX-1: interaction-only — the widget is about to show / has finished the visitor interaction */
+  "before-interactive-callback"?: () => void;
+  "after-interactive-callback"?: () => void;
 }
 
 interface TurnstileApi {

@@ -101,7 +101,7 @@ async function offline() {
   };
   const MOCKS = {
     'server-only': {},
-    'next/cache': { revalidatePath: () => undefined },
+    'next/cache': { revalidatePath: () => undefined, revalidateTag: () => undefined, unstable_cache: (fn) => fn }, // AUTH-UX-1: the auth pages read the paywall switch (display only)
     'next/headers': {
       cookies: async () => ({
         get: (n) => (jar.has(n) ? { name: n, value: jar.get(n) } : undefined),
@@ -354,7 +354,8 @@ async function offline() {
       assert(new RegExp(`<TurnstileWidget siteKey=\\{captcha\\.siteKey\\} action="${action}" resetKey=\\{state\\}`).test(s), `${f}: widget not reset on state`);
     }
     const w = code(read('components/auth/turnstile-widget.tsx'));
-    assert(/window\.turnstile\?\.reset\(widgetId\.current\)/.test(w) && /\[resetKey, update\]/.test(w), 'widget has no reset effect');
+    // AUTH-UX-1 (re-pointed, rule kept): the reset effect calls reset() (turnstile.reset + the token cleared), also used by Retry
+    assert(/window\.turnstile\?\.reset\(widgetId\.current\)/.test(w) && /\[resetKey, reset\]/.test(w) && /const reset = useCallback\(\(\) => \{\s*update\("", "pending"\);/.test(w), 'widget has no reset effect');
     assert(/window\.location\.replace\(googleRetryUrl\(/.test(code(read('components/auth/google-signin-button.tsx'))), 'Google failure path no longer reloads in full');
 
     // unit: load the widget with a tiny hook runner (no DOM library in the repo, #44)
@@ -465,9 +466,15 @@ async function offline() {
         assert(n && n.tone === 'error' && n.text === msgs.AUTH_ERRORS[c], `${c}: ${JSON.stringify(n)}`);
         nav.useSearchParams = () => new URLSearchParams({ m: c });
         const html = await renderPage('login');
-        assert(html.includes('data-auth-notice') && html.includes(n.text.replace(/'/g, '&#x27;')), `${c} not rendered`);
+        // AUTH-UX-1 (spec §3.8; re-pointed, rule kept): an allow-listed security code renders the fixed "Quick security
+        // check" card with Retry (the texts above stay = the action texts); nothing else is taken from the URL
+        assert(html.includes('data-security-check') && html.includes('Quick security check') && html.includes('data-security-retry'), `${c} not rendered as the security-check card`);
       }
-      for (const bad of ['captcha', 'CAPTCHA-FAILED', 'captcha_failed', '<b>captcha-failed</b>']) assert(msgs.authNotice(bad) === null, `${bad} rendered`);
+      for (const bad of ['captcha', 'CAPTCHA-FAILED', 'captcha_failed', '<b>captcha-failed</b>']) {
+        assert(msgs.authNotice(bad) === null, `${bad} rendered`);
+        nav.useSearchParams = () => new URLSearchParams({ m: bad });
+        assert(!(await renderPage('login')).includes('data-security-check'), `${bad}: an unknown code shows the security card`);
+      }
     } finally {
       nav.useSearchParams = orig;
     }
@@ -587,7 +594,8 @@ function staticChecks() {
     const order = ['isGoogleSignInEnabled()', 'isWellFormedIdToken(credential)', 'checkCaptchaToken(captchaToken)', 'consumeNonce()', 'signInWithIdToken('].map((k) => ga.indexOf(k));
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `Google action order changed: ${order}`);
     const mw = code(read('middleware.ts'));
-    assert(/request\.method === "GET" && request\.nextUrl\.pathname === "\/auth\/login" && isGoogleSignInEnabled\(\)/.test(mw) && !/captcha/i.test(mw), 'middleware changed');
+    // AUTH-UX-1 (re-pointed, rule kept): the only middleware change is the nonce for /auth/signup too; nothing Turnstile there
+    assert(/request\.method === "GET" && \(request\.nextUrl\.pathname === "\/auth\/login" \|\| request\.nextUrl\.pathname === "\/auth\/signup"\) && isGoogleSignInEnabled\(\)/.test(mw) && !/captcha/i.test(mw), 'middleware changed');
     const pages = ['app/(site)/auth/login/page.tsx', 'app/(site)/auth/signup/page.tsx', 'app/(site)/auth/forgot-password/page.tsx'].map((f) => read(f));
     assert(pages.every((p) => /isCaptchaEnabled\(\)/.test(p) && !/^"use client"/.test(p.replace(/^﻿/, ''))), 'flag not evaluated in a server page');
     const pkg = JSON.parse(read('package.json'));

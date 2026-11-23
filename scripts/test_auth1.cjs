@@ -473,14 +473,16 @@ async function offline() {
     const closed = await signupPage.default();
     assert(find(closed, (e) => e.props && Object.prototype.hasOwnProperty.call(e.props, 'data-signup-closed')), 'closed marker missing');
     assert(!find(closed, (e) => e.type === SignupForm), 'form rendered while closed');
-    assert(find(closed, (e) => e.type === 'h1' && /Registrations open soon/.test(String(e.props.children))), 'heading');
+    // AUTH-UX-1 (re-pointed, rule kept): the one h1 comes from THE auth heading (AuthHeading title → <h1>)
+    assert(find(closed, (e) => (e.type === 'h1' && /Registrations open soon/.test(String(e.props.children))) || (e.type && e.type.name === 'AuthHeading' && e.props.title === 'Registrations open soon')), 'heading');
     state.signupDisabled = false;
     process.env.AUTH_SIGNUP_ENABLED = 'false';
     const forced = await signupPage.default();
     assert(!find(forced, (e) => e.type === SignupForm), 'AUTH_SIGNUP_ENABLED=false ignored');
     delete process.env.AUTH_SIGNUP_ENABLED;
     const open = await signupPage.default();
-    assert(open.type === SignupForm, 'form not rendered while open');
+    // AUTH-UX-1 (re-pointed, rule kept): the form now sits inside THE auth layout (AuthShell → Suspense → SignupForm)
+    assert(find(open, (e) => e.type === SignupForm) && !find(open, (e) => e.props && Object.prototype.hasOwnProperty.call(e.props, 'data-signup-closed')), 'form not rendered while open');
     reset();
     state.signupDisabled = true;
     let called = 0;

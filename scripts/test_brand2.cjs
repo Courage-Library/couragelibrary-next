@@ -346,8 +346,11 @@ async function offline() {
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
     assert(/lg: "h-12 /.test(legacy), 'legacy lg button no longer 48 px');
-    const submits = ['app/(site)/auth/login/login-form.tsx', 'app/(site)/auth/signup/signup-form.tsx', 'app/(site)/auth/forgot-password/forgot-password-form.tsx'].filter((f) => !/type="submit"[\s\S]{0,120}size="lg"/.test(read(f)));
-    assert(submits.length === 0, `auth submit not size lg (48 px): ${submits.join(', ')}`);
+    // AUTH-UX-1 (re-pointed, rule kept — every auth submit is 48 px): the auth pages use THE auth button class (h-12)
+    const authUi = read('components/auth/auth-ui.tsx');
+    assert(/export const PRIMARY_BUTTON_CLASS =\s*"[^"]*\bh-12\b[^"]*"/.test(authUi) && /export const FIELD_CLASS =\s*"[^"]*\bh-12\b[^"]*"/.test(authUi), 'auth button / field class not 48 px');
+    const submits = ['app/(site)/auth/login/login-form.tsx', 'app/(site)/auth/signup/signup-form.tsx', 'app/(site)/auth/forgot-password/forgot-password-form.tsx', 'app/(site)/auth/update-password/update-password-form.tsx'].filter((f) => !/<button type="submit" className=\{PRIMARY_BUTTON_CLASS\}/.test(read(f)));
+    assert(submits.length === 0, `auth submit not the 48 px auth button: ${submits.join(', ')}`);
     return 'pills 48 px, nav actions 48 px, auth submits 48 px';
   });
 

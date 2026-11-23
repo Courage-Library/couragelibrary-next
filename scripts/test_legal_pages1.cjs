@@ -171,10 +171,16 @@ const missing = (page, text, coins) => pageTexts(page, { coins }).map(norm).filt
     for (const k of keys) assert(new RegExp(`href: FOOTER_ROUTES\\.${k} \\}`).test(fl), `the footer columns do not link ${k}`);
     assert(/<PublicFooter/.test(read('components/landing-v1/landing-page.tsx')) && /<PublicFooter/.test(read('components/shell/public-shell.tsx')) && /<PublicFooter/.test(read('components/shell/app-shell.tsx')), 'the footer renders the legal links on every page (home included)');
     const C = require(path.join(ROOT, 'components/legal/consent-lines.tsx'));
-    const auth = renderToStaticMarkup(h(C.AuthConsentLine));
     const pay = renderToStaticMarkup(h(C.PaymentConsentLine));
-    assert(textOf(auth) === C.AUTH_CONSENT_TEXT && C.AUTH_CONSENT_TEXT === 'By continuing you confirm you are 18 or older and agree to our Terms and Privacy Policy.', `auth line: ${textOf(auth)}`);
-    assert(/href="\/terms"[^>]*>Terms</.test(auth) && /href="\/privacy"[^>]*>Privacy Policy</.test(auth), 'auth links');
+    // AUTH-UX-1 (owner spec §3–§4; re-pointed, rule kept — the auth consent, exact words + real links, BEFORE every
+    // button that can create an account): the consent is THE consent box on Create account (no age number); sign-in
+    // has none (it can never create an account — a new Google account is refused and sent to Create account)
+    const AG = require(path.join(ROOT, 'lib/auth/age-gate.ts'));
+    const CB = require(path.join(ROOT, 'components/auth/consent-checkbox.tsx'));
+    const auth = renderToStaticMarkup(h(CB.ConsentCheckbox, { id: 'lp-consent' }));
+    assert(textOf(auth) === AG.AGE_CONFIRM_LABEL && AG.AGE_CONFIRM_LABEL === "I agree to the Terms and Privacy Policy, and confirm I'm eligible to create an account." && !/\d/.test(textOf(auth)), `auth consent: ${textOf(auth)}`);
+    assert(/href="\/terms" target="_blank" rel="noopener noreferrer"[^>]*>Terms</.test(auth) && /href="\/privacy" target="_blank" rel="noopener noreferrer"[^>]*>Privacy Policy</.test(auth), 'auth consent links (new tab)');
+    assert(!('AuthConsentLine' in C) && !('AUTH_CONSENT_TEXT' in C), 'the retired "18 or older" consent line is back');
     assert(textOf(pay) === C.PAYMENT_CONSENT_TEXT && C.PAYMENT_CONSENT_TEXT === 'By paying you agree to the Terms, Privacy Policy and Refund Policy.', `pay line: ${textOf(pay)}`);
     assert(/href="\/terms"/.test(pay) && /href="\/privacy"/.test(pay) && /href="\/refund-policy"/.test(pay), 'pay links');
     const before = (file, line, button) => {
@@ -183,9 +189,9 @@ const missing = (page, text, coins) => pageTexts(page, { coins }).map(norm).filt
       const b = s.indexOf(button, a);
       assert(a !== -1 && b !== -1 && a < b, `${file}: ${line} must come before ${button}`);
     };
-    before('app/(site)/auth/login/login-form.tsx', '<AuthConsentLine />', '<GoogleSignInButton');
-    before('app/(site)/auth/login/login-form.tsx', '<AuthConsentLine />', 'type="submit"');
-    before('app/(site)/auth/signup/signup-form.tsx', '<AuthConsentLine />', 'type="submit"');
+    before('app/(site)/auth/signup/signup-form.tsx', '<ConsentCheckbox', '<GoogleSignInButton');
+    before('app/(site)/auth/signup/signup-form.tsx', '<ConsentCheckbox', 'type="submit"');
+    assert(!/ConsentCheckbox|AuthConsentLine|ageConfirmed/.test(read('app/(site)/auth/login/login-form.tsx')), 'sign-in shows a consent (spec §3.4: none on sign-in)');
     before('app/(site)/pricing/pricing-client.tsx', '<PaymentConsentLine hrefs={legal}>', '{action}');
     // PAY-1 B1: the legacy /checkout pages are retired (→ /pricing); the pricing page above is the only pay button
     assert(/REFUND_POLICY_PATH = "\/refund-policy"/.test(read('config/payments.ts')), 'pricing refund link = the new page');

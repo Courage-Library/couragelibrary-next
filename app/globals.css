@@ -851,3 +851,87 @@
   fill: var(--color-cl-logo-violet);
   stroke: none;
 }
+
+/* AUTH-UX-1 (components/auth/auth-shell.tsx, spec §2): split 50 / 50 at ≥ 1024 px (brand panel | form column); below
+   it the form alone with 20 px side padding. Band gradient + white only (cl-* tokens). */
+.cl-auth {
+  display: grid;
+  min-height: min(820px, calc(100dvh - 64px));
+}
+.cl-auth__panel {
+  display: none;
+}
+.cl-auth__main {
+  display: flex;
+  justify-content: center;
+  padding: 28px 20px 48px;
+}
+.cl-auth__col {
+  display: flex;
+  width: 100%;
+  max-width: 400px;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (min-width: 1024px) {
+  .cl-auth {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cl-auth__panel {
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 64px clamp(40px, 6vw, 88px);
+    background: var(--cl-band);
+    color: var(--color-cl-white);
+  }
+  .cl-auth__main {
+    align-items: center;
+    padding: 48px 32px;
+  }
+}
+.cl-auth__mark {
+  position: absolute;
+  right: -90px;
+  bottom: -70px;
+  width: 420px;
+  height: auto;
+  opacity: 0.12;
+  pointer-events: none;
+}
+.cl-auth__panel-in {
+  position: relative;
+  display: flex;
+  max-width: 440px;
+  flex-direction: column;
+  gap: 18px;
+}
+.cl-auth__tag {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.cl-auth__sentence {
+  font-size: 17px;
+  line-height: 1.55;
+  opacity: 0.92;
+}
+.cl-auth__features {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 6px;
+}
+.cl-auth__features li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 500;
+}
+.cl-auth__note {
+  margin-top: 6px;
+  font-size: 14px;
+  opacity: 0.85;
+}

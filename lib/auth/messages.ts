@@ -11,7 +11,7 @@ export const AUTH_NOTICES = {
   "check-email": { tone: "info", text: "Check your email. If the address can be used, we've sent a link to continue. The link works on any device." },
   "email-confirmed": { tone: "success", text: "Your email is confirmed. You're signed in." },
   "password-updated": { tone: "success", text: "Your password has been updated. Please sign in with your new password." },
-  "signed-out": { tone: "info", text: "You have been signed out." },
+  "signed-out": { tone: "success", text: "You've been signed out." },
   "link-expired": { tone: "error", text: "That link is invalid or has expired. Please request a new one." },
   "oauth-failed": { tone: "error", text: "We couldn't complete that sign-in. Please try again." },
   // AUTH-1 2b-1a: after a failed Google attempt the sign-in page reloads in full with ?m=<code>; same fixed texts as the
@@ -22,8 +22,12 @@ export const AUTH_NOTICES = {
   // AUTH-1 2b-2: Turnstile codes (a failed Google attempt reloads with ?m=, so they must be renderable here too)
   "captcha-required": { tone: "error", text: "Please complete the security check and try again." },
   "captcha-failed": { tone: "error", text: "The security check didn't work. Please try again." },
-  // AUTH-HARDEN-1: a new Google account without the 18+ box reloads the sign-in page with ?m=age-required
-  "age-required": { tone: "error", text: "Please confirm that you are 18 or older. Courage Library is for adults only." },
+  // AUTH-HARDEN-1: a new Google account without the consent box reloads with ?m=age-required (AUTH-UX-1: no age number
+  // on any auth screen — the eligibility rule lives in the Terms; the consent references it)
+  "age-required": { tone: "error", text: "Please accept the Terms and Privacy Policy to continue." },
+  // AUTH-UX-1 (owner decision 1): a NEW Google account from the sign-in page is refused (age-required) and sent to Create
+  // account, which has the consent box and "Sign up with Google"
+  "new-account": { tone: "info", text: "Looks like you're new here. Accept the Terms and Privacy Policy to create your account." },
   generic: { tone: "error", text: "Something went wrong on our side. Please try again in a few minutes." },
 } as const satisfies Record<string, { tone: AuthNoticeTone; text: string }>;
 
@@ -39,7 +43,7 @@ export function authNotice(code: unknown): { tone: AuthNoticeTone; text: string 
 export const AUTH_ERRORS = {
   "missing-fields": "Please fill in all the fields.",
   "invalid-email": "Please enter a valid email address.",
-  "invalid-credentials": "Email or password is incorrect.",
+  "invalid-credentials": "Email or password is incorrect. Try again or reset your password.",
   "email-not-confirmed": "Please confirm your email first. Check your inbox for the link we sent.",
   "weak-password": "Use at least 8 characters, with both letters and numbers.",
   "password-mismatch": "The two passwords don't match.",
@@ -53,8 +57,9 @@ export const AUTH_ERRORS = {
   // AUTH-1 2b-2: Cloudflare Turnstile (verified by Supabase); same texts as the ?m= notices above
   "captcha-required": "Please complete the security check and try again.",
   "captcha-failed": "The security check didn't work. Please try again.",
-  // AGE-18 (owner decision): the sign-up checkbox is required while AGE_GATE_ENABLED
-  "age-required": "Please confirm that you are 18 or older. Courage Library is for adults only.",
+  // AGE-18 (owner decision): the sign-up consent box is required while AGE_GATE_ENABLED (AUTH-UX-1: wording without an
+  // age number; enforcement unchanged)
+  "age-required": "Please accept the Terms and Privacy Policy to continue.",
   generic: "Something went wrong on our side. Please try again in a few minutes.",
 } as const;
 

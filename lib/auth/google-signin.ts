@@ -13,11 +13,28 @@ import { isCaptchaError } from "@/lib/auth/captcha";
  * mints / reuses a nonce and re-initialises Google Identity Services). The message survives through the ?m= allow-list;
  * `next` is kept only if lib/auth/safe-redirect accepts it (invalid → omitted). Pure; safe in the browser.
  */
-export function googleRetryUrl(code: string, next: unknown): string {
-  const params = new URLSearchParams({ m: code });
+/**
+ * AUTH-UX-1 (owner decision 1) — what the Google button's callback may do. Pure.
+ *   sign-in ("login")         → call the action WITHOUT the consent (never true from sign-in)
+ *   Create account, ticked    → call the action WITH the consent (ageConfirmed === true)
+ *   Create account, unticked  → "block": show the consent error; the action is NEVER called
+ */
+export function googleCallbackDecision(surface: "login" | "signup", consentTicked: boolean | undefined): "call-without-consent" | "call-with-consent" | "block" {
+  if (surface !== "signup") return "call-without-consent";
+  return consentTicked === true ? "call-with-consent" : "block";
+}
+
+/**
+ * AUTH-UX-1: the page a failed Google attempt reloads in full (fresh nonce + fresh GIS). The page the button is on
+ * (`surface`), with the fixed code — except a NEW account refused for the missing consent ("age-required"): that goes to
+ * Create account with ?m=new-account (owner decision 1), where the consent box and "Sign up with Google" are.
+ */
+export function googleRetryUrl(code: string, next: unknown, surface: "login" | "signup" = "login"): string {
+  const newAccount = code === "age-required";
+  const params = new URLSearchParams({ m: newAccount ? "new-account" : code });
   const safeNext = sanitizeRedirectPath(next, "");
   if (safeNext) params.set("next", safeNext);
-  return `/auth/login?${params.toString()}`;
+  return `/auth/${newAccount || surface === "signup" ? "signup" : "login"}?${params.toString()}`;
 }
 
 /**

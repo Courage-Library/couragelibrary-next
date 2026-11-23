@@ -1,68 +1,63 @@
 "use client";
 
-import React, { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { forgotPasswordAction } from "@/app/(site)/auth/actions";
-import { Button } from "@/components/ui/legacy/button";
-import { Input } from "@/components/ui/legacy/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
-import { Alert } from "@/components/ui/legacy/alert";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
+import { useCaptchaGate } from "@/components/auth/use-captcha-gate";
+import { AuthAlert, AuthHeading, AuthInput, CloudflareLine, PRIMARY_BUTTON_CLASS, SecurityCheckCard, SecurityWaiting } from "@/components/auth/auth-ui";
+import { errorSlot } from "@/components/auth/auth-errors";
 import type { CaptchaConfig } from "@/lib/auth/captcha";
+import type { AuthPreview } from "@/app/(site)/auth/login/login-form";
+
+/** AUTH-UX-1 (spec §5): never reveals whether the address has an account (the action already answers success-shaped) */
+export const RESET_SENT_TEXT = "If an account exists for this email, we've sent a reset link.";
 
 /** The reset-request form (client). AUTH-1 2b-2: page.tsx evaluates the Turnstile flag and passes the site key. */
-export function ForgotPasswordForm({ captcha = null }: { captcha?: CaptchaConfig }) {
-  const [state, formAction, isPending] = useActionState(forgotPasswordAction, null);
+export function ForgotPasswordForm({ captcha = null, preview }: { captcha?: CaptchaConfig; preview?: AuthPreview }) {
+  const [actionState, formAction, isPending] = useActionState(forgotPasswordAction, null);
+  const state = preview?.state ?? actionState;
+  const gate = useCaptchaGate(!!captcha);
+  const phase = preview?.security ?? gate.phase;
+  const slot = state?.error ? errorSlot(state.code) : null;
+  const emailRef = useRef<HTMLInputElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!state?.error) return;
+    if (slot === "email") emailRef.current?.focus();
+    else if (slot === "form") alertRef.current?.focus();
+  }, [state, slot]);
 
   return (
-    <div className="auth-gradient min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="glass-light w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Reset Password
-          </CardTitle>
-          <CardDescription className="text-sm text-slate-500">
-            Enter your email and we will send you a reset link
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {state?.error && (
-            <Alert variant="error">
-              {state.error}
-            </Alert>
+    <>
+      <AuthHeading title="Forgot your password?" sub="Enter your email and we'll send you a reset link." />
+      {state?.code === "check-email" ? (
+        <p role="status" className="rounded-xl bg-cl-cloud px-4 py-3.5 text-body text-cl-charcoal" data-auth-notice="reset-sent">
+          {RESET_SENT_TEXT}
+        </p>
+      ) : (
+        <form action={formAction} onSubmit={(e) => gate.guard(e)} className="flex flex-col gap-4" data-auth-form="forgot">
+          <AuthInput ref={emailRef} id="forgot-email" label="Email" name="email" type="email" inputMode="email" autoComplete="email" required error={slot === "email" ? state?.error : null} />
+          {slot === "form" && (
+            <AuthAlert ref={alertRef} id="forgot-error" code={state?.code ?? ""}>
+              {state?.error}
+            </AuthAlert>
           )}
-          {state?.success && (
-            <Alert variant="success">
-              {state.success}
-            </Alert>
-          )}
-          <form action={formAction} className="space-y-4">
-            <Input
-              label="Email Address"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              required
-            />
-            {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="forgot-password" resetKey={state} />}
-            <Button
-              type="submit"
-              variant="default"
-              size="lg"
-              className="w-full font-semibold shadow-sm"
-              isLoading={isPending}
-            >
-              Send Reset Link
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="justify-center text-xs text-slate-500">
-          Remember your password?{" "}
-          <Link href="/auth/login" className="ml-1 font-semibold text-blue-600 hover:text-blue-700">
-            Back to Sign In
-          </Link>
-        </CardFooter>
-      </Card>
-    </div>
+          <button type="submit" className={PRIMARY_BUTTON_CLASS} aria-busy={isPending} data-auth-submit="">
+            {isPending ? "Sending…" : "Send reset link"}
+          </button>
+          {phase === "waiting" && <SecurityWaiting />}
+          {(phase === "failed" || slot === "captcha") && <SecurityCheckCard onRetry={gate.retry} />}
+          {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="forgot-password" resetKey={state} onToken={gate.onToken} onStatus={gate.onStatus} resetRef={gate.resetRef} />}
+          {captcha && <CloudflareLine />}
+        </form>
+      )}
+      <p className="flex flex-wrap items-center justify-center gap-x-1 text-body-sm text-cl-slate">
+        Remembered it?
+        <Link href="/auth/login" className="focus-ring inline-flex min-h-12 items-center font-semibold text-cl-blue-text underline-offset-2 hover:underline">
+          Back to sign in
+        </Link>
+      </p>
+    </>
   );
 }

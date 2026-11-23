@@ -17,7 +17,8 @@
 
 export const AGE_CONFIRM_PATH = "/confirm-age";
 export const AGE_CHECKBOX_FIELD = "ageConfirmed";
-export const AGE_CONFIRM_LABEL = "I confirm I am 18 or older";
+/** AUTH-UX-1 (owner): the one eligibility consent — no age number on any auth screen; the rule lives in the Terms (§1.1) */
+export const AGE_CONFIRM_LABEL = "I agree to the Terms and Privacy Policy, and confirm I'm eligible to create an account.";
 /** app_metadata flag (server-written, service role only) — the ONLY thing the gate trusts */
 export const AGE_APP_METADATA_FLAG = "adult_confirmed";
 /** user_metadata key of the sign-up checkbox stamp — an input for the first sign-in, never a confirmation by itself */

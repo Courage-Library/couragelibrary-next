@@ -2,6 +2,13 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## FOOTER-BAND-CLAIM: the sign-up band says "Free daily mock, current affairs and practice." ungated
+
+**Status:** logged in AUTH-UX-1, 2026-11-24 (owner decision 3). `content/footer.ts` `bandText` claims a daily mock (no
+reliable source yet — NAV-TODAY-MOCK-1) and current affairs without any check that they exist. The auth pages no longer
+make either claim (static true features only). **Next:** gate the band copy on real data or reword it to true features
+(don't oversell).
+
 ## BRAND-ICONS-LANDING: brand-compatible icons for the landing "How it works" steps 04–06
 
 **Status:** logged in BRAND-ICONS-1, 2026-11-23 (owner decision 1). The landing "How it works" list and the loop

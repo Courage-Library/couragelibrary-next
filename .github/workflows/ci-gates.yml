@@ -151,6 +151,7 @@ jobs:
           q DEPLOY-GATE-1 node scripts/test_deploy_gate1.cjs || fail=1
           q LEGAL-LINK-1 node scripts/test_legal_link1.cjs || fail=1
           q BRAND-ICONS-1 node scripts/test_brand_icons1.cjs || fail=1
+          q AUTH-UX-1 node scripts/test_auth_ux1.cjs || fail=1
           q AUTH1-2B1-OFFLINE node scripts/test_auth1_2b1.cjs || fail=1
           q AUTH1-2B2-OFFLINE node scripts/test_auth1_2b2.cjs || fail=1
           q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1

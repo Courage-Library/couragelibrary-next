@@ -84,7 +84,7 @@ const CLIENT_ID = 'harden1-client.apps.googleusercontent.com';
   const React = require('react');
   const MOCKS = {
     'server-only': {},
-    'next/cache': { revalidatePath: () => undefined },
+    'next/cache': { revalidatePath: () => undefined, revalidateTag: () => undefined, unstable_cache: (fn) => fn }, // AUTH-UX-1: auth pages read the paywall switch (display only)
     'next/headers': {
       cookies: async () => ({
         get: (n) => (jar.has(n) ? { name: n, value: jar.get(n) } : undefined),
@@ -252,22 +252,41 @@ const CLIENT_ID = 'harden1-client.apps.googleusercontent.com';
     return `${kept.length} cases kept`;
   });
 
-  await test('H-08 login page: 18+ box next to Google only while registrations open AND gate on; ?m=age-required = action text', async () => {
+  await test('H-08 sign-in: no consent box ever, never sends it; Create account: consent + Sign up with Google; age-required → /auth/signup?m=new-account', async () => {
     const { renderToStaticMarkup } = require('react-dom/server');
     const loginPage = require(path.join(ROOT, 'app/(site)/auth/login/page.tsx')).default;
     // the page reads a nonce hash for the button: give it a fresh raw nonce on the "request"
+    // AUTH-UX-1 (owner decision 1; re-pointed, rule kept — a NEW Google account always needs the consent): sign-in shows
+    // NO consent box in any configuration and never sends the consent; Create account shows the consent box + "Sign up
+    // with Google" (the same button); the server refusal reloads to Create account (?m=new-account)
+    const signupPage = require(path.join(ROOT, 'app/(site)/auth/signup/page.tsx')).default;
     const out = {};
     for (const [signup, age] of [[true, true], [true, false], [false, true]]) {
       reset({ settings: { disable_signup: !signup } });
       env({ signup, age });
       jar.set(core.GOOGLE_NONCE_COOKIE, core.randomRawNonce());
       const html = renderToStaticMarkup(await loginPage());
-      out[`${signup ? 'open' : 'closed'}/${age ? 'gate' : 'nogate'}`] = html.includes('data-google-age');
+      out[`login ${signup ? 'open' : 'closed'}/${age ? 'gate' : 'nogate'}`] = /data-google-age|data-consent|name="ageConfirmed"|name="googleAgeConfirmed"/.test(html) ? 'consent' : html.includes('data-google-signin="login"') ? 'google' : 'none';
     }
-    assert(out['open/gate'] === true && out['open/nogate'] === false && out['closed/gate'] === false, JSON.stringify(out));
+    assert(Object.values(out).every((v) => v === 'google'), `sign-in: ${JSON.stringify(out)}`);
+    reset({ settings: { disable_signup: false } });
+    env({ signup: true, age: true });
+    jar.set(core.GOOGLE_NONCE_COOKIE, core.randomRawNonce());
+    const su = renderToStaticMarkup(await signupPage());
+    assert(/data-consent=""/.test(su) && /name="ageConfirmed"/.test(su) && su.includes('data-google-signin="signup"') && !/name="ageConfirmed"[^>]*checked/.test(su), 'Create account: consent box (never pre-ticked) + "Sign up with Google" missing');
+    const b = read('components/auth/google-signin-button.tsx');
+    const g0 = require(path.join(ROOT, 'lib/auth/google-signin.ts'));
+    // the callback: block (no action call) on Create account without the box; the consent only from Create account, ticked
+    const cb = b.slice(b.indexOf('callback: (response) =>'), b.indexOf('gsi.renderButton('));
+    assert(/const decision = googleCallbackDecision\(surface, consent\?\.isTicked\(\)\);\s*if \(decision === "block"\) \{\s*consent\?\.onBlocked\(\);\s*return;\s*\}\s*const ageConfirmed = decision === "call-with-consent";/.test(cb) && cb.indexOf('if (decision === "block")') < cb.indexOf('signInWithGoogleAction(') && /signInWithGoogleAction\(credential, next, getCaptchaToken\?\.\(\), ageConfirmed\)/.test(cb), 'the Google button may send the consent from sign-in, or call the action without the box ticked');
+    const d = g0.googleCallbackDecision;
+    assert(d('login', true) === 'call-without-consent' && d('login', false) === 'call-without-consent' && d('login', undefined) === 'call-without-consent' && d('signup', true) === 'call-with-consent' && d('signup', false) === 'block' && d('signup', undefined) === 'block', 'googleCallbackDecision');
+    const g = require(path.join(ROOT, 'lib/auth/google-signin.ts'));
+    assert(g.googleRetryUrl('age-required', '/dashboard', 'login') === '/auth/signup?m=new-account&next=%2Fdashboard' && g.googleRetryUrl('google-failed', '', 'login') === '/auth/login?m=google-failed' && g.googleRetryUrl('google-failed', '', 'signup') === '/auth/signup?m=google-failed', 'retry targets');
     const n = messages.authNotice('age-required');
-    assert(n && n.text === messages.AUTH_ERRORS['age-required'] && n.tone === 'error', 'notice text ≠ action text');
-    return JSON.stringify(out);
+    assert(n && n.text === messages.AUTH_ERRORS['age-required'] && n.tone === 'error' && !/\d/.test(n.text), 'notice text ≠ action text (or carries an age number)');
+    assert(messages.authNotice('new-account') && /Accept the Terms and Privacy Policy to create your account/.test(messages.authNotice('new-account').text), 'new-account notice');
+    return `${JSON.stringify(out)} · signup: consent + Google · age-required → /auth/signup?m=new-account`;
   });
 
   /** static order check on the action: lookup → refusal (sign out + removal + return) → profile → 18+ record */

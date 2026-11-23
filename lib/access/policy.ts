@@ -124,6 +124,18 @@ export function paywallOnForNav(ms = 800): Promise<boolean> {
   ]);
 }
 
+/**
+ * AUTH-UX-1: the paywall master switch for the auth pages' "Free during early access." note — DISPLAY only, the same
+ * cached read, bounded and never rejecting. Unlike the nav chip an unknown switch is NOT "off": "unknown" → the note
+ * is hidden (never claim "free" unless the switch is known to be off). Grants or blocks nothing.
+ */
+export function paywallSwitchForDisplay(ms = 800): Promise<"on" | "off" | "unknown"> {
+  return Promise.race([
+    cachedPaywall().then((s) => s, () => "unknown" as const),
+    new Promise<"unknown">((resolve) => setTimeout(() => resolve("unknown"), ms)),
+  ]);
+}
+
 async function anonLessonAccess(keys: string[]): Promise<Map<string, AccessAnswer> | null> {
   try {
     const jar = await cookies();

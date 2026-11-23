@@ -41,9 +41,15 @@ function check(over = {}) {
   const fail = (m) => fails.push(m);
   // I-1
   const lf = f.loginForm;
-  if (!/<Field id="login-email" label="Email address" required>\s*<Input name="email"[^>]*className="h-12"/.test(lf) || !/<Field id="login-password" label="Password" required>\s*<Input name="password"[^>]*className="h-12"/.test(lf)) fail('I-1 login fields not labelled through <Field> with 48 px inputs');
-  if ((lf.match(/<h1\b/g) || []).length !== 1) fail('I-1 login: not exactly one <h1>');
-  if (!/<Alert tone="danger" live data-auth-error=/.test(lf) || !/live data-auth-notice=""/.test(lf)) fail('I-1 login errors / notices not announced (Alert live)');
+  // AUTH-UX-1 (re-pointed, rule kept): the fields are THE auth inputs (components/auth/auth-ui.tsx AuthInput,
+  // password-field.tsx) — a <label htmlFor> bound to the input id, 48 px (FIELD_CLASS h-12); ONE <h1> via AuthHeading;
+  // errors announced (role="alert"), notices role="status"
+  const ui = read('components/auth/auth-ui.tsx');
+  const pf = read('components/auth/password-field.tsx');
+  const bound = (src) => /<label htmlFor=\{id\}/.test(src) && /\bid=\{id\}/.test(src);
+  if (!/<AuthInput ref=\{emailRef\} id="login-email" label="Email" name="email" type="email"/.test(lf) || !/<PasswordField\s+id="login-password"\s+name="password"\s+label="Password"/.test(lf) || !bound(ui) || !bound(pf) || !/export const FIELD_CLASS =\s*"[^"]*\bh-12\b/.test(ui)) fail('I-1 login fields not labelled (label ↔ input by id) with 48 px inputs');
+  if ((lf.match(/<h1\b/g) || []).length !== 0 || (lf.match(/<AuthHeading\b/g) || []).length !== 1 || (ui.match(/<h1\b/g) || []).length !== 1) fail('I-1 login: not exactly one <h1>');
+  if (!/<AuthAlert ref=\{alertRef\} id="login-error"/.test(lf) || !/<AuthNotice text=\{notice\.text\}/.test(lf) || !/role="alert"/.test(ui) || !/role="status"/.test(ui)) fail('I-1 login errors / notices not announced (role alert / status)');
   if (/components\/ui\/legacy\/input|<label className="block text-xs/.test(lf)) fail('I-1 login still uses the legacy input / an unbound label');
   if ((lf.match(/inline-flex min-h-12 items-center/g) || []).length < 3) fail('I-1 login links < 48 px');
   // I-2
@@ -94,8 +100,9 @@ function check(over = {}) {
 if (process.argv.includes('--self-test')) {
   const r = (k) => read(F[k]);
   const controls = [
-    ['login password label unbound', { loginForm: r('loginForm').replace('<Field id="login-password" label="Password" required>', '<Field id="login-pw" label="Password" required>') }, /I-1 login fields/],
-    ['login with two h1', { loginForm: r('loginForm').replace('</h1>', '</h1><h1>x</h1>') }, /I-1 login: not exactly one/],
+    // AUTH-UX-1 (re-pointed with I-1): the fields are THE auth inputs; the one h1 comes from AuthHeading
+    ['login password label unbound', { loginForm: r('loginForm').replace('id="login-password"', 'id="login-pw-x"').replace('name="password"\n          label="Password"', 'name="password"\n          label="Password"') }, /I-1 login fields/],
+    ['login with two h1', { loginForm: r('loginForm').replace('<AuthHeading title="Welcome back"', '<h1>x</h1>\n      <AuthHeading title="Welcome back"') }, /I-1 login: not exactly one/],
     ['mocks not free-first', { examPage: r('examPage').replace('Number(b.isFree) - Number(a.isFree) ||', '') }, /I-2 mock order/],
     ['category page shows admin text', { catPage: r('catPage').replace('{intro && (', '{category.shortDesc && (') }, /I-3 the category page/],
     ['login always links to sign-up', { loginForm: r('loginForm').replace('<Link href="/exams" className', '<Link href="/auth/signup" className') }, /I-4 login links/],

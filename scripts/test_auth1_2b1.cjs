@@ -100,7 +100,7 @@ async function offline() {
   const React = require('react');
   const MOCKS = {
     'server-only': {},
-    'next/cache': { revalidatePath: () => undefined },
+    'next/cache': { revalidatePath: () => undefined, revalidateTag: () => undefined, unstable_cache: (fn) => fn }, // AUTH-UX-1: the auth pages read the paywall switch (display only)
     'next/headers': {
       cookies: async () => ({
         get: (n) => (jar.has(n) ? { name: n, value: jar.get(n) } : undefined),
@@ -242,7 +242,10 @@ async function offline() {
       assert(!reuse.set.includes(core.GOOGLE_NONCE_COOKIE), 'existing valid nonce re-minted');
       const bad = await mw('http://localhost/auth/login', { cookie: `${core.GOOGLE_NONCE_COOKIE}=not-a-nonce` });
       assert(bad.set.includes(core.GOOGLE_NONCE_COOKIE), 'malformed nonce cookie not replaced');
-      assert(!(await mw('http://localhost/auth/signup')).set.includes(core.GOOGLE_NONCE_COOKIE), 'nonce minted outside /auth/login');
+      // AUTH-UX-1 (re-pointed, rule kept: minted ONLY for the pages that render the Google button): /auth/login and —
+      // since "Sign up with Google" — /auth/signup; never for any other page
+      assert((await mw('http://localhost/auth/signup')).set.includes(core.GOOGLE_NONCE_COOKIE), 'no nonce for /auth/signup (it renders the Google button)');
+      for (const p of ['/auth/forgot-password', '/auth/update-password', '/', '/exams', '/auth/signupx']) assert(!(await mw(`http://localhost${p}`)).set.includes(core.GOOGLE_NONCE_COOKIE), `nonce minted outside /auth/login and /auth/signup (${p})`);
     } finally {
       process.env.NODE_ENV = prev;
     }
@@ -415,7 +418,8 @@ async function offline() {
   // ---------------- 2b-1a: retry after a failed attempt ----------------
   await test('T-14 static: middleware mints GET-only; button error path = full page load (google-disabled excepted)', () => {
     const m = code(read('middleware.ts'));
-    assert(/request\.method === "GET" && request\.nextUrl\.pathname === "\/auth\/login" && isGoogleSignInEnabled\(\)/.test(m), 'mint condition is not GET-only');
+    // AUTH-UX-1 (re-pointed, rule kept): GET-only, for the two pages with the Google button
+    assert(/request\.method === "GET" && \(request\.nextUrl\.pathname === "\/auth\/login" \|\| request\.nextUrl\.pathname === "\/auth\/signup"\) && isGoogleSignInEnabled\(\)/.test(m), 'mint condition is not GET-only (login + signup)');
     const b = code(read('components/auth/google-signin-button.tsx'));
     assert(/window\.location\.replace\(googleRetryUrl\(/.test(b), 'error path does not reload the page in full');
     assert(!/router\.(push|replace|refresh)|useRouter/.test(b), 'soft navigation used');
@@ -458,7 +462,9 @@ async function offline() {
         nav.useSearchParams = () => new URLSearchParams({ m: c });
         const { html } = await renderLogin();
         const want = msgs.AUTH_NOTICES[c].text.replace(/'/g, '&#x27;');
-        assert(html.includes('data-auth-notice') && html.includes(want), `${c}: notice not rendered`);
+        // AUTH-UX-1 (re-pointed, rule kept): an error-tone notice renders as the form-level alert (data-auth-error),
+        // success / info ones as the neutral notice (data-auth-notice) — either way the FIXED text
+        assert((html.includes('data-auth-notice') || html.includes(`data-auth-error="${c}"`)) && html.includes(want), `${c}: notice not rendered`);
       }
       nav.useSearchParams = () => new URLSearchParams({ m: '<img src=x onerror=alert(1)>' });
       assert(!(await renderLogin()).html.includes('data-auth-notice'), 'markup code rendered');

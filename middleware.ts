@@ -11,7 +11,8 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // only the hash reaches the browser. Flag off → nothing happens. GET only (2b-1a): a server-action POST to
   // /auth/login must never mint, so a stale retry fails fast at the action's "missing nonce" check, before Supabase.
   let minted: string | null = null;
-  if (request.method === "GET" && request.nextUrl.pathname === "/auth/login" && isGoogleSignInEnabled()) {
+  // AUTH-UX-1 (owner decision 1): Create account has "Sign up with Google" (the same button + action) → the same nonce
+  if (request.method === "GET" && (request.nextUrl.pathname === "/auth/login" || request.nextUrl.pathname === "/auth/signup") && isGoogleSignInEnabled()) {
     const nonce = nonceForLoginRequest(request.cookies.get(GOOGLE_NONCE_COOKIE)?.value);
     if (nonce.minted) {
       minted = nonce.raw;

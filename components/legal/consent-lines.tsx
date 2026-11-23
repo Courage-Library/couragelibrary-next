@@ -1,23 +1,15 @@
 /**
- * LEGAL-PAGES-1: the two consent lines, word for word as the owner set them, with real links. Usable in server and
+ * LEGAL-PAGES-1: the pay-screen consent line, word for word as the owner set it, with real links. Usable in server and
  * client components (plain links, no state).
- *   - AuthConsentLine: sign-in and sign-up (incl. Continue with Google), shown before any continue button
  *   - PaymentConsentLine: every pay screen, shown BEFORE the pay button
+ * AUTH-UX-1 (owner, 24 Nov 2026): the sign-in / sign-up consent line ("By continuing you confirm you are 18 or older …")
+ * is retired — sign-in shows no consent; Create account (and /confirm-age) has THE consent box instead
+ * (components/auth/consent-checkbox.tsx, no age number; the rule lives in the Terms §1.1).
  */
 import type { ReactNode } from "react";
 import { TextLink } from "@/components/ui/link";
 
-export const AUTH_CONSENT_TEXT = "By continuing you confirm you are 18 or older and agree to our Terms and Privacy Policy.";
 export const PAYMENT_CONSENT_TEXT = "By paying you agree to the Terms, Privacy Policy and Refund Policy.";
-
-export function AuthConsentLine({ className = "" }: { className?: string }) {
-  return (
-    <p className={`text-body-sm text-fg-secondary ${className}`} data-auth-consent="">
-      By continuing you confirm you are 18 or older and agree to our <TextLink href="/terms">Terms</TextLink> and{" "}
-      <TextLink href="/privacy">Privacy Policy</TextLink>.
-    </p>
-  );
-}
 
 const PAYMENT_HREFS = { terms: "/terms", privacy: "/privacy", refund: "/refund-policy" };
 
