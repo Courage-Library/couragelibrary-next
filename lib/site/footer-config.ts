@@ -4,7 +4,8 @@ import { siteConfig } from "@/config/site";
  * FOOTER-1 (owner spec docs/design/FOOTER_V1_SPEC.md §1, decisions 23 Nov 2026) — the ONE typed config the footer
  * reads for owner-provided values. A value that is not set (null / "") hides its element: no placeholder text, no
  * invented address or handle, and never the account / owner e-mail. Gated: scripts/test_footer1.cjs.
- *   contactEmail  public contact address (owner decides separately) — null = no mailto in the footer
+ *   contactEmail  public contact address — FOOTER-1b (owner, 23 Nov 2026): the owner-approved public address, set here
+ *                 explicitly (never read from the account / shell copy); null = no mailto in the footer
  *   libraryPath   the existing page about the physical study library in Kanpur — /about#started (the "Where we
  *                 started" section heading carries id="started"; verified in the gate)
  *   social        from siteConfig.links (the same source as the JSON-LD sameAs), so the icons and the structured data
@@ -18,20 +19,21 @@ export interface FooterConfig {
   social: Partial<Record<SocialKey, string>>;
 }
 
-export const SOCIAL_ORDER: readonly SocialKey[] = ["youtube", "instagram", "telegram", "twitter", "linkedin", "facebook", "whatsapp"];
+/** FOOTER-1b (owner): YouTube · Instagram · Facebook · X · LinkedIn (then the not-configured ones) */
+export const SOCIAL_ORDER: readonly SocialKey[] = ["youtube", "instagram", "facebook", "twitter", "linkedin", "telegram", "whatsapp"];
 
 export const SOCIAL_LABEL: Record<SocialKey, string> = {
   youtube: "YouTube",
   instagram: "Instagram",
   telegram: "Telegram",
-  twitter: "X",
+  twitter: "X (Twitter)",
   linkedin: "LinkedIn",
   facebook: "Facebook",
   whatsapp: "WhatsApp",
 };
 
 export const FOOTER_CONFIG: FooterConfig = {
-  contactEmail: null,
+  contactEmail: "support@couragelibrary.in",
   libraryPath: "/about#started",
   social: {
     youtube: siteConfig.links.youtube,

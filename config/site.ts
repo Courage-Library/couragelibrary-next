@@ -67,13 +67,14 @@ export const siteConfig: SiteConfig = {
   ogImage: "/opengraph-image", // HOME-1: the branded 1200 × 630 share image (app/opengraph-image.tsx)
   // The official social accounts — ONE source for the JSON-LD sameAs and the footer icons (lib/site/footer-config.ts).
   // Empty = not shown anywhere. FOOTER-1 (owner, 23 Nov 2026): the owner fills these in; never invent a handle.
+  // FOOTER-1b (owner, 23 Nov 2026): the five official accounts (gated: scripts/test_footer1.cjs F-12, never fetched).
   links: {
-    twitter: "",
+    twitter: "https://x.com/CourageLibrary",
     telegram: "",
-    youtube: "",
-    instagram: "",
-    linkedin: "",
-    facebook: "",
+    youtube: "https://www.youtube.com/@CourageLibraryMock",
+    instagram: "https://www.instagram.com/couragelibraryofficial/",
+    linkedin: "https://www.linkedin.com/company/courage-library",
+    facebook: "https://www.facebook.com/couragelibrary",
     whatsapp: "",
   },
   routes: {

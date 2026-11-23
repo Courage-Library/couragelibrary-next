@@ -5,9 +5,11 @@
  *       signed-in student pages THE StudentFooter; a live attempt (exam focus) and admin no footer; no other <footer>
  *       in app / components; the old navy SiteFooter and the landing's inline footer are gone; each footer renders ONE
  *       <footer> landmark
- *   F-2 config: unset e-mail / socials → not rendered; never a placeholder ("[contact", "example.com", href="#"); a
- *       placeholder value in the config is refused; the account / owner address is never in the footer code; the library
- *       line links /about#started and that anchor exists on /about
+ *   F-2 config: FOOTER-1b (owner, 23 Nov 2026) — the e-mail is exactly the owner-approved public address, set in
+ *       lib/site/footer-config.ts only (never read from the account / shell copy: no supportEmail / SHELL_COPY in footer
+ *       code) and rendered as ONE mailto; never a placeholder ("[contact", "example.com", href="#"); a placeholder value in
+ *       the config is refused; an unset value hides its element; the library line links /about#started and that anchor
+ *       exists on /about
  *   F-3 only real routes: every footer href resolves to an existing app route; not-ready items are text, not links
  *       (Daily free mock, Learn, Partner Schools left out)
  *   F-4 sign-up band: never on / and /hi or auth pages; "Start free" → /auth/signup when sign-up is open, "Explore
@@ -22,6 +24,10 @@
  *   F-9 student slim line: Help · Privacy · Terms · Refunds (+ Contact on desktop); 48 px rows on phones (R10); tokens only
  *   F-10 negative controls: each broken variant is caught
  *   F-11 the band never waits on a DB / auth / settings read (R-6 follow-up): a value, no Suspense, no reads
+ *   F-12 FOOTER-1b socials: siteConfig.links = exactly the five official accounts (never fetched here); rendered order
+ *       YouTube · Instagram · Facebook · X · LinkedIn; aria-label "Courage Library on <Platform>" (X: "X (Twitter)");
+ *       target _blank + rel noopener noreferrer; monochrome SVG (currentColor, no colour literal); the JSON-LD sameAs is
+ *       exactly these five
  * Run: node scripts/test_footer1.cjs
  */
 const fs = require('fs');
@@ -92,7 +98,18 @@ const SRC = {
   landing: read('components/landing-v1/landing-page.tsx'),
   css: read('app/footer.css'),
   navcss: read('app/nav-student.css'),
+  site: read('config/site.ts'),
+  icon: read('components/footer/social-icon.tsx'),
 };
+// FOOTER-1b (owner-approved, 23 Nov 2026): the public contact address and the five official accounts
+const APPROVED_EMAIL = ['support', 'couragelibrary.in'].join('@');
+const OFFICIAL = [
+  ['youtube', 'YouTube', 'https://www.youtube.com/@CourageLibraryMock'],
+  ['instagram', 'Instagram', 'https://www.instagram.com/couragelibraryofficial/'],
+  ['facebook', 'Facebook', 'https://www.facebook.com/couragelibrary'],
+  ['twitter', 'X (Twitter)', 'https://x.com/CourageLibrary'],
+  ['linkedin', 'LinkedIn', 'https://www.linkedin.com/company/courage-library'],
+];
 const CATS = [
   { slug: 'ssc', name: 'SSC', href: '/exams/ssc' },
   { slug: 'banking', name: 'Banking', href: null },
@@ -182,33 +199,63 @@ function checkGroups(src) {
 const PLACEHOLDER = /\[contact|example\.com|href="#"|placeholder|your-handle|lorem/i;
 function checkConfig(overrides = {}) {
   const html = renderPublic({}, overrides);
-  assert(!/mailto:/.test(html) && !/data-footer-email/.test(html), 'an unset contact e-mail is rendered');
-  assert(!/data-footer-social/.test(html), 'unset socials are rendered');
+  // FOOTER-1b: exactly ONE mailto, to the owner-approved public address
+  const mails = [...html.matchAll(/href="mailto:([^"]*)"/g)].map((m) => m[1]);
+  assert(mails.length === 1 && mails[0] === APPROVED_EMAIL && /data-footer-email=""/.test(html), `the footer e-mail is not exactly the approved address (${mails.length} mailto)`);
   assert(!PLACEHOLDER.test(html), `a placeholder in the footer: ${(html.match(PLACEHOLDER) || [])[0]}`);
   const cfg = loadTs(CFG, overrides);
-  assert(cfg.FOOTER_CONFIG.contactEmail === null, 'contactEmail must stay null until the owner sets it');
+  assert(cfg.FOOTER_CONFIG.contactEmail === APPROVED_EMAIL, 'contactEmail is not the owner-approved public address');
   assert(cfg.footerEmail({ ...cfg.FOOTER_CONFIG, contactEmail: 'hello@example.com' }) === null && cfg.footerSocials({ ...cfg.FOOTER_CONFIG, social: { youtube: 'https://example.com/x', instagram: '#', telegram: 'http://t.me/x' } }).length === 0, 'a placeholder / non-https value is accepted');
-  // the account / owner address never appears in footer code
-  const all = [SRC.pf, SRC.sf, SRC.cfg, SRC.links, SRC.copy].join('\n');
-  assert(!/supportEmail|SHELL_COPY|@couragelibrary\.in/.test(all), 'the footer uses the account / support address');
+  // an unset value hides its element
+  const unset = renderPublic({}, { ...overrides, [CFG]: (overrides[CFG] ?? SRC.cfg).replace(`contactEmail: "${APPROVED_EMAIL}",`, 'contactEmail: null,') });
+  assert(!/mailto:/.test(unset) && !/data-footer-email/.test(unset), 'an unset contact e-mail is rendered');
+  // never read from the account / shell copy; the address is written in footer-config only
+  const all = [SRC.pf, SRC.sf, overrides[CFG] ?? SRC.cfg, SRC.links, SRC.copy].join('\n');
+  assert(!/supportEmail|SHELL_COPY|SUPPORT_EMAIL/.test(all), 'the footer reads the account / shell support address');
+  const literal = (s) => (s.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}/g) || []).filter((e) => !/example\.com$/.test(e));
+  assert(literal(overrides[CFG] ?? SRC.cfg).join() === APPROVED_EMAIL && [SRC.pf, SRC.sf, SRC.links, SRC.copy].every((s) => literal(s).length === 0), 'an address other than the approved one, or outside footer-config');
   // library line
   assert(cfg.FOOTER_CONFIG.libraryPath === '/about#started' && /<PublicSection id="started"/.test(read('app/(site)/about/page.tsx')) && /<h2 id=\{id\}/.test(read('components/public/public-page.tsx')), 'the library path is not /about#started or the anchor is missing');
   assert(/href="\/about#started"[^>]*data-footer-library=""/.test(html), 'library line missing');
-  return 'unset → hidden · placeholders refused · library → /about#started';
+  return 'one mailto = the approved address (footer-config only) · unset → hidden · placeholders refused · library → /about#started';
 }
 
 function checkConfigured(overrides = {}) {
-  // a configured state (test-only values on an invented test domain, never shipped): socials + e-mail render correctly
-  const src = (overrides[CFG] ?? SRC.cfg).replace('contactEmail: null,', 'contactEmail: "team@fixture-domain.test",').replace('youtube: siteConfig.links.youtube,', 'youtube: "https://www.youtube.com/@fixture-channel",');
+  // another configured state (test-only values on an invented test domain, never shipped) renders correctly too
+  const src = (overrides[CFG] ?? SRC.cfg).replace(`contactEmail: "${APPROVED_EMAIL}",`, 'contactEmail: "team@fixture-domain.test",');
   const html = renderPublic({}, { ...overrides, [CFG]: src });
   assert(/href="mailto:team@fixture-domain\.test"/.test(html), 'a configured e-mail is not rendered');
-  const socials = [...html.matchAll(/<a\b[^>]*data-footer-social|<a\b[^>]*class="cl-ft__soc-a"[^>]*>/g)].map((m) => m[0]);
-  assert(socials.length === 1, `configured socials ${socials.length}`);
+  const socials = [...html.matchAll(/<a\b[^>]*class="cl-ft__soc-a"[^>]*>/g)].map((m) => m[0]);
+  assert(socials.length === 5, `configured socials ${socials.length}`);
   for (const a of html.match(/<a\b[^>]*href="https?:[^"]*"[^>]*>/g) || []) {
     assert(/target="_blank"/.test(a) && /rel="noopener noreferrer"/.test(a) && /aria-label="[^"]+"/.test(a), `external link without target / rel / aria-label: ${a.slice(0, 160)}`);
   }
-  assert(/aria-label="Courage Library on YouTube \(opens in a new tab\)"/.test(html), 'social aria-label');
-  return 'e-mail + one social · rel + target + aria-label';
+  assert(/aria-label="Courage Library on YouTube"/.test(html), 'social aria-label');
+  return 'e-mail + five socials · rel + target + aria-label';
+}
+
+/** F-12 FOOTER-1b: the five official accounts — config, render order, labels, link safety, monochrome icons, sameAs */
+function checkSocials(overrides = {}, src = SRC) {
+  const site = loadTs('config/site.ts', overrides).siteConfig;
+  const set = Object.entries(site.links).filter(([, v]) => String(v || '').trim());
+  assert(set.length === 5 && OFFICIAL.every(([k, , u]) => site.links[k] === u), `siteConfig.links is not exactly the five official accounts: ${set.map(([k]) => k).join(', ')}`);
+  const html = renderPublic({}, overrides);
+  const as = [...html.matchAll(/<a\b([^>]*class="cl-ft__soc-a"[^>]*)>/g)].map((m) => m[1]);
+  const got = as.map((a) => [(a.match(/href="([^"]*)"/) || [])[1], (a.match(/aria-label="([^"]*)"/) || [])[1]]);
+  const want = OFFICIAL.map(([, label, url]) => [url, `Courage Library on ${label}`]);
+  assert(JSON.stringify(got) === JSON.stringify(want), `socials (order / href / aria-label) differ:\n got ${JSON.stringify(got)}\n want ${JSON.stringify(want)}`);
+  assert(as.every((a) => /target="_blank"/.test(a) && /rel="noopener noreferrer"/.test(a)), 'a social link without target _blank / rel noopener noreferrer');
+  const hi = renderPublic({ lang: 'hi', band: null, langSwitch: true }, overrides);
+  assert((hi.match(/class="cl-ft__soc-a"/g) || []).length === 5 && /aria-label="YouTube पर Courage Library"/.test(hi), '/hi socials');
+  // monochrome: every icon draws with currentColor, no colour literal, no gradient / image
+  const icon = code(src.icon);
+  assert(/stroke: "currentColor"/.test(icon) && !/#[0-9a-fA-F]{3,8}\b|rgba?\(|linearGradient|<image|fill: "(?!none|currentColor)/.test(icon), 'a social icon is not monochrome (currentColor only)');
+  const svgs = html.match(/<a\b[^>]*class="cl-ft__soc-a"[^>]*>[\s\S]*?<\/a>/g) || [];
+  assert(svgs.length === 5 && svgs.every((s) => /<svg\b/.test(s) && !/fill="#|stroke="#/.test(s)), 'rendered icons are not monochrome SVG');
+  // JSON-LD sameAs = exactly the five
+  const org = loadTs('lib/seo/jsonld.ts', overrides).generateOrganizationSchema();
+  assert(Array.isArray(org.sameAs) && org.sameAs.length === 5 && [...org.sameAs].sort().join() === OFFICIAL.map(([, , u]) => u).sort().join(), `JSON-LD sameAs is not exactly the five: ${JSON.stringify(org.sameAs)}`);
+  return 'five accounts · YouTube Instagram Facebook X LinkedIn · aria-labels · _blank + noopener · monochrome · sameAs = 5';
 }
 
 function checkRoutes(overrides = {}) {
@@ -332,8 +379,9 @@ function checkStudent(overrides = {}, css = SRC.css) {
 (async () => {
   console.log('FOOTER-1 site footer (static + render)');
   await test('F-1 page groups: public / student / none; one <footer>; old footers gone', () => checkGroups(SRC));
-  await test('F-2 config: unset → hidden, no placeholders, no account address, library /about#started', () => checkConfig());
+  await test('F-2 config: the approved public e-mail (footer-config only, one mailto), unset → hidden, no placeholders, library /about#started', () => checkConfig());
   await test('F-2b configured values render safely (test-only values)', () => checkConfigured());
+  await test('F-12 FOOTER-1b socials: five accounts, order, labels, link safety, monochrome, JSON-LD sameAs', () => checkSocials());
   await test('F-3 only real routes are links; not-ready items muted / left out', () => checkRoutes());
   await test('F-4 sign-up band rules', () => checkBand());
   await test('F-5 language switch on / and /hi only; Hindi copy on /hi', () => checkLang());
@@ -354,7 +402,16 @@ function checkStudent(overrides = {}, css = SRC.css) {
       ['students get the public footer', () => checkGroups({ ...SRC, app: mut(SRC.app, 'const footer = <StudentFooter />;', 'const footer = <PublicFooter t={FOOTER_EN} categories={[]} band={null} langSwitch={null} paymentsEnabled={false} />;') })],
       ['the landing keeps an inline footer', () => checkGroups({ ...SRC, landing: SRC.landing + '\nfunction Footer() { return <footer className="lp-ft" />; }\n' })],
       ['placeholder contact text', () => checkConfig({ [PF]: mut(SRC.pf, '{email && (', '{true && (').replace('{email}\n', '{email ?? "[contact email]"}\n') })],
-      ['the account address hard-coded', () => checkConfig({ [CFG]: mut(SRC.cfg, 'contactEmail: null,', 'contactEmail: SHELL_COPY.supportEmail,') })],
+      ['the address read from the shell copy', () => checkConfig({ [CFG]: mut(SRC.cfg, `contactEmail: "${APPROVED_EMAIL}",`, 'contactEmail: SHELL_COPY.supportEmail,') })],
+      ['another address', () => checkConfig({ [CFG]: mut(SRC.cfg, `contactEmail: "${APPROVED_EMAIL}",`, 'contactEmail: "someone@other-domain.test",') })],
+      ['the e-mail dropped', () => checkConfig({ [CFG]: mut(SRC.cfg, `contactEmail: "${APPROVED_EMAIL}",`, 'contactEmail: null,') })],
+      ['FOOTER-1b icons out of order', () => checkSocials({ [CFG]: mut(SRC.cfg, '["youtube", "instagram", "facebook", "twitter", "linkedin",', '["youtube", "instagram", "twitter", "linkedin", "facebook",') })],
+      ['FOOTER-1b X without "(Twitter)"', () => checkSocials({ [CFG]: mut(SRC.cfg, 'twitter: "X (Twitter)",', 'twitter: "X",') })],
+      ['FOOTER-1b aria-label suffix', () => checkSocials({ [PF]: mut(SRC.pf, 'aria-label={t.socialOn(s.label)}', 'aria-label={`${t.socialOn(s.label)} ${t.opensNewTab}`}') })],
+      ['FOOTER-1b a sixth account (sameAs + icons)', () => checkSocials({ 'config/site.ts': mut(SRC.site, 'telegram: "",', 'telegram: "https://t.me/couragelibrary",') })],
+      ['FOOTER-1b a wrong URL', () => checkSocials({ 'config/site.ts': mut(SRC.site, 'https://x.com/CourageLibrary', 'https://x.com/CourageLibrary1') })],
+      ['FOOTER-1b social without noopener', () => checkSocials({ [PF]: mut(SRC.pf, 'target="_blank" rel="noopener noreferrer" aria-label={t.socialOn(s.label)}', 'target="_blank" aria-label={t.socialOn(s.label)}') })],
+      ['FOOTER-1b a coloured icon', () => checkSocials({}, { ...SRC, icon: SRC.icon.replace('stroke: "currentColor"', 'stroke: "#ff0000"') })],
       ['socials without rel', () => checkConfigured({ [PF]: mut(SRC.pf, 'target="_blank" rel="noopener noreferrer" ', 'target="_blank" ') })],
       ['a link to a missing route', () => checkRoutes({ [LINKS]: mut(SRC.links, 'about: "/about",', 'about: "/about-us",') })],
       ['a not-ready category as a link', () => checkRoutes({ [LINKS]: mut(SRC.links, 'top.map((c) => (c.href ? { label: c.name, href: c.href } : { label: c.name, href: null, soon: true }))', 'top.map((c) => ({ label: c.name, href: `/exams/${c.slug}` }))') })],

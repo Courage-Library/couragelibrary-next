@@ -91,7 +91,7 @@ export function PublicFooter({ t, categories, band, langSwitch, paymentsEnabled,
               <ul className="cl-ft__soc" aria-label={t.socialNav} data-footer-social="">
                 {socials.map((s) => (
                   <li key={s.key}>
-                    <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={`${t.socialOn(s.label)} ${t.opensNewTab}`} className="cl-ft__soc-a">
+                    <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={t.socialOn(s.label)} className="cl-ft__soc-a">
                       <SocialIcon network={s.key} />
                     </a>
                   </li>
