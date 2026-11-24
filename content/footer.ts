@@ -42,7 +42,8 @@ export interface FooterCopy {
 export const FOOTER_EN: FooterCopy = {
   lang: "en",
   bandTitle: "Start preparing today",
-  bandText: "Free daily mock, current affairs and practice.",
+  // LIVE-GREEN-1 3b / FOOTER-BAND-CLAIM (owner): always-true copy — no daily-mock / current-affairs claim unless backed
+  bandText: "Timed mock tests, topic practice and a Mistake Vault.",
   startFree: "Start free",
   exploreExams: "Explore exams",
   tagline: "Learn Smarter. Prepare Independently.",
@@ -76,7 +77,7 @@ export const FOOTER_EN: FooterCopy = {
 export const FOOTER_HI: FooterCopy = {
   lang: "hi",
   bandTitle: "आज से तैयारी शुरू करें",
-  bandText: "मुफ़्त डेली मॉक, करेंट अफेयर्स और प्रैक्टिस।",
+  bandText: "समयबद्ध mock tests, टॉपिक practice और Mistake Vault।",
   startFree: "मुफ़्त शुरू करें",
   exploreExams: "परीक्षाएँ देखें",
   tagline: "Learn Smarter. Prepare Independently.",

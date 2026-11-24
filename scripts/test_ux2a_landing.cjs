@@ -678,7 +678,8 @@ const UX2B_ROUTES = ['/legal'];
       assert(new URL(page.url()).pathname === '/' && resp.status() === 200, `redirected to ${new URL(page.url()).pathname}`);
       const banner = page.getByRole('banner');
       assert(await banner.getByRole('link', { name: 'Go to dashboard' }).isVisible(), 'header: Go to dashboard');
-      assert((await banner.getByRole('link', { name: 'Sign in' }).count()) === 0 && (await banner.getByRole('link', { name: 'Get started' }).count()) === 0, 'Sign in / Get started shown to a signed-in visitor');
+      // LIVE-GREEN-1 3b (re-pointed, rule kept): LANDING-1's header calls its start action "Start free" (was "Get started")
+      assert((await banner.getByRole('link', { name: 'Sign in' }).count()) === 0 && (await banner.getByRole('link', { name: /^(Get started|Start free)$/ }).count()) === 0, 'Sign in / Start free shown to a signed-in visitor');
       assert(await page.getByRole('main').getByRole('link', { name: 'Go to dashboard' }).first().isVisible(), 'hero: Go to dashboard');
       assert((await page.getByRole('main').getByRole('link', { name: 'Start free' }).count()) === 0, 'Start free shown to a signed-in visitor');
       await ctx.close();

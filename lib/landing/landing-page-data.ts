@@ -32,16 +32,21 @@ export interface LandingLiveData {
   /** LANDING-1.1: the category also has exams that are not live yet (the same COMING_SOON_EXAMS list the category
    *  page shows) → " · more coming" */
   moreComing: Record<string, boolean>;
+  /** LIVE-GREEN-1 3b (owner): ≥ 1 PUBLISHED current-affairs article — the same count query as lib/landing/landing-data.ts
+   *  (bounded by the same timeout); a failed count = false (the claim fails closed), never a failed page */
+  currentAffairsLive: boolean;
 }
 
 async function readOnce(): Promise<LandingLiveData | null> {
   const sb = createPublicServerSupabaseClient();
   const timed = <T>(p: PromiseLike<T>): Promise<T | null> =>
     Promise.race([Promise.resolve(p), new Promise<null>((r) => setTimeout(() => r(null), 8000))]).catch(() => null);
-  const [cats, exams] = await Promise.all([
+  const [cats, exams, ca] = await Promise.all([
     timed(sb.from("exam_categories").select("id, slug, name, is_active, is_internal")),
     timed(sb.from("exams").select("slug, title, category_id").eq("is_active", true).order("title")),
+    timed(sb.from("current_affairs_articles").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED")),
   ]);
+  const currentAffairsLive = !!ca && !ca.error && typeof ca.count === "number" && ca.count > 0;
   if (!cats || cats.error || !cats.data || !exams || exams.error || !exams.data) return null;
   const count = new Map<string, number>();
   for (const e of exams.data) if (e.category_id) count.set(e.category_id, (count.get(e.category_id) ?? 0) + 1);
@@ -61,6 +66,7 @@ async function readOnce(): Promise<LandingLiveData | null> {
     moreComing,
     liveExamSlugs: exams.data.map((e) => e.slug).filter((x): x is string => typeof x === "string"),
     liveExamNames: exams.data.map((e) => e.title).filter((x): x is string => typeof x === "string" && x.trim().length > 0),
+    currentAffairsLive,
   };
 }
 
@@ -70,12 +76,12 @@ const readLandingLiveCached = unstable_cache(
     if (!r) throw new Error("landing read failed"); // not cached
     return r;
   },
-  ["landing-v1-live", "v2"],
+  ["landing-v1-live", "v3"], // LIVE-GREEN-1 3b: + currentAffairsLive
   { tags: ["categories"], revalidate: 300 },
 );
 
 export function loadLandingLiveData(): Promise<LandingLiveData> {
-  return readLandingLiveCached().catch(() => ({ categories: {}, liveExamSlugs: [], liveExamNames: [], liveShortNames: {}, moreComing: {} }));
+  return readLandingLiveCached().catch(() => ({ categories: {}, liveExamSlugs: [], liveExamNames: [], liveShortNames: {}, moreComing: {}, currentAffairsLive: false }));
 }
 
 /** Everything the landing page shows that depends on data: categories, chips, live exam names, Hindi, sign-up. */
@@ -86,7 +92,7 @@ export async function loadLandingFacts(): Promise<{ live: LandingLiveData; facts
     getSignupAvailability().catch(() => "unknown" as const),
   ]);
   const hindiLive = !!hindi && hindi.questions + hindi.lessons + hindi.currentAffairs > 0;
-  return { live, facts: { liveExamNames: live.liveExamNames, hindiLive, signupOpen: signup !== "closed" } };
+  return { live, facts: { liveExamNames: live.liveExamNames, hindiLive, signupOpen: signup !== "closed", currentAffairsLive: live.currentAffairsLive === true } };
 }
 
 /** Canonical + hreflang (owner L1): en → "/", hi → "/hi", x-default → "/". */

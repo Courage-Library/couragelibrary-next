@@ -33,6 +33,9 @@ export interface LandingCopy {
   /** owner round 3: the Hindi-claim lines while NO Hindi content is published (the hero / FAQ 3 / promise 4 lines in
    *  this file are the Hindi-live versions) */
   hindiPending: { badge: string; sub: string; faq: { q: string; a: string }; promise: { title: string; text: string } };
+  /** LIVE-GREEN-1 3b (owner): while NO current-affairs article is published, the Free list drops `planItem` and the FAQ
+   *  item with question `faq.q` uses this answer (no current-affairs claim on "/") */
+  currentAffairsPending: { planItem: string; faq: { q: string; a: string } };
   /** LANDING-1.1: a LIVE category's subtitle is built from its live exams ("CGL live · more coming"), never a fixed list */
   exams: { h2: string; lead: string; allName: string; allText: string; comingSoon: string; liveSuffix: string; moreComing: string };
   pain: { h2: string; lead: string; items: Array<{ quote: string; answer: string }> };

@@ -5,8 +5,8 @@
  *       "अपने कमज़ोर टॉपिक पहचानें"; one H1 each; the landing wrapper carries lang="en" / lang="hi"
  *   L-2 the language switch: two links (EN → /, हिंदी → /hi) with aria-current on the current one; following it changes
  *       the visible copy and the lang attribute
- *   L-3 all 10 sections present (data-landing-section: header, hero, find-exam, choose-exam, pain, how, free-pro, library,
- *       promises, faq, final-cta, footer); landmarks header / main / footer; "Start free" → /auth/signup
+ *   L-3 all sections present (data-landing-section: header, hero, find-exam, choose-exam, pain, how, free-pro, library,
+ *       promises, faq, final-cta); landmarks header / main / footer (THE public footer, FOOTER-1); "Start free" → /auth/signup
  *   L-4 hreflang alternates (en, hi, x-default → /) and a canonical on both pages
  *   L-5 responsive: 1280 / 768 / 390 / 360 px — no horizontal overflow (EN + HI); on phone the header shows the logo,
  *       the language switch and the menu button, and the nav / CTAs are inside the menu
@@ -38,7 +38,9 @@ const chk = (n, cond, info) => {
   if (cond) passed++; else { failed++; ok = false; }
   console.log(`${cond ? 'PASS' : 'FAIL'} ${n}${info !== undefined && info !== '' ? ' — ' + String(info).slice(0, 400) : ''}`);
 };
-const SECTIONS = ['header', 'hero', 'find-exam', 'choose-exam', 'pain', 'how', 'free-pro', 'library', 'promises', 'faq', 'final-cta', 'footer'];
+// LIVE-GREEN-1 3b (owner, re-pointed): FOOTER-1 replaced the landing footer section with THE public footer — the footer
+// is checked as the landmark (landmarks.footer below), no longer as a data-landing-section
+const SECTIONS = ['header', 'hero', 'find-exam', 'choose-exam', 'pain', 'how', 'free-pro', 'library', 'promises', 'faq', 'final-cta'];
 const H1_EN = 'Find your weak topics. Fix them. Score better in your next attempt.';
 const H1_HI = 'अपने कमज़ोर टॉपिक पहचानें';
 
@@ -104,14 +106,13 @@ const H1_HI = 'अपने कमज़ोर टॉपिक पहचान�
           badge: document.querySelector('.lp-badge').textContent.trim(),
           sub: document.querySelector('.lp-sub').textContent.trim(),
           promise4: document.querySelectorAll('.lp-pr b')[3].textContent.trim(),
-          made: document.querySelector('.lp-ft__legal span:last-child').textContent.trim(),
           ssc: (document.querySelector('[data-category="ssc"] small') || {}).textContent || '',
           soonSubtitles: [...document.querySelectorAll('[data-live="false"] small')].map((x) => x.textContent.trim()),
         }));
       }
       // LANDING-1.1: the footer line follows the published-Hindi condition; a live card names its live exams; /hi in the sitemap
-      chk('L-12 footer "made" line without published Hindi content: EN "Made for government-exam aspirants" / HI "सरकारी परीक्षाओं के aspirants के लिए"',
-        lines.en.made === 'Made for government-exam aspirants' && lines.hi.made === 'सरकारी परीक्षाओं के aspirants के लिए', JSON.stringify([lines.en.made, lines.hi.made]));
+      // L-12 footer "made" line — RETIRED (LIVE-GREEN-1 3b, owner): FOOTER-1 replaced the landing footer; its successor is
+      // THE public footer's rule "no Hindi claim at all" (scripts/test_landing1.cjs LD-9 (a), FOOTER-1 gates)
       chk('L-12 the live SSC card names its live exams: EN "CGL live · more coming" / HI "CGL उपलब्ध · और जल्द" (no CHSL / MTS / GD); Coming-soon cards keep their examples',
         lines.en.ssc.trim() === 'CGL live · more coming' && lines.hi.ssc.trim() === 'CGL उपलब्ध · और जल्द' && lines.en.soonSubtitles.length >= 1 && lines.en.soonSubtitles.every((x) => x.length > 0), JSON.stringify([lines.en.ssc, lines.hi.ssc]));
       const sm = await (await fetch(BASE + '/sitemap.xml', { signal: AbortSignal.timeout(60000) })).text();

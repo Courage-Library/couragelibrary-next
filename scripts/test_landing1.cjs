@@ -282,7 +282,8 @@ function checkDataDriven(c, R, pageSrc, data, routes, vh = VH_SRC) {
   const open = R.resolveLandingCopy(c.hi, { liveExamNames: [], hindiLive: false, signupOpen: true }).start;
   assert(closed.label === 'Explore exams' && closed.href === '/exams' && open.label === 'मुफ़्त शुरू करें' && open.href === '/auth/signup', 'start action');
   // NAV-1: hero, plans, final in the page + the resolved start handed to the shared header (bar, compact bar, menu)
-  assert(!/href=\{R\.signUp\}/.test(pageSrc) && (pageSrc.match(/href=\{start\.href\}/g) || []).length === 3 && pageSrc.includes('start={{ href: start.href, label: start.label }}') && (vh.match(/href=\{s\.href\}/g) || []).length === 3 && !/\/auth\/signup/.test(vh), 'every start action (header, menu, hero, plans, final) uses the resolved start');
+  // LIVE-GREEN-1 3b (re-pointed, rule kept): the page's three start actions are the ONE StartOrDashboard link (hero, plans, final)
+  assert(!/href=\{R\.signUp\}/.test(pageSrc) && (pageSrc.match(/href=\{start\.href\}/g) || []).length === 1 && (pageSrc.match(/<StartOrDashboard t=\{t\} start=\{start\} where="(hero|plans|final)"/g) || []).length === 3 && pageSrc.includes('start={{ href: start.href, label: start.label }}') && (vh.match(/href=\{s\.href\}/g) || []).length === 3 && !/\/auth\/signup/.test(vh), 'every start action (header, menu, hero, plans, final) uses the resolved start');
   // (d) exemptions recorded — NAV-1: on the shared visitor header (LANDING-1 round 3, extended by NAV-1)
   assert(vh.includes(`BRAND-3 R4: the header's "Start free" is the SOLID cl-blue pill`) && /<Link className="cl-vh__pill" href=\{s\.href\}[^>]*data-start="header">/.test(vh) && /\.cl-vh__pill \{[^}]*background: var\(--color-cl-blue\);/.test(NAV_CSS), 'R4 exemption: the solid start action in the visitor header');
   const menu = vh.slice(vh.indexOf('data-drawer-panel=""'));
@@ -327,6 +328,37 @@ function checkLanding11(c, R, pageSrc, data, sitemap, footerSrc = read('content/
   return 'footer on / off × EN / HI; subtitles; sitemap /hi';
 }
 
+// LD-10 LIVE-GREEN-1 3b (owner): (a) a signed-in visitor gets "Go to dashboard" instead of every start action in the page
+// body (UX2A L-14 kept) — the pre-paint auth hint swaps two links in one box (no layout shift, no session read);
+// (b) no current-affairs claim on "/" while none is published (the Free list item + the FAQ answer; fail closed);
+// (c) FOOTER-BAND-CLAIM: the footer band copy is always true — no daily-mock / current-affairs claim
+const CA_CLAIM = /current affairs|अफेयर्स/i;
+function checkLiveGreen3b(c, R, pageSrc, data, footerSrc = read('content/footer.ts'), globals = GLOBALS) {
+  // (a)
+  const comp = pageSrc.slice(pageSrc.indexOf('function StartOrDashboard('), pageSrc.indexOf('function Hero('));
+  assert(/<Link className=\{`\$\{className\} auth-out`\} href=\{start\.href\}[^>]*data-landing-start=\{where\}>/.test(comp), 'the start action is not hidden for a signed-in visitor (auth-out)');
+  assert(/<Link className=\{`\$\{className\} auth-in`\} href=\{R\.dashboard\} data-landing-dashboard=\{where\}>\s*\{navLabels\(t\.lang\)\.goToDashboard\}/.test(comp), 'no "Go to dashboard" twin for a signed-in visitor (auth-in → /dashboard)');
+  assert(c.facts.LANDING_ROUTES.dashboard === '/dashboard', 'the dashboard route');
+  assert(/html:not\(\[data-auth="in"\]\) \.auth-in,\s*html\[data-auth="in"\] \.auth-out \{\s*display: none !important;/.test(globals), 'the pre-paint swap rule (.auth-in / .auth-out)');
+  for (const w of ['hero', 'plans', 'final']) assert(new RegExp(`<StartOrDashboard t=\\{t\\} start=\\{start\\} where="${w}"`).test(pageSrc), `the ${w} start action is not swapped`);
+  // (b)
+  for (const base of [c.en, c.hi]) {
+    const body = (t) => JSON.stringify([t.hero, t.band, t.exams, t.pain, t.how, t.plans, t.library, t.promises, t.faq, t.final]);
+    const off = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: false, signupOpen: true, currentAffairsLive: false }).t;
+    const unknown = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: false, signupOpen: true }).t;
+    const on = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: false, signupOpen: true, currentAffairsLive: true }).t;
+    assert(!CA_CLAIM.test(body(off)) && !CA_CLAIM.test(body(unknown)), `${base.lang}: a current-affairs claim while none is published (or unknown)`);
+    assert(on.plans.free.list.includes(base.currentAffairsPending.planItem) && CA_CLAIM.test(body(on)), `${base.lang}: the current-affairs lines are missing once articles are published`);
+    assert(off.plans.free.list.length === base.plans.free.list.length - 1, `${base.lang}: the Free list must drop exactly the current-affairs item`);
+  }
+  assert(/timed\(sb\.from\("current_affairs_articles"\)\.select\("id", \{ count: "exact", head: true \}\)\.eq\("status", "PUBLISHED"\)\)/.test(data), 'the published current-affairs count is not part of the bounded landing read');
+  assert(/const currentAffairsLive = !!ca && !ca\.error && typeof ca\.count === "number" && ca\.count > 0;/.test(data) && /currentAffairsLive: false \}\)\);/.test(data) && /currentAffairsLive: live\.currentAffairsLive === true/.test(data), 'the current-affairs condition does not fail closed');
+  // (c)
+  const bands = [...footerSrc.matchAll(/bandText: "([^"]+)"/g)].map((m) => m[1]);
+  assert(bands.length === 2 && bands.every((b) => !/daily|डेली|रोज़|current affairs|अफेयर्स/i.test(b)), `the footer band makes a daily-mock / current-affairs claim: ${bands.join(' | ')}`);
+  return 'signed-in swap × hero / plans / final; CA claim off / unknown / on × EN / HI; band copy';
+}
+
 (async () => {
   const c = loadCopy();
   const R = loadTs('lib/landing/landing-copy.ts');
@@ -338,6 +370,7 @@ function checkLanding11(c, R, pageSrc, data, sitemap, footerSrc = read('content/
   await test('LD-6 tokens + styles + logo', () => checkTokens(GLOBALS, CSS));
   await test('LD-8 data-driven copy (live exams, published Hindi, sign-up), exemptions R4 / X-05, public reads only', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE]));
   await test('LD-9 LANDING-1.1: the footer makes no Hindi claim (FOOTER-1); live-category subtitles from data; /hi in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP));
+  await test('LD-10 LIVE-GREEN-1 3b: signed-in visitors get "Go to dashboard"; no current-affairs claim unless published; band copy always true', () => checkLiveGreen3b(c, R, PAGE_SRC, DATA));
   await test('LD-7 negative controls: each mutation is caught', async () => {
     const mut = (s, a, b) => { assert(s.includes(a), `mutation anchor missing: ${a.slice(0, 60)}`); return s.replace(a, b); };
     const cases = [
@@ -379,6 +412,14 @@ function checkLanding11(c, R, pageSrc, data, sitemap, footerSrc = read('content/
       ['/hi missing from the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP.replace(/\n    \{\n      url: `\$\{baseUrl\}\/hi`,[\s\S]*?\n    \},/, ''))],
       ['/hi with a lower priority', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP.replace(/(url: `\$\{baseUrl\}\/hi`,\s*lastModified: new Date\(\),\s*changeFrequency: "daily",\s*priority: )1\.0/, '$10.5'))],
       ['no hreflang in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, mut(SITEMAP, 'const landingAlternates = { languages: { en: baseUrl, hi: `${baseUrl}/hi` } };', 'const landingAlternates = undefined;'))],
+      ['start action shown to a signed-in visitor', () => checkLiveGreen3b(c, R, mut(PAGE_SRC, '<Link className={`${className} auth-out`} href={start.href}', '<Link className={className} href={start.href}'), DATA)],
+      ['no Go to dashboard twin', () => checkLiveGreen3b(c, R, mut(PAGE_SRC, '<Link className={`${className} auth-in`} href={R.dashboard}', '<Link className={`${className} auth-in`} href={start.href}'), DATA)],
+      ['the final CTA not swapped', () => checkLiveGreen3b(c, R, mut(PAGE_SRC, '<StartOrDashboard t={t} start={start} where="final"', '<StartOrDashboard t={t} start={start} where="plans"'), DATA)],
+      ['current affairs always claimed', () => checkLiveGreen3b(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'const caLive = f.currentAffairsLive === true;', 'const caLive = true;')), PAGE_SRC, DATA)],
+      ['the FAQ keeps its current-affairs answer', () => checkLiveGreen3b(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, '    if (!caLive && item.q === base.currentAffairsPending.faq.q) return { ...base.currentAffairsPending.faq };\n', '')), PAGE_SRC, DATA)],
+      ['unknown treated as published', () => checkLiveGreen3b(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'const caLive = f.currentAffairsLive === true;', 'const caLive = f.currentAffairsLive !== false;')), PAGE_SRC, DATA)],
+      ['the count fails open', () => checkLiveGreen3b(c, R, PAGE_SRC, mut(DATA, 'currentAffairsLive: false }));', 'currentAffairsLive: true }));'))],
+      ['the band claims a daily mock again', () => checkLiveGreen3b(c, R, PAGE_SRC, DATA, mut(read('content/footer.ts'), 'bandText: "Timed mock tests, topic practice and a Mistake Vault."', 'bandText: "Free daily mock, current affairs and practice."'))],
       ['token changed', () => checkTokens(mut(GLOBALS, '--color-cl-blue: #475bff;', '--color-cl-blue: #4050ff;'), CSS)],
       ['colour literal', () => checkTokens(GLOBALS, CSS + '\n.lp-x { color: #ff0000; }')],
       ['no reduced motion', () => checkTokens(GLOBALS, CSS.replace(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*$/, ''))],

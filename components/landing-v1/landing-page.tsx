@@ -62,6 +62,32 @@ function Header({ t, start, live, detail }: { t: LandingCopy; start: StartAction
   );
 }
 
+/**
+ * LIVE-GREEN-1 3b (owner, UX2A L-14 kept): every start action in the page body is "Go to dashboard" for a signed-in
+ * visitor. Both links are in the cached HTML; the pre-paint <html data-auth> hint (lib/ui/auth-hint.ts, .auth-in /
+ * .auth-out in app/globals.css) shows exactly one before the first paint — same box, no layout shift, no session read.
+ */
+function StartOrDashboard({ t, start, where, className, arrow = false }: { t: LandingCopy; start: StartAction; where: "hero" | "plans" | "final"; className: string; arrow?: boolean }) {
+  const tail = arrow ? (
+    <>
+      {" "}
+      <span aria-hidden="true">→</span>
+    </>
+  ) : null;
+  return (
+    <>
+      <Link className={`${className} auth-out`} href={start.href} data-landing-cta={where === "hero" ? "start" : undefined} data-landing-start={where}>
+        {start.label}
+        {tail}
+      </Link>
+      <Link className={`${className} auth-in`} href={R.dashboard} data-landing-dashboard={where}>
+        {navLabels(t.lang).goToDashboard}
+        {tail}
+      </Link>
+    </>
+  );
+}
+
 function Hero({ t, start }: { t: LandingCopy; start: StartAction }) {
   return (
     <section className="lp-hero" aria-labelledby="lp-h1" data-landing-section="hero">
@@ -77,9 +103,7 @@ function Hero({ t, start }: { t: LandingCopy; start: StartAction }) {
         </h1>
         <p className="lp-sub">{t.hero.sub}</p>
         <div className="lp-ctas">
-          <Link className="lp-pill lp-pill--pri" href={start.href} data-landing-cta="start" data-landing-start="hero">
-            {start.label}
-          </Link>
+          <StartOrDashboard t={t} start={start} where="hero" className="lp-pill lp-pill--pri" />
           {start.href !== R.exams && (
             <Link className="lp-link" href={R.exams}>
               {t.hero.explore} <span aria-hidden="true">→</span>
@@ -240,9 +264,7 @@ function Plans({ t, start }: { t: LandingCopy; start: StartAction }) {
                 </li>
               ))}
             </ul>
-            <Link className="lp-pill lp-pill--pri" href={start.href} data-landing-start="plans">
-              {start.label}
-            </Link>
+            <StartOrDashboard t={t} start={start} where="plans" className="lp-pill lp-pill--pri" />
           </div>
           <div className="lp-fc lp-fc--pro">
             <h3>
@@ -350,9 +372,7 @@ function Final({ t, start }: { t: LandingCopy; start: StartAction }) {
         <div className="lp-final__box">
           <h2 id="lp-final-h">{t.final.h2}</h2>
           <p>{t.final.text}</p>
-          <Link className="lp-pill lp-pill--light" href={start.href} data-landing-start="final">
-            {start.label} <span aria-hidden="true">→</span>
-          </Link>
+          <StartOrDashboard t={t} start={start} where="final" className="lp-pill lp-pill--light" arrow />
         </div>
       </div>
     </section>

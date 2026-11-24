@@ -17,6 +17,8 @@ export interface LandingFacts {
   hindiLive: boolean;
   /** public sign-up is open ("closed" only when the setting says so) */
   signupOpen: boolean;
+  /** LIVE-GREEN-1 3b (owner): ≥ 1 PUBLISHED current-affairs article (a failed read = false: the claim fails closed) */
+  currentAffairsLive?: boolean;
 }
 
 export interface StartAction {
@@ -58,14 +60,19 @@ export function examShortName(title: string, categoryName: string): string {
 }
 
 export function resolveLandingCopy(base: LandingCopy, f: LandingFacts, examsHref = "/exams", signUpHref = "/auth/signup"): ResolvedLanding {
+  // LIVE-GREEN-1 3b (owner): no current-affairs claim on "/" while none is published (unknown = none)
+  const caLive = f.currentAffairsLive === true;
   const faq = base.faq.items.map((item, i) => {
     if (i === 0) return { q: item.q, a: liveExamsAnswer(base, f.liveExamNames) };
     if (i === 2 && !f.hindiLive) return { ...base.hindiPending.faq };
+    if (!caLive && item.q === base.currentAffairsPending.faq.q) return { ...base.currentAffairsPending.faq };
     return item;
   });
   const promises = base.promises.items.map((p, i) => (i === 3 && !f.hindiLive ? { ...base.hindiPending.promise } : p));
+  const freeList = caLive ? base.plans.free.list : base.plans.free.list.filter((l) => l !== base.currentAffairsPending.planItem);
   const t: LandingCopy = {
     ...base,
+    plans: { ...base.plans, free: { ...base.plans.free, list: freeList } },
     hero: { ...base.hero, badge: f.hindiLive ? base.hero.badge : base.hindiPending.badge, sub: f.hindiLive ? base.hero.sub : base.hindiPending.sub },
     faq: { ...base.faq, items: faq },
     promises: { ...base.promises, items: promises },

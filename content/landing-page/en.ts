@@ -50,6 +50,10 @@ export const LANDING_EN: LandingCopy = {
     faq: { q: "Is it available in Hindi?", a: "This website is available in Hindi today; use the हिंदी button at the top. Hindi lessons and questions are being added." },
     promise: { title: "Hindi on the way", text: "The site is in Hindi today. Hindi lessons and questions are being added." },
   },
+  currentAffairsPending: {
+    planItem: "Daily current affairs",
+    faq: { q: "Is it really free?", a: "Yes. Lessons, daily practice, free daily mocks and your result with weak topics are free. Pro is optional." },
+  },
   exams: {
     h2: "Choose your exam",
     lead: "Start with the exam you are preparing for. SSC is live now; more categories are coming.",
