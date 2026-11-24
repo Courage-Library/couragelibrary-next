@@ -109,9 +109,14 @@ function checkNoRedirect(cfg = SRC.cfg, mw = SRC.mw, legacySrc, adminSrc) {
 // ---------------------------------------------------------------- K-3
 function checkNoindex(mw = SRC.mw, cfg = SRC.cfg) {
   const m = strip(mw);
-  assert(/if \(categoryCacheSlugOf\(request\.nextUrl\.pathname\) && request\.headers\.get\(CATEGORY_REWRITE_MARKER\) !== "1"\) \{\n\s+response\.headers\.set\("X-Robots-Tag", "noindex"\);\n\s+return response;\n\s+\}/.test(m), 'a direct /category-cache request does not get X-Robots-Tag noindex (only without the marker)');
-  assert(/const forwarded = new Headers\(request\.headers\);\n\s+forwarded\.set\(CATEGORY_REWRITE_MARKER, "1"\);\n\s+const rewritten = NextResponse\.rewrite\(target, \{ request: \{ headers: forwarded \} \}\);/.test(m), 'the rewrite does not carry the marker (the second routing pass would be noindexed → /exams/<slug> noindexed)');
+  assert(/if \(categoryCacheSlugOf\(request\.nextUrl\.pathname\) && request\.headers\.get\(CATEGORY_REWRITE_MARKER\) !== REWRITE_TOKEN\) \{\n\s+response\.headers\.set\("X-Robots-Tag", "noindex"\);\n\s+return response;\n\s+\}/.test(m), 'a direct /category-cache request does not get X-Robots-Tag noindex (only without the marker)');
+  assert(/const forwarded = new Headers\(request\.headers\);\n\s+forwarded\.set\(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN\);\n\s+const rewritten = NextResponse\.rewrite\(target, \{ request: \{ headers: forwarded \} \}\);/.test(m), 'the rewrite does not carry the marker (the second routing pass would be noindexed → /exams/<slug> noindexed)');
   assert(m.indexOf('categoryCacheSlugOf(request.nextUrl.pathname)') < m.indexOf('const slug = request.method'), 'the noindex step must come before the rewrite step');
+  // owner hardening: only the middleware's own rewrite can produce a valid marker — a random per-instance token made at
+  // module scope, never a constant a visitor could send (an outside marker → treated as direct → noindex)
+  const tok = /\nconst REWRITE_TOKEN = crypto\.randomUUID\(\);\n/.exec(m);
+  assert(tok && tok.index < m.indexOf('export async function middleware('), 'the marker value is not a module-scope crypto.randomUUID() token');
+  assert((m.match(/REWRITE_TOKEN/g) || []).length === 3, 'REWRITE_TOKEN is used other than: made once, checked once, set on the rewrite once');
   const headerBlock = strip(cfg).split('headers: async () => [')[1] || '';
   assert(!/category-cache|source: "\/category/.test(headerBlock), 'a next.config header rule names the internal path (it leaks onto /exams/<slug> under next start)');
   return 'direct request → noindex (no marker); rewrite carries the marker; no header rule';
@@ -150,8 +155,11 @@ test('K-5 negative controls: each broken variant is caught', () => {
     ['a legacy section rule that swallows it', () => checkNoRedirect(SRC.cfg, SRC.mw, read('lib/seo/legacy-redirects.ts').replace('export const LEGACY_REDIRECTS', 'const EXTRA = [{ source: "/category-cache/:path*", destination: "/exams" }];\nexport const LEGACY_REDIRECTS').replace(/export const LEGACY_REDIRECTS([^=]*)= \[/, 'export const LEGACY_REDIRECTS$1= [...EXTRA, '))],
     ['a middleware redirect', () => checkNoRedirect(SRC.cfg, mut(SRC.mw, '  // the session is refreshed', '  if (request.nextUrl.pathname.startsWith("/category")) return NextResponse.redirect(new URL("/exams", request.url), 308);\n  // the session is refreshed'))],
     ['SEO-1 /category 308 removed', () => checkNoRedirect(mut(SRC.cfg, '    { source: "/category/:slug", destination: "/exams/:slug", permanent: true },\n', ''))],
-    ['noindex without the marker check (would noindex /exams/<slug>)', () => checkNoindex(mut(SRC.mw, ' && request.headers.get(CATEGORY_REWRITE_MARKER) !== "1"', ''))],
-    ['rewrite without the marker', () => checkNoindex(mut(SRC.mw, '    forwarded.set(CATEGORY_REWRITE_MARKER, "1");\n', ''))],
+    ['noindex without the marker check (would noindex /exams/<slug>)', () => checkNoindex(mut(SRC.mw, ' && request.headers.get(CATEGORY_REWRITE_MARKER) !== REWRITE_TOKEN', ''))],
+    ['rewrite without the marker', () => checkNoindex(mut(SRC.mw, '    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);\n', ''))],
+    ['a constant marker value a visitor could send', () => checkNoindex(mut(SRC.mw, 'const REWRITE_TOKEN = crypto.randomUUID();', 'const REWRITE_TOKEN = "1";'))],
+    ['the check accepts any marker value', () => checkNoindex(mut(SRC.mw, 'request.headers.get(CATEGORY_REWRITE_MARKER) !== REWRITE_TOKEN', '!request.headers.has(CATEGORY_REWRITE_MARKER)'))],
+    ['a token made per request (never matches the second pass)', () => checkNoindex(mut(mut(SRC.mw, '\nconst REWRITE_TOKEN = crypto.randomUUID();\n', '\n'), '  // LIVE-GREEN-1 3a (owner): a DIRECT request', '  const REWRITE_TOKEN = crypto.randomUUID();\n  // LIVE-GREEN-1 3a (owner): a DIRECT request'))],
     ['no noindex at all', () => checkNoindex(mut(SRC.mw, '    response.headers.set("X-Robots-Tag", "noindex");\n', ''))],
     ['noindex as a next.config header rule', () => checkNoindex(SRC.mw, mut(SRC.cfg, '  headers: async () => [\n', '  headers: async () => [\n    { source: "/category-cache/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },\n'))],
     ['robots.txt blocks it', () => checkNotExposed(mut(SRC.robots, 'disallow: ["/api/", "/admin/", "/dashboard/"]', 'disallow: ["/api/", "/admin/", "/dashboard/", "/category-cache/"]'))],

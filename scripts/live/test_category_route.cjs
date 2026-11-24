@@ -147,6 +147,21 @@ const directOk = (slug, h, hostXrt) => {
   }
   check('C-6 direct /category-cache/<slug> → 200, X-Robots-Tag noindex beyond the host value, canonical /exams/<slug>', bad6.length === 0, bad6.length ? bad6.join(' | ') : `${slugs.length} hub(s)`);
 
+  // C-6b owner hardening: an OUTSIDE request carrying the rewrite marker (any value a visitor can know or guess) is still a
+  // direct visitor → still noindexed; only the middleware's own random token is accepted (offline: CATEGORY-CACHE-1 K-3)
+  const MARKER = (require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'lib', 'exams', 'category-cache-route.ts'), 'utf8').match(/CATEGORY_REWRITE_MARKER = "([^"]+)"/) || [])[1];
+  const bad6b = [];
+  if (!MARKER) bad6b.push('marker name not found in lib/exams/category-cache-route.ts');
+  else {
+    for (const slug of slugs) {
+      for (const v of ['1', 'true', '00000000-0000-4000-8000-000000000000']) {
+        const d = await hop(`${BASE}/category-cache/${slug}`, { [MARKER]: v }, true);
+        if (!directOk(slug, d, hostXrt)) bad6b.push(`${slug} with ${MARKER}: ${v} → ${d.status}, xrt "${d.xrt}"`);
+      }
+    }
+  }
+  check('C-6b an outside request carrying the rewrite marker (any value) to /category-cache/<slug> is still noindexed', bad6b.length === 0, bad6b.length ? bad6b.slice(0, 3).join(' | ') : `${slugs.length} hub(s) × 3 forged values`);
+
   // C-7 never in the sitemap
   const leaked = locs.filter((p) => /^\/category-cache(\/|$)/.test(p));
   check('C-7 sitemap.xml lists no /category-cache URL', leaked.length === 0, leaked.length ? leaked.slice(0, 3).join(', ') : `${locs.length} URLs`);

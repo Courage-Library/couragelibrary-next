@@ -5,6 +5,14 @@ import { GOOGLE_NONCE_COOKIE, nonceCookieOptions, nonceForLoginRequest } from "@
 import { categorySlugs, examSlugOf } from "@/lib/exams/category-slugs-edge";
 import { CATEGORY_REWRITE_MARKER, categoryCachePath, categoryCacheSlugOf } from "@/lib/exams/category-cache-route";
 
+/**
+ * LIVE-GREEN-1 3a hardening (owner): only the middleware's OWN rewrite can produce a valid marker. The value is a random
+ * token made once per middleware instance — never a constant a visitor could send. An incoming request whose marker is
+ * anything else is treated as a direct visitor (noindex). Not stripped by name at the start: under `next start` the
+ * second routing pass IS a new middleware call carrying the rewrite's marker, so a strip would noindex /exams/<slug>.
+ */
+const REWRITE_TOKEN = crypto.randomUUID();
+
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // AUTH-1 2b-1 (decision #66): the single-use Google nonce for the sign-in page (Server Components cannot set cookies).
   // An existing valid nonce cookie is reused (prefetches / second tabs never replace it); otherwise a new raw nonce is
@@ -27,7 +35,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // indexed — X-Robots-Tag noindex (its canonical already points to /exams/<slug>; robots.txt does not block it, so
   // crawlers see this). The rewritten request of `next start`'s second routing pass carries the marker and gets nothing,
   // so /exams/<category> is never noindexed. Not a next.config header rule: that would leak onto /exams/<category>.
-  if (categoryCacheSlugOf(request.nextUrl.pathname) && request.headers.get(CATEGORY_REWRITE_MARKER) !== "1") {
+  if (categoryCacheSlugOf(request.nextUrl.pathname) && request.headers.get(CATEGORY_REWRITE_MARKER) !== REWRITE_TOKEN) {
     response.headers.set("X-Robots-Tag", "noindex");
     return response;
   }
@@ -42,7 +50,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     const target = request.nextUrl.clone();
     target.pathname = categoryCachePath(slug);
     const forwarded = new Headers(request.headers);
-    forwarded.set(CATEGORY_REWRITE_MARKER, "1");
+    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);
     const rewritten = NextResponse.rewrite(target, { request: { headers: forwarded } });
     response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
     return rewritten;
