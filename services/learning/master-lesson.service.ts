@@ -10,6 +10,7 @@
  *     body is stripped to title + intro + outline before it reaches the page), and the signed-in student's progress.
  */
 import { unstable_cache } from "next/cache";
+import { must } from "@/lib/data/read-error";
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta } from "@/lib/lessons/blocks";
@@ -51,12 +52,17 @@ export interface MasterData {
 
 async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData | null> {
   const admin = createAdminServerSupabaseClient();
-  const { data: node } = await admin
-    .from("canonical_taxonomy_nodes")
-    .select("id, name, node_type, hierarchy_path, parent_id, root_subject_id, is_active, is_internal, metadata")
-    .eq("hierarchy_path", hierarchyPath)
-    .eq("is_active", true)
-    .maybeSingle();
+  // LIVE-GREEN-1 3c: every read goes through must() — a failed read THROWS (never null → a cached 404); only a node that
+  // genuinely does not exist (or is not a lesson level / is internal) is null
+  const node = must(
+    await admin
+      .from("canonical_taxonomy_nodes")
+      .select("id, name, node_type, hierarchy_path, parent_id, root_subject_id, is_active, is_internal, metadata")
+      .eq("hierarchy_path", hierarchyPath)
+      .eq("is_active", true)
+      .maybeSingle(),
+    "learn node",
+  );
   // CA-7: an INTERNAL node (legacy catch-all) has no public page
   if (!node || !LESSON_LEVELS.includes(node.node_type) || node.is_internal) return null;
 
@@ -68,6 +74,9 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
     admin.from("canonical_taxonomy_nodes").select("id, name, node_type, hierarchy_path, display_order").eq("parent_id", node.id).eq("is_active", true).eq("is_internal", false).order("display_order"),
     admin.rpc("fn_servable_node_lessons"),
   ]);
+  must(anc, "learn ancestors");
+  must(kids, "learn children");
+  must(servable, "servable lessons");
   const ancestors = (anc.data || []).sort((a, b) => a.hierarchy_path.length - b.hierarchy_path.length);
   if (ancestors.some((a) => a.is_internal)) return null; // under an INTERNAL node
   const lessons = new Map((Array.isArray(servable.data) ? servable.data : []).map((r) => [r.node_id, r]));
@@ -86,34 +95,41 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   let lesson: MasterData["lesson"] = null;
   if (own) {
     // the current PUBLISHED versions only (EN master + HI when published)
-    const { data: versions } = await admin
-      .from("document_versions")
-      .select("id, language, lesson_meta, blocks, published_at")
-      .eq("document_id", own.document_id)
-      .eq("is_current", true)
-      .eq("is_published", true)
-      .eq("review_status", "PUBLISHED")
-      .eq("content_format", "BLOCKS");
+    const versions = must(
+      await admin
+        .from("document_versions")
+        .select("id, language, lesson_meta, blocks, published_at")
+        .eq("document_id", own.document_id)
+        .eq("is_current", true)
+        .eq("is_published", true)
+        .eq("review_status", "PUBLISHED")
+        .eq("content_format", "BLOCKS"),
+      "lesson versions",
+    );
     const pick = async (lang: "en" | "hi"): Promise<MasterLessonVersion | null> => {
       const v = (versions || []).find((x) => x.language === lang);
       const ok = v ? validateLesson(v.lesson_meta, v.blocks) : null;
       return ok && ok.ok ? { meta: ok.meta, blocks: ok.blocks, links: await resolveLessonLinks(admin, ok.blocks) } : null;
     };
-    const [[en, hi], { data: doc }] = await Promise.all([Promise.all([pick("en"), pick("hi")]), admin.from("learning_documents").select("is_test_content").eq("id", own.document_id).maybeSingle()]);
+    const [[en, hi], docRes] = await Promise.all([Promise.all([pick("en"), pick("hi")]), admin.from("learning_documents").select("is_test_content").eq("id", own.document_id).maybeSingle()]);
+    const doc = must(docRes, "lesson document");
     if (en) lesson = { documentId: own.document_id, position: own.chapter_position, publishedAt: own.published_at, en, hi, isTestContent: doc?.is_test_content !== false };
   }
 
   // exams whose PUBLISHED syllabus covers this node (mapped here, at an ancestor or at a descendant)
   const related = [node.id, ...ancestors.map((a) => a.id), ...(kids.data || []).map((k) => k.id)];
-  const { data: maps } = await admin.from("exam_syllabus_canonical_mappings").select("syllabus_node_id").in("canonical_node_id", related);
+  const maps = must(await admin.from("exam_syllabus_canonical_mappings").select("syllabus_node_id").in("canonical_node_id", related), "syllabus mappings");
   const unitIds = [...new Set((maps || []).map((m) => m.syllabus_node_id))];
   let exams: MasterData["exams"] = [];
   if (unitIds.length) {
-    const { data: units } = await admin.from("exam_syllabus_nodes").select("syllabus_version_id").in("id", unitIds);
+    const units = must(await admin.from("exam_syllabus_nodes").select("syllabus_version_id").in("id", unitIds), "syllabus units");
     const vids = [...new Set((units || []).map((u) => u.syllabus_version_id))];
-    const { data: vs } = vids.length
-      ? await admin.from("exam_syllabus_versions").select("exam:exams(slug, title, is_active)").in("id", vids).eq("status", "PUBLISHED").eq("is_active", true)
-      : { data: [] as { exam: { slug: string; title: string; is_active: boolean } | null }[] };
+    const vs = must(
+      vids.length
+        ? await admin.from("exam_syllabus_versions").select("exam:exams(slug, title, is_active)").in("id", vids).eq("status", "PUBLISHED").eq("is_active", true)
+        : { data: [] as { exam: { slug: string; title: string; is_active: boolean } | null }[], error: null },
+      "syllabus versions",
+    );
     const seen = new Map<string, { slug: string; title: string; href: string }>();
     for (const v of vs || []) {
       const e = Array.isArray(v.exam) ? v.exam[0] : v.exam;
@@ -125,11 +141,14 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   const topic = node.node_type === "TOPIC" ? node : ancestors.find((a) => a.node_type === "TOPIC") || null;
   // COURSE-POLISH-1: published exam notes for this node or its topic (the exam-topic page renders them)
   const noteNodes = [node, ...(topic && topic.id !== node.id ? [topic] : []), ...(servedSub ? [servedSub] : [])];
-  const { data: noteRows } = await admin
-    .from("exam_node_notes")
-    .select("node_id, exam:exams(slug, title, is_active)")
-    .in("node_id", noteNodes.map((n) => n.id))
-    .eq("status", "PUBLISHED");
+  const noteRows = must(
+    await admin
+      .from("exam_node_notes")
+      .select("node_id, exam:exams(slug, title, is_active)")
+      .in("node_id", noteNodes.map((n) => n.id))
+      .eq("status", "PUBLISHED"),
+    "exam notes",
+  );
   const notesSeen = new Map<string, { examTitle: string; href: string }>();
   for (const r of noteRows || []) {
     const e = Array.isArray(r.exam) ? r.exam[0] : r.exam;

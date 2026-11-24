@@ -119,6 +119,8 @@ jobs:
           q LANDING-1 node scripts/test_landing1.cjs || fail=1
           q LEGACY-REDIRECTS node scripts/test_legacy_redirects.cjs || fail=1
           q CATEGORY-CACHE-1 node scripts/test_category_cache1.cjs || fail=1
+          q EXAM-READ-404 node scripts/test_exam_read_errors.cjs || fail=1
+          q PUBLIC-READ-404 node scripts/test_public_read_errors.cjs || fail=1
           q SITEMAP-CA-1 node scripts/test_sitemap_ca1.cjs || fail=1
           q SEO-1 node scripts/test_seo1.cjs || fail=1
           q NAV-1 node scripts/test_nav1.cjs || fail=1

@@ -8,6 +8,7 @@
  * once CA-7 adds it. Self-canonical. A node the exam's published syllabus does not cover is a 404. Published-only reads.
  */
 import { unstable_cache } from "next/cache";
+import { must } from "@/lib/data/read-error";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
 import { LEARN_CACHE_TAG, lessonTeaser, loadMasterData, type MasterData } from "@/services/learning/master-lesson.service";
@@ -29,14 +30,17 @@ export interface ExamTopicData {
 
 async function loadExamTopicUncached(examSlug: string, hierarchyPath: string): Promise<ExamTopicData | null> {
   const admin = createAdminServerSupabaseClient();
-  const [{ data: exam }, master] = await Promise.all([
+  // LIVE-GREEN-1 3c: every read goes through must() — a failed read THROWS (never null → a 404 cached for 30 min);
+  // null only for a genuinely missing exam / node / mapping
+  const [examRes, master] = await Promise.all([
     admin.from("exams").select("id, slug, title, is_active").eq("slug", examSlug).eq("is_active", true).maybeSingle(),
     loadMasterData(hierarchyPath),
   ]);
+  const exam = must(examRes, "exam");
   if (!exam || !master) return null;
 
   // the exam's PUBLISHED syllabus units that map this node, an ancestor (covers it) or a descendant (part of it)
-  const { data: nodes } = await admin.from("canonical_taxonomy_nodes").select("id, parent_id, is_active").eq("is_active", true);
+  const nodes = must(await admin.from("canonical_taxonomy_nodes").select("id, parent_id, is_active").eq("is_active", true), "taxonomy nodes");
   const parent = new Map((nodes || []).map((n) => [n.id, n.parent_id]));
   const ancestors: string[] = [];
   for (let p = parent.get(master.node.id) ?? null, hop = 0; p && hop < 6; p = parent.get(p) ?? null, hop++) ancestors.push(p);
@@ -47,16 +51,19 @@ async function loadExamTopicUncached(examSlug: string, hierarchyPath: string): P
     descendants.push(x);
     for (const n of nodes || []) if (n.parent_id === x) stack.push(n.id);
   }
-  const { data: maps } = await admin.from("exam_syllabus_canonical_mappings").select("syllabus_node_id").in("canonical_node_id", [master.node.id, ...ancestors, ...descendants]);
+  const maps = must(await admin.from("exam_syllabus_canonical_mappings").select("syllabus_node_id").in("canonical_node_id", [master.node.id, ...ancestors, ...descendants]), "syllabus mappings");
   const unitIds = [...new Set((maps || []).map((m) => m.syllabus_node_id))];
   if (!unitIds.length) return null;
-  const { data: versions } = await admin.from("exam_syllabus_versions").select("id, tier").eq("exam_id", exam.id).eq("status", "PUBLISHED").eq("is_active", true);
+  const versions = must(await admin.from("exam_syllabus_versions").select("id, tier").eq("exam_id", exam.id).eq("status", "PUBLISHED").eq("is_active", true), "syllabus versions");
   const vids = new Set((versions || []).map((v) => v.id));
   if (!vids.size) return null;
-  const { data: syl } = await admin
-    .from("exam_syllabus_nodes")
-    .select("id, parent_node_id, raw_title, weightage_tier, expected_questions_min, expected_questions_max, metadata, syllabus_version_id")
-    .in("syllabus_version_id", [...vids]);
+  const syl = must(
+    await admin
+      .from("exam_syllabus_nodes")
+      .select("id, parent_node_id, raw_title, weightage_tier, expected_questions_min, expected_questions_max, metadata, syllabus_version_id")
+      .in("syllabus_version_id", [...vids]),
+    "syllabus nodes",
+  );
   const byId = new Map((syl || []).map((n) => [n.id, n]));
   const units = unitIds.map((id) => byId.get(id)).filter((u): u is NonNullable<typeof u> => Boolean(u));
   if (!units.length) return null;
@@ -74,14 +81,16 @@ async function loadExamTopicUncached(examSlug: string, hierarchyPath: string): P
   // that exam's previous-year questions on the topic: PUBLISHED questions only, matched to this exam by its cycles
   let pyq: ExamTopicData["pyq"] = { total: 0, byYear: [] };
   if (master.node.topicId) {
-    const [{ data: cycles }, { data: qs }] = await Promise.all([
+    const [cyclesRes, qsRes] = await Promise.all([
       admin.from("exam_cycles").select("id").eq("exam_id", exam.id),
       admin.from("questions").select("id").eq("canonical_topic_id", master.node.topicId).eq("status", "published").limit(5000),
     ]);
+    const cycles = must(cyclesRes, "exam cycles");
+    const qs = must(qsRes, "topic questions");
     const qIds = (qs || []).map((q) => q.id);
     const cycleIds = (cycles || []).map((c) => c.id);
     if (qIds.length && cycleIds.length) {
-      const { data: src } = await admin.from("question_sources").select("question_id, year, tier_stage, shift").eq("source_type", "PYQ").in("exam_cycle_id", cycleIds).in("question_id", qIds);
+      const src = must(await admin.from("question_sources").select("question_id, year, tier_stage, shift").eq("source_type", "PYQ").in("exam_cycle_id", cycleIds).in("question_id", qIds), "question sources");
       const years = new Map<number, { count: number; stages: Set<string> }>();
       for (const s of src || []) {
         const y = years.get(s.year) || { count: 0, stages: new Set<string>() };

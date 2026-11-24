@@ -13,6 +13,7 @@
  */
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
+import { must } from "@/lib/data/read-error";
 import { createAdminServerSupabaseClient, createServerSupabaseClient, createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { accessMany } from "@/lib/access/policy";
@@ -43,7 +44,8 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
   const admin = createAdminServerSupabaseClient();
   // the two public read RPCs run as anon (cookie-free): their EXECUTE is granted to the public roles, not service_role
   const pub = createPublicServerSupabaseClient();
-  const { data: exam } = await admin.from("exams").select("id, slug, title").eq("slug", examSlug).eq("is_active", true).maybeSingle();
+  // LIVE-GREEN-1 3c: a failed read THROWS (never null → a 404 cached for 15 min); null only for a missing exam
+  const exam = must(await admin.from("exams").select("id, slug, title").eq("slug", examSlug).eq("is_active", true).maybeSingle(), "exam");
   if (!exam) return null;
   const [{ data: outline, error }, { data: rm, error: rmError }] = await Promise.all([
     pub.rpc("fn_exam_course_outline", { p_exam_id: exam.id, p_language: "en" }),
@@ -57,7 +59,7 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
   const nodeIds = [...new Set([...base.map((l) => l.nodeId), ...nodes.flatMap((n) => n.mapped.map((m) => m.nodeId)).filter((x): x is string => !!x)])];
   const topicIds = [...new Set(nodes.flatMap((n) => n.mapped.map((m) => m.topicId)).filter((x): x is string => !!x))];
   const docIds = base.map((l) => l.documentId);
-  const [{ data: paths }, { data: versions }, practice, canon] = await Promise.all([
+  const [pathsRes, versionsRes, practice, canon] = await Promise.all([
     nodeIds.length ? admin.from("canonical_taxonomy_nodes").select("id, hierarchy_path").in("id", nodeIds) : Promise.resolve({ data: [] as { id: string; hierarchy_path: string }[] }),
     docIds.length
       ? admin.from("document_versions").select("document_id, blocks, lesson_meta").in("document_id", docIds).eq("language", "en").eq("is_current", true).eq("is_published", true).eq("review_status", "PUBLISHED").eq("content_format", "BLOCKS")
@@ -65,6 +67,8 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
     isPracticeEnabled() && topicIds.length ? servableTopicCounts(admin, topicIds).catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
     loadTopicCanon().catch(() => EMPTY_TOPIC_CANON),
   ]);
+  const paths = must(pathsRes, "course lesson paths");
+  const versions = must(versionsRes, "course lesson versions");
   const pathOf = Object.fromEntries((paths || []).map((n) => [n.id, n.hierarchy_path]));
   const minutes = new Map((versions || []).map((v) => [v.document_id, Array.isArray(v.blocks) ? readingMinutes(v.blocks) : null]));
   // COURSE-POLISH-1: students see the lesson's published title, never the internal node label
@@ -164,8 +168,11 @@ export class ExamCourseService {
   }
 }
 
-/** CA-7: true when the exam's course is LIVE (launched) — the public read (anon RLS sees LIVE launch rows only). */
+/**
+ * CA-7: true when the exam's course is LIVE (launched) — the public read (anon RLS sees LIVE launch rows only).
+ * LIVE-GREEN-1 3c: a failed read THROWS — it is never "not launched" (the course page answered 404 on a read error).
+ */
 export async function isCourseLive(examId: string): Promise<boolean> {
-  const { data, error } = await createPublicServerSupabaseClient().from("exam_course_launches").select("status").eq("exam_id", examId).eq("status", "LIVE").limit(1);
-  return !error && Boolean(data?.length);
+  const data = must(await createPublicServerSupabaseClient().from("exam_course_launches").select("status").eq("exam_id", examId).eq("status", "LIVE").limit(1), "course launch");
+  return Boolean(data?.length);
 }

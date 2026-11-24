@@ -115,7 +115,9 @@ export default async function ExamHomePage({ params }: Props) {
   const [language, mocks, courseLive] = await Promise.all([
     userContentLanguage(),
     examMocks(exam.id),
-    totals && totals.servable_documents > 0 ? isCourseLive(exam.id) : Promise.resolve(false),
+    // LIVE-GREEN-1 3c: isCourseLive now THROWS on a read error; on the hub that only hides the course link, as before
+    // (backlog READ-404-SWEEP: partial sections)
+    totals && totals.servable_documents > 0 ? isCourseLive(exam.id).catch(() => false) : Promise.resolve(false),
   ]);
   let modules = data.publishedModules;
   if (language === "hi") {

@@ -80,10 +80,12 @@ test('LA-01 per-exam launch: gating only inside a LIVE course (stand-in gone); c
   const cs = read('services/learning/course.service.ts');
   // COURSE-UX-1: the LIVE read is isCourseLive (a failed read → false); the only other way in is the staff / admin preview
   assert(/const isLive = await isCourseLive\(data\.exam\.id\);\s*const role = session\.state === "user" \? \(session\.user\.app_metadata as \{ role\?: string \} \| undefined\)\?\.role : undefined;\s*const preview = !isLive && \(role === "admin" \|\| role === "staff"\);\s*if \(!isLive && !preview\) return null;/.test(cs)
-    && /return !error && Boolean\(data\?\.length\);/.test(cs), 'course page only while LIVE (a failed read → no course; staff / admin preview only)');
+    // LIVE-GREEN-1 3c (re-pointed, rule kept): a failed LIVE read now THROWS (5xx) — still never a course
+    && /const data = must\(await createPublicServerSupabaseClient\(\)\.from\("exam_course_launches"\)\.select\("status"\)\.eq\("exam_id", examId\)\.eq\("status", "LIVE"\)\.limit\(1\), "course launch"\);\s*return Boolean\(data\?\.length\);/.test(cs), 'course page only while LIVE (a failed read throws — never a course; staff / admin preview only)');
   // UX-IMP-1: the LIVE check runs in the page's parallel step; the link still appears only when it returned true
   const hubSrc = read('app/(site)/exams/[slug]/page.tsx');
-  assert(/totals && totals\.servable_documents > 0 \? isCourseLive\(exam\.id\) : Promise\.resolve\(false\)/.test(hubSrc) && /courseHref=\{courseLive \? `\/exams\/\$\{exam\.slug\}\/course` : null\}/.test(hubSrc), 'the exam page links the course only while LIVE');
+  // LIVE-GREEN-1 3c: isCourseLive throws on a read error; the hub keeps "no link" for that case explicitly
+  assert(/totals && totals\.servable_documents > 0 \? isCourseLive\(exam\.id\)\.catch\(\(\) => false\) : Promise\.resolve\(false\)/.test(hubSrc) && /courseHref=\{courseLive \? `\/exams\/\$\{exam\.slug\}\/course` : null\}/.test(hubSrc), 'the exam page links the course only while LIVE');
   const M = require(path.join(ROOT, 'lib/learn/sitemap.ts'));
   const urls = M.learnSitemapEntries('https://x.test', [{ nodeId: U(1), hiCurrent: false, publishedAt: null }], { [U(1)]: 'q.p' }, [{ slug: 'a', nodeIds: [U(1)], live: true }, { slug: 'b', nodeIds: [U(1)], live: false }]).map((e) => new URL(e.url).pathname);
   assert(JSON.stringify(urls) === JSON.stringify(['/learn/q/p', '/exams/a/course', '/exams/a/q/p', '/exams/b/q/p']), JSON.stringify(urls));

@@ -40,6 +40,20 @@ import type { AppSupabaseClient } from '@/lib/supabase/types';
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 
+/**
+ * LIVE-GREEN-1 3c (owner): a read that FAILED is never "not found". Only a genuinely missing exam row is NOT_FOUND
+ * (→ the page's 404); a database error is thrown, so the page answers 5xx — or, on an ISR revalidation, Next keeps
+ * serving the last good page. Before, an error became NOT_FOUND / an empty guide list and a live page answered 404
+ * (UX2A L-17: /exams/ssc-cgl/exam-pattern 404 in dispatch 45362983737, 200 everywhere else). The message names the
+ * failed tables only (no row data, no ids).
+ */
+export class ExamKnowledgeReadError extends Error {
+  constructor(tables: string) {
+    super(`exam knowledge read failed: ${tables}`);
+    this.name = 'ExamKnowledgeReadError';
+  }
+}
+
 export class ExamKnowledgeCandidateService {
   /**
    * Retrieves the comprehensive, candidate-facing Exam Knowledge read model.
@@ -94,7 +108,8 @@ export class ExamKnowledgeCandidateService {
         .eq('slug', examSlug.trim().toLowerCase())
         .maybeSingle();
 
-      if (examErr || !exam) {
+      if (examErr) throw new ExamKnowledgeReadError('exams');
+      if (!exam) {
         return {
           status: 'NOT_FOUND',
           errorMessage: `Exam with slug "${examSlug}" was not found.`,
@@ -155,6 +170,21 @@ export class ExamKnowledgeCandidateService {
           .eq('language', language)
           .eq('status', 'PUBLISHED'),
       ]);
+
+      // LIVE-GREEN-1 3c: a failed batch read is an error, never an empty (→ 404 / silently missing) section
+      const failed = (
+        [
+          ['exam_cycles', cRes],
+          ['exam_posts', pRes],
+          ['exam_patterns', patRes],
+          ['exam_sources', sRes],
+          ['exam_claims', clRes],
+          ['exam_knowledge_documents', docRes],
+        ] as const
+      )
+        .filter(([, r]) => r.error)
+        .map(([t]) => t);
+      if (failed.length) throw new ExamKnowledgeReadError(failed.join(', '));
 
       cyclesData = cRes.data || [];
       postsData = pRes.data || [];

@@ -59,6 +59,46 @@ been red since 22 Nov and nobody was told (see NIGHTLY-ALERT-1).
 - Local (no QA sign-in): LANDING1-PAGES 37/37, UX2A 16/16 (L-14 skipped, proven in CI), CA6-SEO 8/8,
   CATEGORY-ROUTE-LIVE 10/10; L-14 and E2E-08 are proven by the release's live dispatch.
 
+## READ-404-SWEEP (next phase after LIVE-GREEN-1): public routes where a read error becomes a 404 or an empty section
+
+**Status:** sweep 2026-11-24 (read-only), owner: fix in the phase after LIVE-GREEN-1. Rule (LIVE-GREEN-1 3c): only a
+genuinely missing row → 404; a read error / timeout THROWS (5xx; ISR keeps the last good page; unstable_cache stores
+nothing) — `lib/data/read-error.ts` must(). A malformed id (Postgres 22P02) may stay a 404, but check the id format
+BEFORE the read rather than treating every error as 404. **Done in 3c:** the four exam pages
+(ExamKnowledgeCandidateService), the cached loaders loadMasterData (/learn, /hi/learn), getExamTopic (exam-topic page),
+loadCourseData + isCourseLive (course pages); gates EXAM-READ-404, PUBLIC-READ-404.
+- **BUG (error → 404):**
+  - /learn/topics/[topicId] — lib/learn/topic.ts:34-35 (node read error ignored)
+  - /articles/[slug] — services/learning/learning-resolver.service.ts:393 (`if (error) return null`), :411-413
+    (NODE_LESSON fallback ignores error); body read try/catch :469-470 → lesson null (PARTIAL)
+  - /current-affairs/[slug] — services/current-affairs.service.ts:420-421 (`error || !data` → null), catch :522-523;
+    page revalidate 60 (the 404 can be stored by ISR)
+  - /mock-tests/[id] — services/assessment.service.ts:1224-1226 (test read error ignored); sections :1229-1231 `|| []`
+    (PARTIAL)
+  - /mock-tests/[id]/leaderboard — assessment.service.ts:2410-2411
+  - noindex, reachable anonymously: /institutes/[slug] + /batches/[batchId] (institute.service.ts:126-128, :184-186),
+    /descriptive/[id] + /write (descriptive.service.ts:167-168), /community/[id] (community.service.ts:113-115),
+    /flashcards/[id] + /review (flashcard.service.ts:142-143, :195-197)
+  - flag-off today (a bug once the flag is on): /u/[username] (lib/profile/server.ts:25-32), /live-tests/[slug]
+    (live-test-registration.service.ts:116-117), /courses/[slug] + /learn (content.service.ts ~325); /battles/[id]
+    not traced
+  - signed-in only: /descriptive/submissions/[id], /faculty/evaluations/[id] (descriptive.service.ts:297-306)
+- **PARTIAL (error → silently empty section, page 200):** /current-affairs/date/[date] (current-affairs.service.ts
+  :171-178, :224-231), /current-affairs/month/[month] (getMonthlyFeed ~:899, catch ~:938), the list hubs /articles,
+  /current-affairs, /mock-tests (getHubData catch :741-750), the exam hub's mocks / exam note (exam-page-server.ts:23,
+  :104) and course link (isCourseLive(...).catch(() => false), kept explicit in 3c), the lesson reader's course outline
+  (course.service getCourseForReader .catch(() => null)), resolveLessonLinks (learning-resolver.service.ts ~:288-296:
+  a failed node / image read drops a link).
+- **Already right (the model):** loadPublicCategory (lib/exams/category-data.ts throws), loadTopicCanon
+  (topic-canon.service.ts:16-27), the landing reads (explicit failed state).
+
+## WITH-SERVER-PORT: with-server refuses on ANY Next.js process on the machine
+
+**Status:** logged 2026-11-24 (owner). `scripts/live/with-server.cjs` refuses to start when any "foreign" next server /
+audit process runs anywhere (e.g. the E:\collab10x e2e harness on port 3100 blocked every LIVE-GREEN-1 3b / 3c local
+check). **Fix:** refuse only when its OWN port is taken or a process of its own tree / this worktree is still running;
+another project's server on another port (or this port, reported clearly) must not block unrelated work.
+
 ## LIVE-SILENT-SKIP: live journey / smoke steps that skip silently when an element is missing (report only)
 
 **Status:** sweep 2026-11-24 (LIVE-GREEN-1 3b, owner: report-only). Pattern searched in scripts/{e2e,smoke,live} and the

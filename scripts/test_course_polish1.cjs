@@ -107,7 +107,8 @@ if (process.argv.includes('--self-test')) {
     ['P-4 plural bug', mut('structure', '`${n} ${n === 1 ? one : many}`', '`${n} ${many}`')],
     ['P-5 button always primary', mut('complete', 'className={ready ? PRIMARY : WAITING}', 'className={PRIMARY}')],
     ['P-6 names hidden', mut('reader', '<span className="truncate text-body-sm font-semibold">{lesson.name}</span>', '<span className="sr-only">{lesson.name}</span>')],
-    ['P-7 notes not from published', mut('master', '.in("node_id", noteNodes.map((n) => n.id))\n    .eq("status", "PUBLISHED");', '.in("node_id", noteNodes.map((n) => n.id));')],
+    // LIVE-GREEN-1 3c: the read is wrapped in must() (re-indented); the control is unchanged
+    ['P-7 notes not from published', mut('master', '.in("node_id", noteNodes.map((n) => n.id))\n      .eq("status", "PUBLISHED"),', '.in("node_id", noteNodes.map((n) => n.id)),')],
     ['P-8 no scroll-spy', mut('client', 'a.setAttribute("aria-current", "location")', 'a.setAttribute("data-x", "1")')],
   ];
   let bad = 0;
