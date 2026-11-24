@@ -21,7 +21,7 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const F = {
   loginForm: 'app/(site)/auth/login/login-form.tsx', loginPage: 'app/(site)/auth/login/page.tsx', examPage: 'lib/exams/exam-page.ts', examHome: 'components/exams/exam-home.tsx',
-  crumb: 'components/ui/breadcrumb.tsx', cats: 'lib/exams/categories.ts', catPage: 'components/exams/category-page.tsx', catRoute: 'app/(public)/category/[slug]/page.tsx',
+  crumb: 'components/ui/breadcrumb.tsx', cats: 'lib/exams/categories.ts', catPage: 'components/exams/category-page.tsx', catRoute: 'app/(public)/category-cache/[slug]/page.tsx',
   hubRoute: 'app/(site)/exams/[slug]/page.tsx', css: 'app/globals.css', reveal: 'components/landing/landing-enhancements.tsx', header: 'components/nav/visitor-header.tsx', navCss: 'app/nav.css',
 };
 

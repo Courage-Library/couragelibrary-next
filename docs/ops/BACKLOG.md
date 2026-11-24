@@ -34,6 +34,17 @@ been red since 22 Nov and nobody was told (see NIGHTLY-ALERT-1).
 - **Next (step 2):** the CI gate logs hold summary lines only, so reproduce each locally on a production build:
   `signed-in-smoke.cjs … --all` up to the first page only (anonymous; no QA session needed for `/auth/login`), the
   UX2A / CA6-SEO checks, then E2E-08. Fix per cluster; a dispatch only when the fixes are in.
+- **3a (built 2026-11-24, release pending): the 7 SMOKE-* + UX2A L-17 root cause.** Under self-hosted `next start` (the
+  CI live server) the middleware's rewrite of /exams/<category> is routed a second time, and the middleware itself sees
+  the INTERNAL path; the internal target was /category/<slug>, which SEO-1 308s to /exams/<slug> → /exams/<category>
+  looped (Chrome stops at 20 hops: the header's prefetch of /exams/ssc = 21 requests on /auth/login; cold servers did not
+  loop, so SMOKE-ADMIN-PAGES-1 passed). Measured locally: the loop persists with the 308 moved into the middleware;
+  a header rule for the internal path leaks onto /exams/<slug> too. Fix (owner option 1): the internal route is
+  /category-cache/<slug> (lib/exams/category-cache-route.ts — the rewrite, the cache refresh and the noindex share it);
+  SEO-1's /category/<slug> 308 stays in next.config; a DIRECT /category-cache request gets X-Robots-Tag noindex from
+  the middleware, the rewrite carries a request marker so `next start`'s second pass never does. Gates: CATEGORY-CACHE-1
+  (offline, 15 negative controls), CATEGORY-ROUTE-LIVE (warm server; fails C-1/2/3/4/6 on the a241a9d build, 8/8 on the
+  fix), LEGACY-REDIRECTS LR-2b (no legacy target under /category or /category-cache).
 
 ## QA-SESSION-RACE: parallel live jobs mint the same QA session at the same moment → verifyOtp 403
 

@@ -7,6 +7,7 @@ import { categoryIntro } from "@/lib/exams/categories";
 
 /**
  * PERF-HOME-1: the CACHED category page. Visitors never see this path: middleware.ts rewrites /exams/<category> here
+ * (LIVE-GREEN-1 3a: /category-cache/<slug>, lib/exams/category-cache-route.ts; a direct request gets X-Robots-Tag noindex)
  * (the canonical URL stays /exams/<category>: the page's canonical link points there). It reads no
  * cookie and no request header — public rows only (lib/exams/category-data.ts) — so it is rendered once and served from
  * the CDN, regenerated every 5 min and on demand when admins change categories / exams / logos

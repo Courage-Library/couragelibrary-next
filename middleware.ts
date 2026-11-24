@@ -3,6 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { isGoogleSignInEnabled } from "@/lib/auth/google-flag";
 import { GOOGLE_NONCE_COOKIE, nonceCookieOptions, nonceForLoginRequest } from "@/lib/auth/google-nonce-core";
 import { categorySlugs, examSlugOf } from "@/lib/exams/category-slugs-edge";
+import { CATEGORY_REWRITE_MARKER, categoryCachePath, categoryCacheSlugOf } from "@/lib/exams/category-cache-route";
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // AUTH-1 2b-1 (decision #66): the single-use Google nonce for the sign-in page (Server Components cannot set cookies).
@@ -22,15 +23,27 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // the session is refreshed for every request (cookies set on whatever response goes out)
   const response = await updateSession(request);
   if (minted) response.cookies.set(GOOGLE_NONCE_COOKIE, minted, nonceCookieOptions());
+  // LIVE-GREEN-1 3a (owner): a DIRECT request for the internal cached category route (no rewrite marker) is never
+  // indexed — X-Robots-Tag noindex (its canonical already points to /exams/<slug>; robots.txt does not block it, so
+  // crawlers see this). The rewritten request of `next start`'s second routing pass carries the marker and gets nothing,
+  // so /exams/<category> is never noindexed. Not a next.config header rule: that would leak onto /exams/<category>.
+  if (categoryCacheSlugOf(request.nextUrl.pathname) && request.headers.get(CATEGORY_REWRITE_MARKER) !== "1") {
+    response.headers.set("X-Robots-Tag", "noindex");
+    return response;
+  }
   // PERF-HOME-1: /exams/<category> is served by the cached category route (same URL for the visitor; the internal
-  // /category/<slug> path carries the canonical /exams/<slug>); exam hubs and every other page stay as they are. A
+  // /category-cache/<slug> path carries the canonical /exams/<slug>); exam hubs and every other page stay as they are. A
   // redirect from the session step (age gate, admin) always wins. The slug list is never awaited; its background refresh
   // is kept alive with waitUntil (PERF-HOME-1b: the edge runtime drops un-awaited work after the response).
+  // LIVE-GREEN-1 3a: the target is /category-cache/<slug> (lib/exams/category-cache-route.ts), which no redirect matches
+  // (SEO-1's public /category/<slug> 308 hit the old internal path under `next start` → /exams/<category> looped).
   const slug = request.method === "GET" && response.status < 300 ? examSlugOf(request.nextUrl.pathname) : null;
   if (slug && categorySlugs((work) => event.waitUntil(work)).has(slug)) {
     const target = request.nextUrl.clone();
-    target.pathname = `/category/${slug}`;
-    const rewritten = NextResponse.rewrite(target);
+    target.pathname = categoryCachePath(slug);
+    const forwarded = new Headers(request.headers);
+    forwarded.set(CATEGORY_REWRITE_MARKER, "1");
+    const rewritten = NextResponse.rewrite(target, { request: { headers: forwarded } });
     response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
     return rewritten;
   }

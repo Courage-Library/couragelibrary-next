@@ -65,7 +65,7 @@ const WRITES = [
 const BULK = ['app/(site)/admin/actions.ts', 'BulkImportEngine.processImport('];
 const HELPER = 'lib/cache/revalidate-public.ts';
 // LANDING-1 (owner L1): "/" and "/hi" live in app/(landing) — the same cache rule applies to both
-const CACHED_PAGES = ['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'app/(public)/exams/page.tsx', 'app/(public)/category/[slug]/page.tsx'];
+const CACHED_PAGES = ['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'app/(public)/exams/page.tsx', 'app/(public)/category-cache/[slug]/page.tsx'];
 const HUB = 'app/(site)/exams/[slug]/page.tsx';
 const HUB_PUBLIC = 'app/(public)/exams/[slug]/page.tsx';
 const PUBLIC_LAYOUT = ['app/(public)/layout.tsx', 'app/(landing)/layout.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-page-data.ts', 'components/shell/public-shell.tsx', 'components/nav/visitor-header.tsx', 'components/nav/visitor-nav-enhancer.tsx', 'lib/nav/visitor-nav.ts', 'lib/nav/live-categories.ts', 'components/landing/landing-cta.tsx', 'app/layout.tsx'];
@@ -120,7 +120,7 @@ function check(files) {
   const helperTags = new Set([...tagList.matchAll(/"([^"]+)"/g)].map((x) => x[1]));
   for (const t of tags) if (!helperTags.has(t) && !/^learn/.test(t)) fails.push(`W-2 helper does not drop the cache tag "${t}"`);
   // LANDING-1 (owner L1): "/hi" follows the same cache rule as "/"
-  if (!/PUBLIC_PAGE_PATHS = \["\/", "\/hi", "\/exams"\]/.test(helper) || !/revalidatePath\(PUBLIC_CATEGORY_ROUTE, "page"\)/.test(helper) || !/PUBLIC_CATEGORY_ROUTE = "\/category\/\[slug\]"/.test(helper)) fails.push('W-2 helper does not revalidate "/", "/exams" and /category/[slug]');
+  if (!/PUBLIC_PAGE_PATHS = \["\/", "\/hi", "\/exams"\]/.test(helper) || !/revalidatePath\(PUBLIC_CATEGORY_ROUTE, "page"\)/.test(helper) || !/PUBLIC_CATEGORY_ROUTE = CATEGORY_CACHE_ROUTE;/.test(helper)) fails.push('W-2 helper does not revalidate "/", "/exams" and the category route the middleware rewrites to (LIVE-GREEN-1 3a: CATEGORY_CACHE_ROUTE)');
   if (tags.size < 3) fails.push(`W-2 found only ${tags.size} loader tags (expected categories, brand-assets, hindi-content)`);
   // W-3
   for (const f of CACHED_PAGES) {
@@ -203,12 +203,19 @@ function runHelper(throwing) {
   const calls = [];
   const cache = { revalidateTag: (t) => { if (throwing) throw new Error('outside a request'); calls.push(['tag', t]); }, revalidatePath: (p, k) => calls.push(['path', p, k || null]) };
   const mod = { exports: {} };
-  new Function('require', 'module', 'exports', out)((id) => (id === 'next/cache' ? cache : require(id)), mod, mod.exports);
+  // LIVE-GREEN-1 3a: the helper takes the category route from lib/exams/category-cache-route.ts — load the REAL module
+  const loadTs = (rel) => {
+    const m = { exports: {} };
+    new Function('require', 'module', 'exports', ts.transpileModule(read(rel), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText)(require, m, m.exports);
+    return m.exports;
+  };
+  const resolve = (id) => (id === 'next/cache' ? cache : id === '@/lib/exams/category-cache-route' ? loadTs('lib/exams/category-cache-route.ts') : require(id));
+  new Function('require', 'module', 'exports', out)(resolve, mod, mod.exports);
   mod.exports.revalidatePublicPages();
   return calls;
 }
 function checkHelper() {
-  const want = JSON.stringify([['tag', 'categories'], ['tag', 'brand-assets'], ['tag', 'hindi-content'], ['path', '/', null], ['path', '/hi', null], ['path', '/exams', null], ['path', '/category/[slug]', 'page']]);
+  const want = JSON.stringify([['tag', 'categories'], ['tag', 'brand-assets'], ['tag', 'hindi-content'], ['path', '/', null], ['path', '/hi', null], ['path', '/exams', null], ['path', '/category-cache/[slug]', 'page']]);
   const got = JSON.stringify(runHelper(false));
   const f = [];
   if (got !== want) f.push(`W-5 helper calls ${got}`);

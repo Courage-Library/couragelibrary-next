@@ -1,7 +1,8 @@
 import { revalidatePath, revalidateTag } from "next/cache";
+import { CATEGORY_CACHE_ROUTE } from "@/lib/exams/category-cache-route";
 
 /**
- * PERF-HOME-1: the cached public pages ("/", "/exams", the category pages served from /category/[slug]) are ISR —
+ * PERF-HOME-1: the cached public pages ("/", "/exams", the category pages served from /category-cache/[slug]) are ISR —
  * regenerated every minute at most anyway, and AT ONCE through this helper from every admin write that changes what
  * they show: categories (save, icon), exams (create, edit, publish, archive, delete), conducting bodies and logos,
  * brand assets, the library gallery, mock tests (create, edit, publish), guides, current affairs, the syllabus,
@@ -12,7 +13,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 export const PUBLIC_PAGE_TAGS = ["categories", "brand-assets", "hindi-content"] as const;
 // LANDING-1 (owner L1): "/hi" (the Hindi landing page) follows the same cache rule as "/"
 export const PUBLIC_PAGE_PATHS = ["/", "/hi", "/exams"] as const;
-export const PUBLIC_CATEGORY_ROUTE = "/category/[slug]";
+// LIVE-GREEN-1 3a: the SAME route the middleware rewrites /exams/<category> to (one definition; gate CATEGORY-CACHE-1)
+export const PUBLIC_CATEGORY_ROUTE = CATEGORY_CACHE_ROUTE;
 
 export function revalidatePublicPages(): void {
   try {

@@ -93,6 +93,11 @@ function checkAll(rules, urls) {
   assert(unmatched.length === 0, `LR-1 ${unmatched.length} listed URL(s) match no rule (would 404): ${unmatched.slice(0, 5).join(', ')}`);
   assert(missing.size === 0, `LR-1 destination(s) without a route: ${[...missing].join(', ')}`);
   assert(chains.length === 0, `LR-2 chain / loop: ${chains.slice(0, 3).join(' | ')}`);
+  // LR-2b (LIVE-GREEN-1 3a, owner): /category/<slug> is SEO-1's 308 to /exams/<slug> and /category-cache/<slug> is the
+  // internal rewrite target — neither is ever a legacy destination (a second hop / an unindexed page); the one-hop
+  // promise forbids both outright, independent of which rule list this check can see
+  const viaCategory = rules.filter((r) => /^\/category(-cache)?(\/|$|\?|#)/i.test(r.destination));
+  assert(viaCategory.length === 0, `LR-2b a legacy target is /category/* or /category-cache/* (a second hop / the internal route): ${viaCategory.map((r) => `${r.source} → ${r.destination}`).slice(0, 3).join(' | ')}`);
   for (const r of rules) {
     assert(!/\.html$/i.test(r.destination) && routeExists(r.destination) && !first(cr, r.destination), `LR-2 destination ${r.destination} is not a final, existing route`);
   }
@@ -143,6 +148,9 @@ test('LR-6 negative controls: each mutation is caught', () => {
     ['section rule + fallback removed → 404s', () => checkAll(load(SRC.replace('  { source: "/delhi-police/:path*", destination: "/exams/police" },\n', '').replace('const FALLBACK: LegacyRedirect[] = [{ source: "/:path(.*\\\\.html)", destination: "/exams" }];', 'const FALLBACK: LegacyRedirect[] = [];')), URLS)],
     ['a destination without a route', () => checkAll(mut('{ source: "/about.html", destination: "/about" }', '{ source: "/about.html", destination: "/about-us" }'), URLS)],
     ['a chain (destination redirected again)', () => checkAll(mut('{ source: "/enroll.html", destination: "/pricing" }', '{ source: "/enroll.html", destination: "/free-trial.html" }'), URLS)],
+    ['a target on the internal /category-cache route', () => checkAll([...RULES.slice(0, 1), { source: '/old-cat2.html', destination: '/category-cache/ssc' }, ...RULES.slice(1)], URLS)],
+    ['a target under /category (second hop via the SEO-1 308)', () => checkAll(mut('{ source: "/Delhi-Police.html", destination: "/exams/police" }', '{ source: "/Delhi-Police.html", destination: "/category/police" }'), URLS)],
+    ['a target /category with a query', () => checkAll([...RULES, { source: '/old-cat.html', destination: '/category/ssc?x=1' }], [...URLS, '/old-cat.html'])],
     ['a loop', () => checkAll([...RULES, { source: '/exams', destination: '/exams/ssc-cgl' }, { source: '/exams/ssc-cgl', destination: '/exams' }], URLS)],
     ['a new route shadowed', () => checkAll([{ source: '/mock-tests', destination: '/exams' }, ...RULES], URLS)],
     ['a legacy prefix that is a route folder', () => checkAll([...RULES, { source: '/pricing/:path*', destination: '/exams' }], URLS)],

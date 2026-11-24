@@ -6,6 +6,10 @@
       "measured": 6,
       "cap": 120
     },
+    "CATEGORY-ROUTE-LIVE": {
+      "measured": 20,
+      "cap": 120
+    },
     "SECDEF-RATCHET": {
       "measured": 3,
       "cap": 120

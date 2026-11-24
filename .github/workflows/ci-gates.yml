@@ -118,6 +118,7 @@ jobs:
           q HOME-1 node scripts/test_home1.cjs || fail=1
           q LANDING-1 node scripts/test_landing1.cjs || fail=1
           q LEGACY-REDIRECTS node scripts/test_legacy_redirects.cjs || fail=1
+          q CATEGORY-CACHE-1 node scripts/test_category_cache1.cjs || fail=1
           q SITEMAP-CA-1 node scripts/test_sitemap_ca1.cjs || fail=1
           q SEO-1 node scripts/test_seo1.cjs || fail=1
           q NAV-1 node scripts/test_nav1.cjs || fail=1
@@ -603,6 +604,7 @@ jobs:
           B='http://localhost:3100'
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
+            "$Q CATEGORY-ROUTE-LIVE -- node scripts/live/test_category_route.cjs $B" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \

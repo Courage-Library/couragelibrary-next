@@ -79,7 +79,7 @@ const PUBLIC_ROUTES = new Set([
   '/current-affairs', '/current-affairs/[slug]', '/current-affairs/date/[date]', '/current-affairs/month/[month]',
   '/mock-tests', '/practice', '/articles', '/articles/[slug]', '/courses', '/courses/[slug]', '/institutes', '/institutes/[slug]',
   '/live-tests', '/live-tests/[slug]',
-  '/category/[slug]', // internal target of the /exams/<category> rewrite; the public /category/<slug> URL 308s to /exams/<slug>
+  '/category-cache/[slug]', // internal target of the /exams/<category> rewrite (LIVE-GREEN-1 3a; a DIRECT request is noindexed by middleware.ts — never by a header rule, which leaks onto /exams/<slug>: gate CATEGORY-CACHE-1); the public /category/<slug> URL 308s to /exams/<slug>
 ]);
 function appRoutes() {
   const out = [];
