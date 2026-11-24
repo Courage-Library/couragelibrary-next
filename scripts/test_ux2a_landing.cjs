@@ -410,8 +410,10 @@ const UX2B_ROUTES = ['/legal'];
   const html = await home.text();
   const visible = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
 
+  // LIVE-GREEN-1 3b (owner, re-pointed to LANDING-1's "/", rules kept): L-15b / L-9 / L-10 / L-14 pinned the pre-LANDING-1
+  // home page (hero id, OG text, category tiles, hero CTA) and failed in every live run since 44968433798.
   await test('L-15b live: the "/" hero is in the first HTML flush (no streamed root loading boundary)', async () => {
-    const hero = html.indexOf('id="hero-title"');
+    const hero = html.indexOf('data-landing-section="hero"');
     const seg = html.indexOf('<div hidden id="S:');
     assert(hero > 0, 'hero missing');
     assert(seg === -1 || hero < seg, `hero at ${hero} comes after the first streamed segment at ${seg}`);
@@ -480,7 +482,11 @@ const UX2B_ROUTES = ['/legal'];
     assert(visible.includes('Learn Smarter. Prepare Independently.'), 'brand line');
     assert((html.match(/<h1[\s>]/g) || []).length === 1, 'exactly one h1');
     assert(/<header[\s>]/.test(html) && /<main id="main-content"/.test(html) && /<footer[\s>]/.test(html), 'landmarks');
-    assert(/<link rel="canonical" href="[^"]+"/.test(html) && /<meta property="og:title" content="Courage Library: Government exam preparation with free mock tests"/.test(html) && /<meta property="og:description"/.test(html), 'canonical / OG');
+    // LIVE-GREEN-1 3b: the OG title is the landing's own title (content/landing-page/en.ts meta.title), exactly
+    const ogWant = (read('content/landing-page/en.ts').match(/meta: \{\s*title: "([^"]+)"/) || [])[1];
+    assert(ogWant, 'content/landing-page/en.ts: meta.title not found');
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    assert(/<link rel="canonical" href="[^"]+"/.test(html) && html.includes(`<meta property="og:title" content="${esc(ogWant)}"`) && /<meta property="og:description"/.test(html), `canonical / OG (want og:title "${ogWant}")`);
     const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
     assert(ld.length >= 1 && ld.some((o) => o['@type'] === 'EducationalOrganization' && o.email === 'support@couragelibrary.in'), 'JSON-LD');
     const bad = ['undefined', 'NaN', 'null'].filter((t) => new RegExp(`\\b${t}\\b`).test(visible) || new RegExp(`\\b${t}\\b`).test(domText));
@@ -507,18 +513,32 @@ const UX2B_ROUTES = ['/legal'];
     // the tiles as rendered (per tile: link or not, its own text)
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    // every public category is a tile (owner 2026-11-02: tiles restored): live = link with its count; else a "Coming soon" tile
-    const tilesOf = async () => page.evaluate(() => [...document.querySelectorAll('[data-category-tile]')].map((t) => ({ slug: t.dataset.categoryTile, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })));
+    // LIVE-GREEN-1 3b (re-pointed to LANDING-1's category cards, owner L3 "data-driven"; rule kept): every public category
+    // has a card; a card is LIVE exactly when its category has ≥ 1 active exam — a link to /exams/<slug> that names
+    // exactly its live exams (lib/landing/landing-copy.ts examShortName / liveCategorySubtitle, the page's own rule);
+    // every other card (incl. the fixed cards of categories that are not public yet) is a "Coming soon" card that is not
+    // a link and shows no number
+    const ts = require('typescript');
+    const lc = { exports: {} };
+    new Function('require', 'module', 'exports', ts.transpileModule(read('lib/landing/landing-copy.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText)(require, lc, lc.exports);
+    const cardsOf = async () => page.evaluate(() => [...document.querySelectorAll('main [data-category]')].filter((t) => t.dataset.category !== 'all').map((t) => ({ slug: t.dataset.category, live: t.dataset.live, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })));
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
-      const tiles = await tilesOf();
-      assert(tiles.map((t) => t.slug).sort().join() === cats.map((c) => c.slug).sort().join(), `tiles ${tiles.map((t) => t.slug)} ≠ public categories ${cats.map((c) => c.slug)}`);
-      for (const c of cats) {
-        const t = tiles.find((x) => x.slug === c.slug);
-        const n = perCat.get(c.slug).length;
-        assert(t.text.includes(c.name), `${c.slug}: name missing`);
-        if (n > 0) assert(t.link && t.href === `/exams/${c.slug}` && t.text.includes(`${n} exam${n === 1 ? '' : 's'}`) && !/Coming soon/.test(t.text), `${c.slug}: expected a link with "${n} exam${n === 1 ? '' : 's'}" (got ${JSON.stringify(t)})`);
-        else assert(!t.link && /Coming soon/.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a "Coming soon" tile that is not a link (got ${JSON.stringify(t)})`);
+      const cards = await cardsOf();
+      const missingCard = cats.filter((c) => !cards.some((t) => t.slug === c.slug)).map((c) => c.slug);
+      assert(missingCard.length === 0, `public categories without a card on "/": ${missingCard.join(', ')} (cards: ${cards.map((t) => t.slug)})`);
+      for (const t of cards) {
+        const c = cats.find((x) => x.slug === t.slug);
+        const live = c ? perCat.get(c.slug) : [];
+        if (live.length > 0) {
+          const names = live.map((e) => lc.exports.examShortName(e.title, c.name));
+          assert(t.link && t.live === 'true' && t.href === `/exams/${c.slug}` && !/Coming soon/.test(t.text) && names.every((n) => t.text.includes(n)) && / live\b/.test(t.text), `${t.slug}: expected a live link naming ${JSON.stringify(names)} (got ${JSON.stringify(t)})`);
+          // exactly its live exams: the subtitle before " live" lists as many names as there are live exams
+          const listed = (t.text.match(/ ([^·]+?) live\b/) || [])[1] || '';
+          assert(names.length === 1 ? listed.endsWith(names[0]) : names.every((n) => listed.includes(n)), `${t.slug}: the live list "${listed}" ≠ ${JSON.stringify(names)}`);
+        } else {
+          assert(!t.link && t.live === 'false' && /Coming soon/.test(t.text) && !/\d/.test(t.text), `${t.slug}: expected a "Coming soon" card that is not a link and shows no number (got ${JSON.stringify(t)})`);
+        }
       }
 
       // PAY-1 B2b (146): anon reads no mock_tests directly — the live count is the narrow public read the page uses (145)
@@ -534,16 +554,20 @@ const UX2B_ROUTES = ['/legal'];
         const rm = await (await rest('rpc/fn_exam_syllabus_read_model', { method: 'POST', body: JSON.stringify({ p_exam_id: e.id }) })).json();
         anySyllabus = anySyllabus || (rm && rm.state === 'AVAILABLE');
       }
-      if (mocksAll > 0) assert(domText.includes(`${mocksAll} free mock test${mocksAll === 1 ? '' : 's'} live`), `total mocks ${mocksAll}`);
-      if (guidesAll > 0) assert(domText.includes(`${guidesAll} guide${guidesAll === 1 ? '' : 's'} published`), `total guides ${guidesAll}`);
-      // "What you get" lists only what works today: a feature is listed exactly when its content is published
+      // LIVE-GREEN-1 3b (re-pointed, rule kept): a count shown on "/" equals the live count; LANDING-1's "/" shows no mock /
+      // guide totals any more — if one comes back, it must match
+      const mockTotal = domText.match(/\b(\d+) free mock tests? live\b/);
+      if (mockTotal) assert(Number(mockTotal[1]) === mocksAll, `"/" says ${mockTotal[1]} free mock tests, live ${mocksAll}`);
+      const guideTotal = domText.match(/\b(\d+) guides? published\b/);
+      if (guideTotal) assert(Number(guideTotal[1]) === guidesAll, `"/" says ${guideTotal[1]} guides, live ${guidesAll}`);
+      // a feature is claimed exactly when its content is published (the LANDING-1 claims: "Daily current affairs" in the
+      // Free plan, "Free mock tests …", "Syllabus, lessons …" in the band)
       const ca = total(await rest('current_affairs_articles?select=id&status=eq.PUBLISHED&limit=1'));
-      assert(domText.includes('Daily current affairs') === ca > 0, `current affairs ${ca} vs listed ${domText.includes('Daily current affairs')}`);
-      assert(domText.includes('Syllabus tracker') === anySyllabus, `syllabus ${anySyllabus} vs listed ${domText.includes('Syllabus tracker')}`);
-      // every number on "/" is accounted for (category counts, totals, step numbers, the founding year, the © year)
+      const claims = [['Daily current affairs', ca > 0, `current affairs ${ca}`], ['Free mock tests', mocksAll > 0, `mocks ${mocksAll}`], ['Syllabus, lessons', anySyllabus, `syllabus ${anySyllabus}`]];
+      for (const [phrase, has, what] of claims) assert(domText.includes(phrase) === has, `"/" ${domText.includes(phrase) ? 'claims' : 'does not claim'} "${phrase}" but ${what}`);
+      // every number on "/" is accounted for (live counts, step numbers 01–06, the founding year, the © year)
       const nums = [...domText.matchAll(/\b\d+\b/g)].map((x) => Number(x[0]));
-      // + the number of live exams (the "What you get" stats, HOME-1 expert UX pass)
-      const allowed = new Set([mocksAll, guidesAll, exams.length, ...[...perCat.values()].map((l) => l.length), 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear()]);
+      const allowed = new Set([mocksAll, guidesAll, exams.length, ...[...perCat.values()].map((l) => l.length), 1, 2, 3, 4, 5, 6, 2024, new Date().getFullYear()]);
       const unknown = nums.filter((n) => !allowed.has(n));
       assert(unknown.length === 0, `unexplained numbers on "/": ${[...new Set(unknown)].join(', ')}`);
 

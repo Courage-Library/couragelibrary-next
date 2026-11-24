@@ -136,13 +136,17 @@ let exitCode = 1;
   if (await resume.count()) await resume.first().click();
   await page.waitForTimeout(2000);
   const tAfter = await timerText();
-  // F3: resume restores the LAST question, so go back to question 1 via the palette (cell name "Question 1: <state>")
-  const q1 = page.getByRole('button', { name: /^Question 1:/ }).first();
-  if (await q1.count()) await q1.click();
+  // F3: resume restores the LAST question, so go back to question 1 via the palette. LIVE-GREEN-1 3b (re-pointed, rule
+  // kept): EXAM-UX-1 names the cell "Question 1, <state>" (lib/assessment/palette.ts paletteButtonLabel); the old
+  // /^Question 1:/ matched nothing and the click was SKIPPED silently, so E2E-08 read the last question. A missing cell
+  // now fails E2E-08 with its own reason — never a silent skip.
+  const q1 = page.getByRole('button', { name: /^Question 1, / }).first();
+  const q1Found = (await q1.count()) > 0;
+  if (q1Found) await q1.click();
   await page.waitForTimeout(800);
   const selectedNow = await page.$$eval('[role="radio"][aria-checked="true"]', (els) => els.map((e) => (e.innerText || '').trim().slice(0, 80)));
   const firstWrongText = key[0].options.find((o) => o.option_key === chosen[0].key).option_text;
-  step('E2E-08 reload restores answers', selectedNow.some((t) => t.includes(firstWrongText.slice(0, 20))), `selected after reload: ${selectedNow.length}`);
+  step('E2E-08 reload restores answers', q1Found && selectedNow.some((t) => t.includes(firstWrongText.slice(0, 20))), q1Found ? `selected after reload: ${selectedNow.length}` : 'palette cell "Question 1, <state>" not found after reload (no silent skip)');
   step('E2E-09 reload restores timer (from started_at)', !!tBefore && !!tAfter, `before ${tBefore} → after ${tAfter}`);
   await shot(page, '06-after-reload');
 

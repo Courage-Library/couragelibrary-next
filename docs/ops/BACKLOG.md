@@ -46,6 +46,25 @@ been red since 22 Nov and nobody was told (see NIGHTLY-ALERT-1).
   (offline, 15 negative controls), CATEGORY-ROUTE-LIVE (warm server; fails C-1/2/3/4/6 on the a241a9d build, 8/8 on the
   fix), LEGACY-REDIRECTS LR-2b (no legacy target under /category or /category-cache).
 
+## LIVE-SILENT-SKIP: live journey / smoke steps that skip silently when an element is missing (report only)
+
+**Status:** sweep 2026-11-24 (LIVE-GREEN-1 3b, owner: report-only). Pattern searched in scripts/{e2e,smoke,live} and the
+live `test_*.cjs`: an action or check guarded by `if (await x.count())` / `.isVisible()` / a `.catch()` on a wait, with
+nothing after it that fails when the element is missing. Fixed in 3b: `scripts/e2e/student-journey.cjs` E2E-08 (the
+palette cell; it now fails with its own reason).
+- **Silent (a check never runs):**
+  - `scripts/live/test_syllabus_browse.cjs:117` — B-5 (topic toggle flips aria-expanded) runs only if a toggle exists;
+    no toggle → no B-5 line at all. Should report VACUOUS / fail.
+  - `scripts/test_ux2bh_honesty.cjs:290-293` — no `/result` link on /mock-tests → `resultHref` is null and is filtered
+    out of the route list; the result page is then never checked.
+- **Guarded, but the reason is hidden:** `scripts/e2e/student-journey.cjs:136` — the "Begin Test | Resume" click after
+  the reload is optional; if it is needed and missing, E2E-08 / E2E-09 fail without saying why.
+- **Not silent (a tolerated wait, then a real assertion on the same element):** ensure-student-fixture.cjs:127-133,
+  student-journey.cjs:71-77, student-drill.cjs:55, logo-ux1.cjs:253 / 266 / 272, signed-in-smoke.cjs:193,
+  test_exam_ux1_pages.cjs:297, test_auth_ux1_pages.cjs:165, test_brand2.cjs:587, test_ux2b3_mistakes_practice.cjs:209 /
+  308 / 336, test_ux2bh_honesty.cjs:220. (scripts/content/capture-marketing.cjs:164 is a capture tool, not a gate.)
+- **Next:** make the two silent ones fail or print VACUOUS; give the Resume step its own reason. Separate phase.
+
 ## QA-SESSION-RACE: parallel live jobs mint the same QA session at the same moment → verifyOtp 403
 
 **Fix built 2026-11-24 (LIVE-GREEN-1 deliverable 2), proof pending (live dispatch):** `scripts/live/qa-session.cjs`

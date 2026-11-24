@@ -175,10 +175,52 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
       return { bad, missing };
     };
     const { bad, missing } = problems(urls);
-    const hreflangOk = pubHi.size > 0 ? /hreflang="hi"/.test(xml) : !/hreflang="hi"/.test(xml);
+    // LIVE-GREEN-1 3b (owner, re-scoped, not loosened): "hreflang only with Hindi" is a LESSON rule — a lesson entry
+    // carries hreflang="hi" exactly when Hindi lessons are published. LANDING-1's "/" and "/hi" are a Hindi page pair:
+    // each of the two entries carries EXACTLY the alternates en → "/" and hi → "/hi" (no other language, no other
+    // target). Every other entry carries no hreflang at all. (Before: any hreflang="hi" anywhere failed — the landing
+    // pair made S-05 red since 44968433798.)
+    const hreflangCheck = (x, hiLessons) => {
+      const why = [];
+      const blocks = [...x.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1]);
+      const pathOfHref = (h) => { const p = new URL(h).pathname; return p === '' ? '/' : p; };
+      const seenLanding = new Set();
+      let hiInLessons = false;
+      for (const b of blocks) {
+        const loc = pathOfHref(((b.match(/<loc>([^<]+)<\/loc>/) || [])[1]) || 'https://x.invalid/?');
+        const alts = [...b.matchAll(/hreflang="([^"]+)"\s+href="([^"]+)"/g)].map((m) => [m[1], pathOfHref(m[2])]);
+        if (/^\/(?:hi\/)?learn\//.test(loc)) { if (alts.some(([l]) => l === 'hi')) hiInLessons = true; continue; }
+        if (loc === '/' || loc === '/hi') {
+          seenLanding.add(loc);
+          const got = alts.map(([l, p]) => `${l}=${p}`).sort().join(' ');
+          if (got !== 'en=/ hi=/hi') why.push(`${loc} alternates "${got}" (want exactly en=/ hi=/hi)`);
+          continue;
+        }
+        if (alts.length) why.push(`${loc} carries hreflang (${alts.map(([l]) => l).join(',')})`);
+      }
+      if (!seenLanding.has('/') || !seenLanding.has('/hi')) why.push(`landing pair missing: ${['/', '/hi'].filter((p) => !seenLanding.has(p)).join(', ')}`);
+      if (hiInLessons !== hiLessons) why.push(hiLessons ? 'Hindi lessons published but no lesson entry has hreflang="hi"' : 'a lesson entry has hreflang="hi" without a published Hindi lesson');
+      return why;
+    };
+    const hreflangWhy = hreflangCheck(xml, pubHi.size > 0);
+    const hreflangOk = hreflangWhy.length === 0;
     const served = Object.keys(canon.subToTopic).length;
     check(`S-05 sitemap: ${urls.length} URLs — every lesson URL is published and not test content (${pub.size} indexable lesson(s), ${testPaths.size} test, ${pubHi.size} in Hindi, ${served} served at a flagged topic's URL), each indexable lesson listed at its canonical path, no course before launch, no node lesson under /articles, hreflang only with Hindi`,
-      sm.status === 200 && bad.length === 0 && missing.length === 0 && hreflangOk, JSON.stringify({ status: sm.status, bad: bad.slice(0, 5), missing, hreflangOk }));
+      sm.status === 200 && bad.length === 0 && missing.length === 0 && hreflangOk, JSON.stringify({ status: sm.status, bad: bad.slice(0, 5), missing, hreflangOk, hreflang: hreflangWhy.slice(0, 3) }));
+    // S-05 hreflang NEGATIVE CONTROLS (LIVE-GREEN-1 3b): each broken sitemap shape must be caught
+    {
+      const lessonLoc = (xml.match(/<url>\s*<loc>([^<]*\/learn\/[^<]+)<\/loc>/) || [])[1];
+      const landingHi = (xml.match(/<url>\s*<loc>[^<]*\/hi<\/loc>[\s\S]*?<\/url>/) || [])[0] || '';
+      const ctl = [
+        ['a lesson entry with hreflang="hi" (no Hindi lesson)', lessonLoc ? xml.replace(`<loc>${lessonLoc}</loc>`, `<loc>${lessonLoc}</loc><xhtml:link rel="alternate" hreflang="hi" href="${lessonLoc.replace('/learn/', '/hi/learn/')}"/>`) : null, pubHi.size > 0],
+        ['the landing pair without its hi alternate', landingHi ? xml.replace(/(<url>\s*<loc>[^<]*\/hi<\/loc>[\s\S]*?)<xhtml:link[^>]*hreflang="hi"[^>]*\/>/, '$1') : null, pubHi.size > 0],
+        ['a third language on the landing pair', landingHi ? xml.replace(/(<url>\s*<loc>[^<]*\/hi<\/loc>)/, '$1<xhtml:link rel="alternate" hreflang="fr" href="https://couragelibrary.in/fr"/>') : null, pubHi.size > 0],
+        ['hreflang on a non-landing, non-lesson entry', xml.replace(/(<url>\s*<loc>[^<]*\/exams<\/loc>)/, '$1<xhtml:link rel="alternate" hreflang="hi" href="https://couragelibrary.in/hi"/>'), pubHi.size > 0],
+        ['the landing pair removed', xml.replace(/<url>\s*<loc>[^<]*\/hi<\/loc>[\s\S]*?<\/url>/, ''), pubHi.size > 0],
+      ];
+      const missed = ctl.filter(([, x, hl]) => x === null || x === xml || hreflangCheck(x, hl).length === 0).map(([n, x]) => (x === null || x === xml ? `${n} (could not plant)` : n));
+      check(`S-05 hreflang negative controls: ${ctl.length} broken sitemap shapes caught`, missed.length === 0, missed.length ? `not caught: ${missed.join(', ')}` : `${ctl.length}/${ctl.length}`);
+    }
     // S-05 NEGATIVE CONTROL: a flagged topic's served subtopic listed at its OWN path (it 308s to the topic URL) must fail
     const [subHp] = Object.keys(canon.subToTopic).filter((hp) => !changed.has(cpath(hp)));
     if (subHp) {
