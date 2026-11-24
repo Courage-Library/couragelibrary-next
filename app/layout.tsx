@@ -130,7 +130,26 @@ const devanagari = localFont({
     },
   ],
 });
-const FONT_VARIABLES = [inter, interExt, poppins, poppins600, poppinsExt, poppinsHi, devanagari].map((f) => f.variable).join(" ");
+// LIVE-GREEN-1 3c (owner): the SAME Noto Sans Devanagari file at font-display OPTIONAL, for the Hindi landing "/hi"
+// only (it maps --font-devanagari to this variable on its own wrapper): no swap there, so its H1 never re-wraps
+// (LANDING1-PAGES L-8 was 0.087; a route preload did not help on slow links). Declared here because fonts load in the
+// root layout only (DESIGN-RATCHET R-4); unused faces download nothing, so "/" stays Devanagari-free (BRAND2 P-01).
+const devanagariOptional = localFont({
+  src: "./fonts/noto-sans-devanagari-devanagari.woff2",
+  weight: "400 600",
+  display: "optional",
+  variable: "--font-devanagari-optional",
+  preload: false,
+  adjustFontFallback: "Arial",
+  declarations: [
+    { prop: "font-family", value: "'CL Noto Sans Devanagari Optional'" },
+    {
+      prop: "unicode-range",
+      value: "U+0900-097F, U+1CD0-1CF4, U+1CF7-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B0A",
+    },
+  ],
+});
+const FONT_VARIABLES = [inter, interExt, poppins, poppins600, poppinsExt, poppinsHi, devanagari, devanagariOptional].map((f) => f.variable).join(" ");
 
 export const metadata: Metadata = constructMetadata();
 

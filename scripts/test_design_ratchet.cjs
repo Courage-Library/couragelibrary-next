@@ -207,7 +207,12 @@ test('R-4 fonts: exactly Inter + Poppins + Noto Sans Devanagari via next/font (s
   assert(/import localFont from "next\/font\/local"/.test(layout) && !/next\/font\/google/.test(layout), 'the root layout must load fonts with next/font/local (no Google fetch at build)');
   const calls = [...layout.matchAll(/localFont\(\{([\s\S]*?)\n\}\);/g)].map((m) => m[1]);
   const fams = new Set(calls.map((c) => (c.match(/prop: "font-family", value: "'([^']+)'"/) || [])[1]));
-  assert(calls.length >= 3 && [...fams].sort().join() === 'CL Inter,CL Noto Sans Devanagari,CL Poppins', `families: ${[...fams]}`);
+  // LIVE-GREEN-1 3c (owner): ONE documented twin — 'CL Noto Sans Devanagari Optional' = the SAME Noto file at
+  // font-display optional, never preloaded (the /hi landing maps --font-devanagari to it: no swap shift there)
+  assert(calls.length >= 3 && [...fams].sort().join() === 'CL Inter,CL Noto Sans Devanagari,CL Noto Sans Devanagari Optional,CL Poppins', `families: ${[...fams]}`);
+  const twin = calls.find((c) => /value: "'CL Noto Sans Devanagari Optional'"/.test(c));
+  const noto = calls.find((c) => /value: "'CL Noto Sans Devanagari'"/.test(c));
+  assert(twin && noto && /display: "optional"/.test(twin) && /preload: false/.test(twin) && (twin.match(/src: "([^"]+)"/) || [])[1] === (noto.match(/src: "([^"]+)"/) || [])[1], 'the Devanagari twin must be the SAME file at display optional, never preloaded');
   const preloaded = calls.filter((c) => /preload: true/.test(c));
   assert(preloaded.length === 1 && /src: "\.\/fonts\/poppins-700-latin\.woff2"/.test(preloaded[0]) && calls.every((c) => /preload: (true|false)/.test(c)), 'only Poppins 700 Latin may be preloaded (explicit preload on every face)');
   assert(/variable: "--font-inter"/.test(layout) && /variable: "--font-poppins"/.test(layout) && /variable: "--font-devanagari"/.test(layout) && /className=\{`h-full \$\{FONT_VARIABLES\}`\}/.test(layout), 'font variables must be set on <html>');

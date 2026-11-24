@@ -320,10 +320,16 @@ async function offline() {
     const files = (c) => [...c.matchAll(/"\.\/fonts\/([a-z0-9-]+\.woff2)"/g)].map((m) => m[1]);
     const byFam = {};
     for (const c of calls) for (const f of files(c)) (byFam[fam(c)] ??= []).push(f);
+    // LIVE-GREEN-1 3c (owner): one documented twin — the SAME Noto file at font-display optional (used by /hi only)
+    const TWIN = 'CL Noto Sans Devanagari Optional';
+    assert(JSON.stringify(byFam[TWIN] || []) === JSON.stringify(['noto-sans-devanagari-devanagari.woff2']), `the ${TWIN} twin must be the Noto file only`);
+    const twinCall = calls.find((c) => fam(c) === TWIN);
+    assert(twinCall && /display: "optional"/.test(twinCall) && /preload: false/.test(twinCall), `the ${TWIN} twin: display optional, never preloaded`);
+    delete byFam[TWIN];
     assert(JSON.stringify(Object.keys(byFam).sort()) === JSON.stringify(['CL Inter', 'CL Noto Sans Devanagari', 'CL Poppins']), `families ${Object.keys(byFam)}`);
     assert(byFam['CL Poppins'].length === 6 && ['600', '700'].every((w) => ['latin', 'latin-ext', 'devanagari'].every((s) => byFam['CL Poppins'].includes(`poppins-${w}-${s}.woff2`))), 'Poppins 600 / 700 × latin, latin-ext, devanagari');
     assert(byFam['CL Inter'].join() === 'inter-latin.woff2,inter-latin-ext.woff2' && byFam['CL Noto Sans Devanagari'].join() === 'noto-sans-devanagari-devanagari.woff2', 'Inter / Noto files');
-    assert(calls.every((c) => /display: "swap"/.test(c) && /prop: "unicode-range"/.test(c)), 'every face: swap + unicode-range');
+    assert(calls.every((c) => (fam(c) === TWIN || /display: "swap"/.test(c)) && /prop: "unicode-range"/.test(c)), 'every face: swap (the twin: optional) + unicode-range');
     for (const f of Object.values(byFam).flat()) assert(fs.existsSync(path.join(ROOT, 'app/fonts', f)), `missing app/fonts/${f}`);
     assert(fs.existsSync(path.join(ROOT, 'app/fonts/OFL.txt')), 'OFL licence next to the fonts');
     assert(/font-size: 100%/.test(css) && /body \{[^}]*line-height: 1\.6;/.test(css) && /:lang\(hi\) \{\s*line-height: 1\.7;/.test(css), 'base size / line-heights');

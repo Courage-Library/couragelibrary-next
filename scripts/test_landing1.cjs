@@ -359,6 +359,25 @@ function checkLiveGreen3b(c, R, pageSrc, data, footerSrc = read('content/footer.
   return 'signed-in swap × hero / plans / final; CA claim off / unknown / on × EN / HI; band copy';
 }
 
+// LD-11 LIVE-GREEN-1 3c (owner): /hi has no font-swap layout shift — its own wrapper redefines --font-devanagari with the
+// SAME Noto Sans Devanagari file at font-display OPTIONAL (no swap, so no H1 re-wrap; LANDING1-PAGES L-8 measured 0.087);
+// the root face stays display swap and never preloaded, so "/" downloads no Devanagari file (BRAND2 P-01)
+const ROOT_LAYOUT = read('app/layout.tsx');
+function checkHiFont(hi = HI_ROUTE, root = ROOT_LAYOUT) {
+  const block = (src, name) => { const i = src.indexOf(`const ${name} = localFont({`); assert(i >= 0, `localFont ${name} not found`); return src.slice(i, src.indexOf('\n});', i) + 4); };
+  const opt = block(root, 'devanagariOptional');
+  const sw = block(root, 'devanagari');
+  assert(/display: "optional",/.test(opt) && /preload: false,/.test(opt) && /variable: "--font-devanagari-optional",/.test(opt), 'root: the optional Devanagari twin (display optional, not preloaded, --font-devanagari-optional)');
+  const src = (b) => (b.match(/src: "([^"]+)"/) || [])[1];
+  const range = (b) => (b.match(/prop: "unicode-range",\s*value: "([^"]+)"/) || [])[1];
+  assert(src(opt) && src(opt) === src(sw) && range(opt) && range(opt) === range(sw), 'the twin must be the SAME file + unicode-range as the swap face');
+  assert(/devanagari, devanagariOptional\]\.map\(\(f\) => f\.variable\)/.test(root), 'root: the twin variable is not on <html>');
+  assert(/display: "swap",/.test(sw) && /preload: false,/.test(sw), 'root: the Devanagari face must stay swap and never preloaded (BRAND2 P-01: no Devanagari file on "/")');
+  assert(/const HI_FONT: CSSProperties = \{ \["--font-devanagari" as string\]: "var\(--font-devanagari-optional\)" \};/.test(hi) && /<div style=\{HI_FONT\} data-hi-font="optional">/.test(hi), '/hi: the wrapper must map --font-devanagari to the optional twin');
+  assert(!/next\/font|from "react-dom"|preload\(/.test(hi), '/hi: no font import / extra preload in the page (fonts load in the root layout only — DESIGN-RATCHET R-4)');
+  return 'root: optional twin = same file + range, not preloaded; /hi maps --font-devanagari to it; swap face unchanged';
+}
+
 (async () => {
   const c = loadCopy();
   const R = loadTs('lib/landing/landing-copy.ts');
@@ -371,6 +390,7 @@ function checkLiveGreen3b(c, R, pageSrc, data, footerSrc = read('content/footer.
   await test('LD-8 data-driven copy (live exams, published Hindi, sign-up), exemptions R4 / X-05, public reads only', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE]));
   await test('LD-9 LANDING-1.1: the footer makes no Hindi claim (FOOTER-1); live-category subtitles from data; /hi in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP));
   await test('LD-10 LIVE-GREEN-1 3b: signed-in visitors get "Go to dashboard"; no current-affairs claim unless published; band copy always true', () => checkLiveGreen3b(c, R, PAGE_SRC, DATA));
+  await test('LD-11 LIVE-GREEN-1 3c: /hi uses the Devanagari face at font-display optional (no swap shift); "/" stays Devanagari-free', () => checkHiFont());
   await test('LD-7 negative controls: each mutation is caught', async () => {
     const mut = (s, a, b) => { assert(s.includes(a), `mutation anchor missing: ${a.slice(0, 60)}`); return s.replace(a, b); };
     const cases = [
@@ -420,6 +440,11 @@ function checkLiveGreen3b(c, R, pageSrc, data, footerSrc = read('content/footer.
       ['unknown treated as published', () => checkLiveGreen3b(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'const caLive = f.currentAffairsLive === true;', 'const caLive = f.currentAffairsLive !== false;')), PAGE_SRC, DATA)],
       ['the count fails open', () => checkLiveGreen3b(c, R, PAGE_SRC, mut(DATA, 'currentAffairsLive: false }));', 'currentAffairsLive: true }));'))],
       ['the band claims a daily mock again', () => checkLiveGreen3b(c, R, PAGE_SRC, DATA, mut(read('content/footer.ts'), 'bandText: "Timed mock tests, topic practice and a Mistake Vault."', 'bandText: "Free daily mock, current affairs and practice."'))],
+      ['the twin back to swap (the shift)', () => checkHiFont(HI_ROUTE, mut(ROOT_LAYOUT, '  display: "optional",\n  variable: "--font-devanagari-optional",', '  display: "swap",\n  variable: "--font-devanagari-optional",'))],
+      ['/hi wrapper without the mapping', () => checkHiFont(mut(HI_ROUTE, '<div style={HI_FONT} data-hi-font="optional">', '<div data-hi-font="optional">'))],
+      ['the twin with another file', () => checkHiFont(HI_ROUTE, ROOT_LAYOUT.replace(/(const devanagariOptional = localFont\(\{\n  src: )"[^"]+"/, '$1"./fonts/poppins-700-devanagari.woff2"'))],
+      ['the twin preloaded (a Devanagari file on "/")', () => checkHiFont(HI_ROUTE, ROOT_LAYOUT.replace(/(const devanagariOptional = localFont\(\{[\s\S]*?)preload: false,/, '$1preload: true,'))],
+      ['a font loaded in the /hi page', () => checkHiFont('import localFont from "next/font/local";\n' + HI_ROUTE)],
       ['token changed', () => checkTokens(mut(GLOBALS, '--color-cl-blue: #475bff;', '--color-cl-blue: #4050ff;'), CSS)],
       ['colour literal', () => checkTokens(GLOBALS, CSS + '\n.lp-x { color: #ff0000; }')],
       ['no reduced motion', () => checkTokens(GLOBALS, CSS.replace(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*$/, ''))],
