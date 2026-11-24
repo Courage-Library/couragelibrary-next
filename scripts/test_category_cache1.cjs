@@ -117,6 +117,11 @@ function checkNoindex(mw = SRC.mw, cfg = SRC.cfg) {
   const tok = /\nconst REWRITE_TOKEN = crypto\.randomUUID\(\);\n/.exec(m);
   assert(tok && tok.index < m.indexOf('export async function middleware('), 'the marker value is not a module-scope crypto.randomUUID() token');
   assert((m.match(/REWRITE_TOKEN/g) || []).length === 3, 'REWRITE_TOKEN is used other than: made once, checked once, set on the rewrite once');
+  // K-6 owner: the marker and its token never leave the server — never logged, never put on a response; the marker name
+  // is used exactly three times (import, the check, the rewrite's request header)
+  assert((m.match(/CATEGORY_REWRITE_MARKER/g) || []).length === 3, 'CATEGORY_REWRITE_MARKER is used other than: imported, checked, set on the rewrite request');
+  assert(!/console\.[a-z]+\([^)]*(REWRITE_TOKEN|CATEGORY_REWRITE_MARKER|forwarded)/.test(m), 'the middleware logs the marker / token');
+  assert(!/(response|rewritten|NextResponse\.\w+\([^)]*\))\.headers\.(set|append)\(CATEGORY_REWRITE_MARKER/.test(m), 'the marker is put on a response');
   const headerBlock = strip(cfg).split('headers: async () => [')[1] || '';
   assert(!/category-cache|source: "\/category/.test(headerBlock), 'a next.config header rule names the internal path (it leaks onto /exams/<slug> under next start)');
   return 'direct request → noindex (no marker); rewrite carries the marker; no header rule';
@@ -157,6 +162,9 @@ test('K-5 negative controls: each broken variant is caught', () => {
     ['SEO-1 /category 308 removed', () => checkNoRedirect(mut(SRC.cfg, '    { source: "/category/:slug", destination: "/exams/:slug", permanent: true },\n', ''))],
     ['noindex without the marker check (would noindex /exams/<slug>)', () => checkNoindex(mut(SRC.mw, ' && request.headers.get(CATEGORY_REWRITE_MARKER) !== REWRITE_TOKEN', ''))],
     ['rewrite without the marker', () => checkNoindex(mut(SRC.mw, '    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);\n', ''))],
+    ['the token is logged', () => checkNoindex(mut(SRC.mw, '    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);\n', '    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);\n    console.log("rewrite", REWRITE_TOKEN);\n'))],
+    ['the marker is put on the response', () => checkNoindex(mut(SRC.mw, '    response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));\n', '    response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));\n    rewritten.headers.set(CATEGORY_REWRITE_MARKER, "x");\n'))],
+    ['the forwarded headers are logged', () => checkNoindex(mut(SRC.mw, '    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);\n', '    forwarded.set(CATEGORY_REWRITE_MARKER, REWRITE_TOKEN);\n    console.info([...forwarded]);\n'))],
     ['a constant marker value a visitor could send', () => checkNoindex(mut(SRC.mw, 'const REWRITE_TOKEN = crypto.randomUUID();', 'const REWRITE_TOKEN = "1";'))],
     ['the check accepts any marker value', () => checkNoindex(mut(SRC.mw, 'request.headers.get(CATEGORY_REWRITE_MARKER) !== REWRITE_TOKEN', '!request.headers.has(CATEGORY_REWRITE_MARKER)'))],
     ['a token made per request (never matches the second pass)', () => checkNoindex(mut(mut(SRC.mw, '\nconst REWRITE_TOKEN = crypto.randomUUID();\n', '\n'), '  // LIVE-GREEN-1 3a (owner): a DIRECT request', '  const REWRITE_TOKEN = crypto.randomUUID();\n  // LIVE-GREEN-1 3a (owner): a DIRECT request'))],

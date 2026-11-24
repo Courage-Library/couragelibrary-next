@@ -604,7 +604,7 @@ jobs:
           B='http://localhost:3100'
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
-            "$Q CATEGORY-ROUTE-LIVE -- node scripts/live/test_category_route.cjs $B" \
+            "$Q CATEGORY-ROUTE-LIVE -- node scripts/live/test_category_route.cjs $B --server-log $RUNNER_TEMP/server/server.log" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \

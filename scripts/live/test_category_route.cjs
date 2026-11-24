@@ -22,7 +22,10 @@
  *       /exams/<slug>; and /exams/<slug> carries exactly the host's X-Robots-Tag (control page /about) — never more
  *   C-7 sitemap.xml lists no /category-cache URL (robots.txt: offline K-4 — non-production hosts disallow "/")
  *   Broken variant (owner): the build of a241a9d (internal /category/<slug> + the SEO-1 308) fails C-1 / C-2 / C-3 / C-4.
- * Usage: node scripts/live/test_category_route.cjs [http://localhost:3100]
+ *   C-8 the marker header / its token never leave the server: no response header (incl. x-middleware-request-* echo), no
+ *       HTML / router payload, no server-log line (--server-log <with-server log>) names it; 4 planted leaks caught
+ * Usage: node scripts/live/test_category_route.cjs [http://localhost:3100] --server-log <path>
+ *   (the CI pages job passes "$RUNNER_TEMP/server/server.log", the with-server --log of the same server)
  */
 'use strict';
 const BASE = (process.argv[2] || 'http://localhost:3100').replace(/\/$/, '');
@@ -161,6 +164,46 @@ const directOk = (slug, h, hostXrt) => {
     }
   }
   check('C-6b an outside request carrying the rewrite marker (any value) to /category-cache/<slug> is still noindexed', bad6b.length === 0, bad6b.length ? bad6b.slice(0, 3).join(' | ') : `${slugs.length} hub(s) × 3 forged values`);
+
+  // C-8 owner: the marker header and its token never leave the server — no response header (incl. Next's request-override
+  // echo x-middleware-request-* / x-middleware-override-headers), no HTML / router payload, no server log line names it
+  const leakIn = (where, headers, body) => {
+    const found = [];
+    for (const [k, v] of headers) {
+      if (k.toLowerCase().includes(MARKER) || String(v).toLowerCase().includes(MARKER)) found.push(`${where}: header ${k}`);
+      if (/^x-middleware-(request-|override-headers)/i.test(k)) found.push(`${where}: internal header ${k}`);
+    }
+    if (body && body.toLowerCase().includes(MARKER)) found.push(`${where}: body`);
+    return found;
+  };
+  const leaks = [];
+  if (!MARKER) leaks.push('marker name not found');
+  else {
+    const probes = [];
+    for (const slug of slugs) {
+      probes.push([`/exams/${slug}`, {}], [`/exams/${slug}?_rsc=c8`, { RSC: '1', 'Next-Router-Prefetch': '1', 'Next-Url': '/' }], [`/category-cache/${slug}`, {}], [`/category-cache/${slug}`, { [MARKER]: 'forged' }], [`/category/${slug}?a=1`, {}]);
+    }
+    for (const [p, h] of probes) {
+      const r = await fetch(BASE + p, { headers: h, redirect: 'manual' });
+      leaks.push(...leakIn(p, r.headers.entries(), await r.text()));
+    }
+    const logArg = process.argv.indexOf('--server-log');
+    const logPath = logArg > 0 ? process.argv[logArg + 1] : '';
+    if (logPath) {
+      const fs = require('fs');
+      const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : null;
+      if (log === null) leaks.push(`server log ${require('path').basename(logPath)} not found`);
+      else if (log.toLowerCase().includes(MARKER)) leaks.push('server log');
+    }
+    // NEGATIVE CONTROLS: a planted header / echo / body / log line must be found
+    const planted = [
+      leakIn('ctl', [[MARKER, 'x']], ''), leakIn('ctl', [['x-middleware-request-' + MARKER, 'x']], ''),
+      leakIn('ctl', [['x-middleware-override-headers', 'a,b']], ''), leakIn('ctl', [], `<script>{"${MARKER}":"x"}</script>`),
+    ];
+    if (planted.some((x) => x.length === 0)) leaks.push('negative control: a planted leak was not found');
+    if (!logPath) leaks.push('no --server-log given (the log is part of the check)');
+  }
+  check('C-8 the marker / its token never leave the server: no response header, HTML / router payload or server log names it (4 planted leaks caught)', leaks.length === 0, leaks.length ? leaks.slice(0, 4).join(' | ') : `${slugs.length * 5} responses + the server log clean`);
 
   // C-7 never in the sitemap
   const leaked = locs.filter((p) => /^\/category-cache(\/|$)/.test(p));
