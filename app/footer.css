@@ -75,7 +75,8 @@
 }
 .cl-ft__logo {
   display: inline-flex;
-  min-height: 44px;
+  /* LIVE-GREEN-1 3b: 48 px tap target (BRAND2 P-03 / LANDING1-PAGES L-10); the logo itself stays 28 px */
+  min-height: 48px;
   align-items: center;
 }
 .cl-ft__logo img {
