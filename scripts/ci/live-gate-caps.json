@@ -130,6 +130,10 @@
       "measured": 85,
       "cap": 240
     },
+    "LANDING1-PAGES": {
+      "measured": 15,
+      "cap": 150
+    },
     "UX2B-LIVE": {
       "measured": 3,
       "cap": 120

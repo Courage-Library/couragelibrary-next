@@ -611,6 +611,7 @@ jobs:
             "$Q SMOKE-STAFF-CONTENT -- node scripts/smoke/signed-in-smoke.cjs staff-content $B" \
             "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
             "$Q UX2A-LIVE --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_ux2a_landing.cjs $B" \
+            "$Q LANDING1-PAGES -- node scripts/live/test_landing1_pages.cjs $B" \
             "$Q UX2B-LIVE -- node scripts/test_ux2b_public.cjs --live" \
             "$Q AUTH1-2B1-LIVE -- node scripts/test_auth1_2b1.cjs --live" \
             "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
