@@ -46,6 +46,19 @@ been red since 22 Nov and nobody was told (see NIGHTLY-ALERT-1).
   (offline, 15 negative controls), CATEGORY-ROUTE-LIVE (warm server; fails C-1/2/3/4/6 on the a241a9d build, 8/8 on the
   fix), LEGACY-REDIRECTS LR-2b (no legacy target under /category or /category-cache).
 
+## LIVE-GREEN-1 3b (built 2026-11-24, release pending): the old-home gates, the landing honesty fixes, E2E-08, S-05
+
+- UX2A L-9 / L-10 / L-14 / L-15b re-pointed to LANDING-1's "/" (rules kept). Two product gaps the kept rules found are
+  fixed on the page: (L-14) every start action in the page body is "Go to dashboard" for a signed-in visitor (pre-paint
+  auth-hint swap, no layout shift); (L-10) "/" claims current affairs only while ≥ 1 article is published (the same
+  count inside the landing's bounded read; fails closed). FOOTER-BAND-CLAIM closed with always-true band copy.
+- CA6-SEO S-05: hreflang is a lesson rule; the "/" + "/hi" pair must carry exactly en → / and hi → /hi (5 negative
+  controls). JOURNEY E2E-08: the EXAM-UX-1 palette label "Question 1, …"; a missing cell fails with its own reason.
+- LANDING1-PAGES (in the CI live pages job now): L-3 → the footer landmark, L-12 retired (FOOTER-1 successor); its
+  L-10 found the footer logo link at 44 px on phones → 48 px tap target (owner-approved; logo still 28 px).
+- Local (no QA sign-in): LANDING1-PAGES 37/37, UX2A 16/16 (L-14 skipped, proven in CI), CA6-SEO 8/8,
+  CATEGORY-ROUTE-LIVE 10/10; L-14 and E2E-08 are proven by the release's live dispatch.
+
 ## LIVE-SILENT-SKIP: live journey / smoke steps that skip silently when an element is missing (report only)
 
 **Status:** sweep 2026-11-24 (LIVE-GREEN-1 3b, owner: report-only). Pattern searched in scripts/{e2e,smoke,live} and the
@@ -108,6 +121,10 @@ below 1024 px. **Next:** let auth pages size to their content on phones (or plac
 shift — check CLS at the five sizes and the other visitor pages.
 
 ## FOOTER-BAND-CLAIM: the sign-up band says "Free daily mock, current affairs and practice." ungated
+
+**DONE in LIVE-GREEN-1 3b (owner, 2026-11-24):** the band copy is always true — EN "Timed mock tests, topic practice and
+a Mistake Vault." / HI "समयबद्ध mock tests, टॉपिक practice और Mistake Vault।" (no daily-mock / current-affairs claim;
+gate LANDING-1 LD-10 (c)). Original entry below.
 
 **Status:** logged in AUTH-UX-1, 2026-11-24 (owner decision 3). `content/footer.ts` `bandText` claims a daily mock (no
 reliable source yet — NAV-TODAY-MOCK-1) and current affairs without any check that they exist. The auth pages no longer
