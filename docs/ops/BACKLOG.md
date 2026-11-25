@@ -470,6 +470,8 @@ passed 5/5. `run-quiet` prints only the failing check id, so CI shows no reason.
 Two local runs of the gate alone, against a production build of d54da39, passed 5/5. B7 released under SPEED-RULES-1.
 Note: FL-2 writes `user_profiles` of the QA student, the same row the live-journeys job's pricing / payment gates touch
 (adult confirmation), which supports the row-lock hypothesis.
+2026-11-26: FL-2 failed again in live dispatch 45707751090 (main b87c343, ADMIN-MFA-LOOP-1 baseline, admin_mfa off; the
+only failing gate of the run — live-journeys, db, dbfree and pages all green). Released under SPEED-RULES-1.
 
 **Hypothesis (not proven):** FL-1 and FL-2 write rows of the SHARED QA student (`user_mistake_vault`, `user_profiles`)
 inside `safeBegin` (lock_timeout 3 s). In CI, the live-journeys job (and other gates) run at the same time with the same
