@@ -48,7 +48,7 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 // PERF-HOME-1: pages live in route groups (app/(site), app/(public)) — a group adds no URL segment
 const pageOf = (href) => {
   const segs = href.split('?')[0].split('/').filter(Boolean);
-  const all = ['', '(site)', '(public)'].map((g) => path.join(ROOT, 'app', ...(g ? [g] : []), ...segs, 'page.tsx'));
+  const all = ['', '(site)', '(public)', '(site)/(admin-auth)'].map((g) => path.join(ROOT, 'app', ...(g ? g.split('/') : []), ...segs, 'page.tsx'));
   return all.find((f) => fs.existsSync(f)) || all[1];
 };
 const hasPage = (href) => fs.existsSync(pageOf(href));

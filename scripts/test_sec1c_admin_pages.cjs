@@ -129,8 +129,11 @@ const walk = (dir, acc = []) => {
 };
 const rel = (p) => path.relative(ROOT, p).replace(/\\/g, '/');
 
-const PAGES = walk(path.join(ROOT, 'app/(site)/admin')).filter((f) => /[\\/]page\.tsx$/.test(f)).map(rel).sort();
-const segOf = (p) => p.replace(/^app\/(?:\(site\)\/)?admin\/?/, '').replace(/\/?page\.tsx$/, ''); // PERF-HOME-1: app/(site)/admin
+// ADMIN-MFA-LOOP-1: /admin/mfa lives in app/(site)/(admin-auth)/admin (outside the AAL2 admin layout) — still an admin
+// page, so every check below covers it too
+const ADMIN_TREES = ['app/(site)/admin', 'app/(site)/(admin-auth)/admin'];
+const PAGES = ADMIN_TREES.flatMap((t) => walk(path.join(ROOT, t))).filter((f) => /[\\/]page\.tsx$/.test(f)).map(rel).sort();
+const segOf = (p) => p.replace(/^app\/(?:\(site\)\/)?(?:\(admin-auth\)\/)?admin\/?/, '').replace(/\/?page\.tsx$/, ''); // PERF-HOME-1: app/(site)/admin
 // Decision #16 + SEC-1C: admin-only pages. Every other admin page allows staff.
 // SEC-1D: + gamification, billing, live-tests/[id]/results (PII pages).
 // F2 (#79): question reports are admin-only (reports → redirect to question-reports)

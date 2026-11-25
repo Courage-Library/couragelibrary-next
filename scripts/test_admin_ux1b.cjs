@@ -55,7 +55,7 @@ const allLeaves = (nav) => nav.flatMap((g) => g.items.flatMap((it) => [...(it.ta
 test('AB-01 every nav link mirrors its page guard (no authorization change)', () => {
   const bad = [];
   for (const it of allLeaves(NAV.ADMIN_NAV)) {
-    const file = [`app${it.href}/page.tsx`, `app/(site)${it.href}/page.tsx`].find((f) => fs.existsSync(path.join(ROOT, f))) || `app${it.href}/page.tsx`; // PERF-HOME-1 route group
+    const file = [`app${it.href}/page.tsx`, `app/(site)${it.href}/page.tsx`, `app/(site)/(admin-auth)${it.href}/page.tsx`].find((f) => fs.existsSync(path.join(ROOT, f))) || `app${it.href}/page.tsx`; // PERF-HOME-1 route group
     if (!fs.existsSync(path.join(ROOT, file))) { bad.push(`${it.href}: no page`); continue; }
     const m = code(read(file)).match(/requireAdminPage\(\{([^}]*)\}\)/);
     if (!m) { bad.push(`${it.href}: no requireAdminPage`); continue; }

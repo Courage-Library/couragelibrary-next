@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 /**
  * AUTH-1 2b-3: authenticator (TOTP) enrol / verify for admin and staff ONLY. The single admin page an AAL1 admin session
  * may open (allowAal1) — every other admin page sends it here while ADMIN_MFA_REQUIRED is on.
+ * ADMIN-MFA-LOOP-1: lives in the (admin-auth) route group (URL unchanged) so the AAL2-requiring admin layout never wraps
+ * it; this guard must stay the FIRST awaited call (anonymous → login, no role → 404).
  */
 export default async function AdminMfaPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   await requireAdminPage({ allowStaff: true, path: "/admin/mfa", allowAal1: true });
