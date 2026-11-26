@@ -1,0 +1,197 @@
+<title>Admin MFA Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@300;400;600&display=swap">
+<style>
+:root{--bg:#F5F6FA;--fg:#18191B;--mu:#5B6070;--ln:#E3E5EC;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:1320px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+h1{font:600 clamp(22px,3vw,30px) Poppins,sans-serif;margin:0}
+h2{font:600 19px Poppins,sans-serif;margin:0}
+.lead{color:var(--mu);margin:6px 0 0;max-width:82ch}
+.cap{font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:0 0 8px}
+.scroll{overflow-x:auto;padding-bottom:6px}
+.rel{position:relative}
+.pin{position:absolute;z-index:9;width:26px;height:26px;border-radius:50%;background:#18191B;color:#fff;font:700 12px Inter,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff,0 4px 10px rgba(0,0,0,.25)}
+.legendlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.legendlist li{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
+.legendlist li b{flex:none;width:24px;height:24px;border-radius:50%;background:#18191B;color:#fff;font:700 12px Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+:root[data-theme="dark"] .legendlist li b{background:#F1F2F5;color:#18191B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .legendlist li b{background:#F1F2F5;color:#18191B}}
+.legendlist li span{color:var(--mu)}.legendlist li strong{color:var(--fg);display:block;font-weight:600}
+
+.site{width:1240px;height:740px;background:#fff;border:1px solid #E6E8EF;border-radius:14px;overflow:hidden;color:#18191B;font:14px/1.5 Inter,sans-serif;display:grid;grid-template-columns:1fr 1fr;box-shadow:0 16px 50px rgba(24,25,27,.10)}
+.brand{background:linear-gradient(135deg,#485BFF,#3973D6);color:#fff;padding:48px 56px;display:flex;flex-direction:column;gap:18px;position:relative;overflow:hidden}
+.lockup{display:flex;align-items:center;gap:9px;font:600 16px Poppins,sans-serif}
+.shield{width:72px;height:72px;border-radius:22px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;margin-top:40px}
+.brand h3{font:300 34px/1.15 Poppins,sans-serif;margin:0}.brand h3 b{font-weight:600}
+.brand p{margin:0;opacity:.88;max-width:40ch}
+.brand ul{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.brand li{display:flex;gap:10px;align-items:center}
+.brand li i{width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px}
+.deco{position:absolute;right:-70px;bottom:-70px;width:280px;height:280px;opacity:.12}
+.side{display:flex;align-items:center;justify-content:center;padding:32px}
+.form{width:420px;display:flex;flex-direction:column;gap:16px}
+.acct{display:flex;align-items:center;gap:10px;background:#F7F8FB;border:1px solid #EEF0F4;border-radius:12px;padding:8px 12px;font-size:13px;color:#5B6070}
+.av{width:28px;height:28px;border-radius:50%;background:#EEF0FF;color:#3A4BEB;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:12px}
+.acct a{margin-left:auto;color:#3A4BEB;font-weight:600}
+.form h4{font:600 26px Poppins,sans-serif;margin:0}
+.form h4 span{font-weight:300;color:#5B6070}
+.sub{color:#5B6070;margin:-8px 0 0}
+.steps{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#5B6070}
+.st{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.st i{font-style:normal;width:24px;height:24px;border-radius:50%;border:1.5px solid #D4D7E1;display:flex;align-items:center;justify-content:center;font-size:11.5px}
+.st.done i{background:#E7F6EF;border-color:#2FA36B;color:#0E7A52}
+.st.on{color:#18191B}.st.on i{background:#475BFF;border-color:#475BFF;color:#fff}
+.ln{flex:1;height:2px;background:#E6E8EF;min-width:14px}.ln.done{background:#2FA36B}
+.qrrow{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center;background:#F7F8FB;border:1px solid #EEF0F4;border-radius:16px;padding:14px}
+.qr{width:150px;height:150px;background:#fff;border-radius:12px;padding:10px;border:1px solid #E6E8EF}
+.key{font:600 13px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;background:#fff;border:1px dashed #C9CFFF;border-radius:10px;padding:8px 10px;color:#2A3587;word-break:break-all}
+.copy{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #E6E8EF;font-weight:600;font-size:12.5px;margin-top:8px;background:#fff}
+.otp{display:flex;gap:8px}
+.otp span:not(.pin){width:52px;height:60px;border:1.5px solid #D9DCE5;border-radius:12px;display:flex;align-items:center;justify-content:center;font:600 24px Poppins,sans-serif;background:#fff}
+.otp span.f:not(.pin){border-color:#475BFF;box-shadow:0 0 0 3px #EEF0FF}
+.otp.err span:not(.pin){border-color:#C2401F}
+.emsg{color:#C2401F;font-size:12.5px;display:flex;gap:6px;align-items:center}
+.btn{height:48px;border-radius:12px;background:#475BFF;color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center}
+.btn.o{background:#fff;color:#18191B;border:1.5px solid #E6E8EF}
+.help{display:flex;justify-content:space-between;font-size:13px;color:#5B6070}
+.help a{color:#3A4BEB;font-weight:600}
+.apps{display:flex;gap:8px;flex-wrap:wrap}
+.apps span:not(.pin){height:32px;padding:0 12px;border-radius:999px;background:#F5F6FA;border:1px solid #E6E8EF;font-size:12.5px;font-weight:500;display:inline-flex;align-items:center}
+.phones{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.ph{position:relative;width:360px;height:760px;border-radius:34px;border:8px solid #18191B;background:#fff;overflow:hidden;color:#18191B;font:14px/1.5 Inter,sans-serif;box-shadow:0 16px 40px rgba(24,25,27,.15);display:flex;flex-direction:column}
+.ph .top{height:56px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #EEF0F4;flex:none}
+.ph .form{width:auto;padding:20px 18px;gap:14px}
+.ph .form h4{font-size:22px}
+.ph .otp span:not(.pin){width:44px;height:54px;font-size:21px}
+.cap2{font:600 12px Inter,sans-serif;color:var(--mu);margin:8px 0 0;text-align:center}
+</style>
+
+<div class="w">
+<header>
+<p class="cap">Admin two-step verification · proposal v1</p>
+<h1>Admin MFA: from bare page to a guided, on-brand step</h1>
+<p class="lead">Same security (TOTP authenticator, required for the admin studio). New: our sign-in layout, which account is signed in, a 3-step guide for setup, QR + copyable key, a 6-box code input, clear errors and help. Return visits are a single quick screen.</p>
+</header>
+
+<section>
+<p class="cap">Desktop · first-time setup (step 2 of 3)</p>
+<div class="scroll"><div class="site">
+ <div class="brand rel"><span class="pin" style="left:20px;top:20px">1</span>
+  <div class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" class="mk"></svg>Courage Library</div>
+  <div class="shield"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+  <h3><b>Admin studio</b> is protected.</h3>
+  <p>Two-step verification keeps question banks, results and student data safe, even if a password leaks.</p>
+  <ul><li><i>1</i>Takes about 2 minutes, once</li><li><i>2</i>Works offline in your authenticator app</li><li><i>3</i>Asked again only on new sign-ins</li></ul>
+  <svg class="deco" viewBox="0 0 24 24" id="dk"></svg>
+ </div>
+ <div class="side"><div class="form">
+  <div class="acct rel"><span class="pin" style="left:-36px;top:4px">2</span><span class="av">J</span>Signed in as j•••@gmail.com<a>Not you? Sign out</a></div>
+  <h4 class="rel">Set up <span>two-step verification</span><span class="pin" style="left:-36px;top:4px">3</span></h4>
+  <p class="sub">Required for the admin studio.</p>
+  <div class="steps rel"><span class="pin" style="left:-36px;top:0">4</span><span class="st done"><i>✓</i>Install app</span><span class="ln done"></span><span class="st on"><i>2</i>Scan code</span><span class="ln"></span><span class="st"><i>3</i>Enter code</span></div>
+  <div class="qrrow rel"><span class="pin" style="left:-36px;top:60px">5</span>
+   <svg class="qr" viewBox="0 0 29 29" id="qr"></svg>
+   <div><b style="font-size:14px">Scan with your authenticator app</b><p style="margin:4px 0 8px;color:#5B6070;font-size:13px">Can't scan? Enter this setup key instead:</p><div class="key">JBSW Y3DP EHPK 3PXP</div><span class="copy">Copy key</span></div>
+  </div>
+  <div class="btn">I've scanned it — next</div>
+  <div class="help rel"><span class="pin" style="left:-36px;top:-4px">6</span><span>Trouble? <a>Get help</a></span><a style="font-weight:500;color:#5B6070">← Back to the site</a></div>
+ </div></div>
+</div></div>
+</section>
+
+<section>
+<p class="cap">Desktop · returning admin (already set up)</p>
+<div class="scroll"><div class="site" style="height:620px">
+ <div class="brand">
+  <div class="lockup"><svg width="28" height="28" viewBox="0 0 24 24" class="mk"></svg>Courage Library</div>
+  <div class="shield"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+  <h3><b>One more step</b> to the admin studio.</h3>
+  <p>Open your authenticator app and enter the current code for Courage Library.</p>
+ </div>
+ <div class="side"><div class="form">
+  <div class="acct"><span class="av">J</span>Signed in as j•••@gmail.com<a>Not you? Sign out</a></div>
+  <h4>Enter your code</h4>
+  <p class="sub">6 digits from your authenticator app.</p>
+  <div class="otp rel"><span class="pin" style="left:-36px;top:16px">7</span><span>4</span><span>8</span><span>2</span><span class="f">1</span><span></span><span></span></div>
+  <div class="btn">Verify and continue</div>
+  <div class="help"><span>Lost your phone? <a>Contact support</a></span></div>
+ </div></div>
+</div></div>
+</section>
+
+<section>
+<p class="cap">Phone · step 1 · step 3 with an error · returning</p>
+<div class="phones">
+ <div><div class="ph">
+  <div class="top"><span class="lockup" style="font-size:14px"><svg width="24" height="24" viewBox="0 0 24 24" class="mk"></svg>Courage Library</span></div>
+  <div class="form">
+   <div class="acct"><span class="av">J</span>j•••@gmail.com<a>Sign out</a></div>
+   <h4>Set up <span>two-step verification</span></h4>
+   <div class="steps"><span class="st on"><i>1</i>Install</span><span class="ln"></span><span class="st"><i>2</i>Scan</span><span class="ln"></span><span class="st"><i>3</i>Code</span></div>
+   <p style="margin:0;color:#5B6070">Install any authenticator app on your phone:</p>
+   <div class="apps rel"><span class="pin" style="right:-6px;top:-12px">8</span><span>Google Authenticator</span><span>Microsoft Authenticator</span><span>1Password</span></div>
+   <p style="margin:0;color:#5B6070;font-size:13px">On a phone? You'll get a setup key to copy instead of a QR code.</p>
+   <div class="btn">I have an app — next</div>
+   <div class="help"><span>Trouble? <a>Get help</a></span></div>
+  </div>
+ </div><p class="cap2">Step 1</p></div>
+
+ <div><div class="ph">
+  <div class="top"><span class="lockup" style="font-size:14px"><svg width="24" height="24" viewBox="0 0 24 24" class="mk"></svg>Courage Library</span></div>
+  <div class="form">
+   <div class="steps"><span class="st done"><i>✓</i>Install</span><span class="ln done"></span><span class="st done"><i>✓</i>Scan</span><span class="ln done"></span><span class="st on"><i>3</i>Code</span></div>
+   <h4>Enter the code</h4>
+   <p class="sub" style="margin:0">From your authenticator app.</p>
+   <div class="otp err rel"><span class="pin" style="right:-6px;top:-12px">9</span><span>4</span><span>8</span><span>2</span><span>1</span><span>0</span><span>7</span></div>
+   <span class="emsg"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>That code didn't work. Codes change every 30 seconds — try the newest one.</span>
+   <div class="btn">Verify and finish</div>
+   <div class="btn o">← Back to scan</div>
+  </div>
+ </div><p class="cap2">Step 3 · wrong code</p></div>
+
+ <div><div class="ph">
+  <div class="top"><span class="lockup" style="font-size:14px"><svg width="24" height="24" viewBox="0 0 24 24" class="mk"></svg>Courage Library</span></div>
+  <div class="form">
+   <div style="display:flex;justify-content:center;margin-top:8px"><span style="width:64px;height:64px;border-radius:20px;background:#E7F6EF;display:flex;align-items:center;justify-content:center"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0E7A52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span></div>
+   <h4 style="text-align:center" class="rel">You're protected<span class="pin" style="right:-6px;top:-4px">10</span></h4>
+   <p class="sub" style="text-align:center;margin:0">Two-step verification is on for j•••@gmail.com. Next time you'll only need the 6-digit code.</p>
+   <div class="btn">Go to admin studio</div>
+   <p style="margin:0;text-align:center;color:#5B6070;font-size:12.5px">Tip: add a second device in your authenticator app as a backup.</p>
+  </div>
+ </div><p class="cap2">Done</p></div>
+</div>
+</section>
+
+<section>
+<h2>Changes</h2>
+<p class="lead" style="margin-bottom:12px">UI only. Supabase TOTP enrol / challenge / verify, the AAL2 rule and the MF-06 loop fix stay exactly as they are.</p>
+<ol class="legendlist">
+<li><b>1</b><div><strong>Same layout as sign-in</strong><span>Brand panel with a shield, plain-words reason and 3 reassurance points; hidden on phones.</span></div></li>
+<li><b>2</b><div><strong>Which account</strong><span>"Signed in as j•••@gmail.com" (masked) with "Not you? Sign out".</span></div></li>
+<li><b>3</b><div><strong>Our palette and type</strong><span>Two-tone Poppins heading, charcoal text, Space Blue button — replaces the old navy/blue.</span></div></li>
+<li><b>4</b><div><strong>3-step guide</strong><span>Install app → Scan code → Enter code, with done / current states in text + colour.</span></div></li>
+<li><b>5</b><div><strong>QR + setup key</strong><span>QR from Supabase enrol; the key shown grouped in 4s with a Copy button (for phones and when scanning fails). Shown only during setup.</span></div></li>
+<li><b>6</b><div><strong>Help and a real way out</strong><span>"Get help" (support email) and "Back to the site" — no more "← Admin studio" link that just loops back.</span></div></li>
+<li><b>7</b><div><strong>Quick return screen</strong><span>Already set up → one screen: 6-digit code, Verify and continue.</span></div></li>
+<li><b>8</b><div><strong>App suggestions as chips</strong><span>Google / Microsoft Authenticator, 1Password — scannable instead of a run-on sentence.</span></div></li>
+<li><b>9</b><div><strong>6-box code input</strong><span>One real input underneath (inputmode numeric, autocomplete one-time-code, paste fills all boxes); clear error in words.</span></div></li>
+<li><b>10</b><div><strong>Success state</strong><span>"You're protected" + Go to admin studio + backup tip.</span></div></li>
+</ol>
+</section>
+</div>
+
+<script>
+function rt(cx,cy,s){const W=.925,R=.21,BX=.3467,BY=.5,BH=.7155,sc=s/BH,P=[[0,0],[W,.5],[0,1]];const T=q=>[(cx+(q[0]-BX)*sc).toFixed(2),(cy+(q[1]-BY)*sc).toFixed(2)];let d='';P.forEach((p1,i)=>{const p0=P[(i+2)%3],p2=P[(i+1)%3],u=[p0[0]-p1[0],p0[1]-p1[1]],v=[p2[0]-p1[0],p2[1]-p1[1]],lu=Math.hypot(...u),lv=Math.hypot(...v),un=[u[0]/lu,u[1]/lu],vn=[v[0]/lv,v[1]/lv],th=Math.acos(un[0]*vn[0]+un[1]*vn[1]),t=R/Math.tan(th/2),A=T([p1[0]+un[0]*t,p1[1]+un[1]*t]),B=T([p1[0]+vn[0]*t,p1[1]+vn[1]*t]),r=(R*sc).toFixed(2);d+=(i?'L':'M')+A.join(' ')+` A${r} ${r} 0 0 1 `+B.join(' ')+' '});return d+'Z'}
+let n=0;const mark=(w)=>{const id='lg'+(n++),d=rt(11,11.4,18);return w?`<path d="${d}" fill="rgba(255,255,255,.5)" transform="translate(2.1 1)"/><path d="${d}" fill="#fff"/>`:`<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3FF0F7"/><stop offset="1" stop-color="#1FC9E8"/></linearGradient></defs><path d="${d}" fill="#4B00E6" transform="translate(2.1 1)"/><path d="${d}" fill="url(#${id})"/>`};
+document.querySelectorAll('.mk').forEach(e=>e.innerHTML=mark());document.getElementById('dk').innerHTML=mark(true);
+// decorative fake QR
+let s='',seed=7;const r=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+for(let y=0;y<29;y++)for(let x=0;x<29;x++){const f=(x<7&&y<7)||(x>21&&y<7)||(x<7&&y>21);if(f)continue;if(r()>.55)s+=`<rect x="${x}" y="${y}" width="1" height="1"/>`}
+const finder=(x,y)=>`<rect x="${x}" y="${y}" width="7" height="7"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3"/>`;
+document.getElementById('qr').innerHTML=`<g fill="#18191B">${s}${finder(0,0)}${finder(22,0)}${finder(0,22)}</g>`;
+</script>

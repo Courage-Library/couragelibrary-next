@@ -10,10 +10,14 @@ import { Icon } from "@/components/icons/icon";
  * border, tied to their field by aria-describedby; notices are neutral and fade after ~5 s, errors never fade.
  */
 
-export function AuthHeading({ title, sub }: { title: string; sub: string }) {
+/** ADMIN-MFA-UX-1: optional `muted` tail for the two-tone heading (slate; only Poppins 600/700 are self-hosted); without it, unchanged markup */
+export function AuthHeading({ title, sub, muted }: { title: string; sub: string; muted?: string }) {
   return (
     <header className="flex flex-col gap-1.5" data-auth-heading="">
-      <h1 className="font-heading text-[28px] font-semibold leading-tight text-cl-charcoal">{title}</h1>
+      <h1 className="font-heading text-[28px] font-semibold leading-tight text-cl-charcoal">
+        {title}
+        {muted ? <span className="text-cl-slate"> {muted}</span> : null}
+      </h1>
       <p className="text-body text-cl-slate">{sub}</p>
     </header>
   );

@@ -1,7 +1,8 @@
 import { requireAdminPage, sanitizeAdminNext } from "@/lib/auth/require-admin";
-import { Container } from "@/components/ui/layout";
 import { AdminMfaPanel } from "@/components/admin/admin-mfa-panel";
-import { isAdminMfaRequired } from "@/lib/auth/mfa";
+import { MfaAccountRow } from "@/components/admin/mfa/mfa-account";
+import { maskEmail } from "@/lib/auth/mfa-ui";
+import { footerEmail } from "@/lib/site/footer-config";
 
 export const dynamic = "force-dynamic";
 
@@ -10,20 +11,13 @@ export const dynamic = "force-dynamic";
  * may open (allowAal1) — every other admin page sends it here while ADMIN_MFA_REQUIRED is on.
  * ADMIN-MFA-LOOP-1: lives in the (admin-auth) route group (URL unchanged) so the AAL2-requiring admin layout never wraps
  * it; this guard must stay the FIRST awaited call (anonymous → login, no role → 404).
+ * ADMIN-MFA-UX-1: THE auth layout (AuthShell) with the admin panel. The account row shows the e-mail MASKED, taken from
+ * the guard's own session read (no new read); only the masked string reaches the HTML. `next` is sanitized here, as before.
  */
 export default async function AdminMfaPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  await requireAdminPage({ allowStaff: true, path: "/admin/mfa", allowAal1: true });
+  const { userEmail } = await requireAdminPage({ allowStaff: true, path: "/admin/mfa", allowAal1: true });
   const { next } = await searchParams;
-  return (
-    <Container className="flex max-w-xl flex-col gap-6 py-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-h1 font-bold text-fg">Two-step verification</h1>
-        <p className="text-body text-fg-secondary">
-          Admin and staff accounts use an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password …) in addition to the password.
-          {isAdminMfaRequired() ? " It is required for the admin studio." : " It is not required yet — set it up now so nothing breaks when it is switched on."}
-        </p>
-      </header>
-      <AdminMfaPanel next={sanitizeAdminNext(next)} />
-    </Container>
-  );
+  const masked = maskEmail(userEmail);
+  const email = footerEmail();
+  return <AdminMfaPanel next={sanitizeAdminNext(next)} maskedEmail={masked} account={<MfaAccountRow masked={masked} />} helpHref={email ? `mailto:${email}` : null} />;
 }

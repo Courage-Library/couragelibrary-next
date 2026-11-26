@@ -180,6 +180,7 @@ jobs:
           q F11-TICKETS node scripts/test_f11_tickets.cjs || fail=1
           q FLAGS-LIVE-STATIC node scripts/test_flags_live_static.cjs || fail=1
           q ADMIN-MFA node scripts/test_admin_mfa.cjs || fail=1
+          q ADMIN-MFA-UX-1 node scripts/test_admin_mfa_ux1.cjs || fail=1
           q AUTH-HARDEN-1 node scripts/test_auth_harden1.cjs || fail=1
           q PLAYER-RESUME node scripts/test_player_resume.cjs || fail=1
           q Q7-REPORT-LINK node scripts/test_q7_report_link.cjs || fail=1

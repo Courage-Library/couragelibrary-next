@@ -227,7 +227,10 @@ const outcome = async (fn) => {
     assert(!chainFor(mfaFile).some((g) => g.f === adminLayout), 'admin layout wraps /admin/mfa');
     assert(chainFor(routeTree.get('/admin/questions')).some((g) => g.f === adminLayout), 'admin layout no longer wraps /admin/questions');
     // the MFA page's own guard is still its first awaited call (anonymous → login, no role → 404)
-    assert(/^\s*await requireAdminPage\(\{ allowStaff: true, path: "\/admin\/mfa", allowAal1: true \}\);/m.test(read(mfaFile)), 'mfa page guard');
+    // (ADMIN-MFA-UX-1: the result may be destructured for the masked account — the FIRST await in the page is still the guard)
+    const pageBody = read(mfaFile).split(/export default async function \w+/)[1] || '';
+    const firstAwait = pageBody.slice(pageBody.indexOf('await ')).split(';')[0];
+    assert(/^\s*(const \{ userEmail \} = )?await requireAdminPage\(\{ allowStaff: true, path: "\/admin\/mfa", allowAal1: true \}\);/m.test(read(mfaFile)) && firstAwait === 'await requireAdminPage({ allowStaff: true, path: "/admin/mfa", allowAal1: true })', `mfa page guard (first await: ${firstAwait})`);
     // the admin layout keeps the full AAL2 rule: no allowAal1, no pathname exception
     const lay = read(adminLayout);
     assert(!/allowAal1/.test(lay) && guardOpts(adminLayout) && !guardOpts(adminLayout).allowAal1, 'admin layout must not relax AAL2');

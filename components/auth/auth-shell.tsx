@@ -20,14 +20,18 @@ export const AUTH_PANEL_TAGLINE = "Learn smarter. Prepare independently.";
 export const AUTH_PANEL_SENTENCE = "Prepare for government exams with mock tests, topic practice and a Mistake Vault that turns every wrong answer into revision.";
 export const AUTH_EARLY_ACCESS = "Free during early access.";
 
-export function AuthShell({ earlyAccess, children }: { earlyAccess: boolean; children: ReactNode }) {
+/**
+ * ADMIN-MFA-UX-1: `panel` (optional) replaces the panel's CONTENT (same frame, gradient and watermark) — used only by
+ * /admin/mfa. Without it the output is exactly the AUTH-UX-1 markup (every other auth page passes no panel).
+ */
+export function AuthShell({ earlyAccess, children, panel, panelLabel }: { earlyAccess: boolean; children: ReactNode; panel?: ReactNode; panelLabel?: string }) {
   return (
     <div className="cl-auth" data-auth-shell="">
-      <aside className="cl-auth__panel" aria-label="About Courage Library" data-auth-panel="">
+      <aside className="cl-auth__panel" aria-label={panelLabel ?? "About Courage Library"} data-auth-panel="">
         {/* decoration: the logo mark as a ≈ 12 % white watermark */}
         {/* eslint-disable-next-line @next/next/no-img-element -- a static decorative SVG of the logo suite */}
         <img className="cl-auth__mark" src="/brand/courage-library-logo-suite/svg/mark-mono-white.svg" alt="" aria-hidden="true" width={420} height={420} />
-        <div className="cl-auth__panel-in">
+        {panel ? <div className="cl-auth__panel-in">{panel}</div> : <div className="cl-auth__panel-in">
           <p className="cl-auth__tag font-heading">{AUTH_PANEL_TAGLINE}</p>
           <p className="cl-auth__sentence">{AUTH_PANEL_SENTENCE}</p>
           <ul className="cl-auth__features">
@@ -43,7 +47,7 @@ export function AuthShell({ earlyAccess, children }: { earlyAccess: boolean; chi
               {AUTH_EARLY_ACCESS}
             </p>
           )}
-        </div>
+        </div>}
       </aside>
       <div className="cl-auth__main">
         <div className="cl-auth__col">{children}</div>
